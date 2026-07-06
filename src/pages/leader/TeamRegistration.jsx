@@ -1,35 +1,39 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../auth/AuthContext'
 import { useTable } from '../../hooks/useTable'
 import { TABLES } from '../../supabase/tables'
-import { validateParticipantCount, hasDuplicateNamesWithinTeam } from '../../utils/validators'
+import { hasDuplicateNamesWithinTeam } from '../../utils/validators'
 
-const emptyParticipant = () => ({ studentName: '', gender: '', department: '', year: '' })
+const emptyParticipant = () => ({ studentName: '', email: '', gender: '', department: '', year: '' })
 
 export default function TeamRegistration() {
   const { profile } = useAuth()
   const { data: events } = useTable(TABLES.EVENTS, [['status', 'eq', 'active']])
   const [eventId, setEventId] = useState('')
-  const [participants, setParticipants] = useState([emptyParticipant()])
+  const [participants, setParticipants] = useState([])
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const selectedEvent = events.find((e) => e.id === eventId)
+  const teamSize = selectedEvent?.team_size || 0
+
+  // When event changes, reset participants to exactly team_size empty rows
+  useEffect(() => {
+    if (!teamSize) {
+      setParticipants([])
+      return
+    }
+    setParticipants(Array.from({ length: teamSize }, emptyParticipant))
+    setError('')
+    setSuccess('')
+  }, [eventId, teamSize])
 
   function updateParticipant(index, field, value) {
     const next = [...participants]
     next[index] = { ...next[index], [field]: value }
     setParticipants(next)
-  }
-
-  function addRow() {
-    setParticipants([...participants, emptyParticipant()])
-  }
-
-  function removeRow(index) {
-    setParticipants(participants.filter((_, i) => i !== index))
   }
 
   async function handleSubmit(e) {
@@ -45,12 +49,9 @@ export default function TeamRegistration() {
     const names = participants.map((p) => p.studentName.trim())
     if (names.some((n) => !n)) return setError('Every participant needs a name.')
 
-    const countError = validateParticipantCount(
-      participants.length,
-      selectedEvent.minimum_participants,
-      selectedEvent.maximum_participants
-    )
-    if (countError) return setError(countError)
+    if (participants.length !== teamSize) {
+      return setError(`This event requires exactly ${teamSize} participant(s).`)
+    }
 
     if (hasDuplicateNamesWithinTeam(names)) {
       return setError('Two participants in this team have the same name.')
@@ -58,20 +59,13 @@ export default function TeamRegistration() {
 
     setSubmitting(true)
     try {
-      // The entire flow — min/max check, one-registration-per-
-      // college-per-event guarantee, and global participant-name
-      // uniqueness — happens inside a single Postgres function
-      // (register_team, see supabase/schema.sql). Because Postgres
-      // functions run in one transaction and the uniqueness rules are
-      // enforced by real UNIQUE constraints, this is race-condition
-      // free without any client-side pre-check gymnastics — an actual
-      // improvement over the Firestore version.
       const { error: rpcError } = await supabase.rpc('register_team', {
         p_college_id: profile.college_id,
         p_leader_id: profile.ref_id,
         p_event_id: eventId,
         p_participants: participants.map((p) => ({
           studentName: p.studentName.trim(),
+          email: p.email.trim(),
           gender: p.gender,
           department: p.department,
           year: p.year,
@@ -80,9 +74,9 @@ export default function TeamRegistration() {
 
       if (rpcError) throw rpcError
 
-      setSuccess('Team registered. Waiting for admin review.')
-      setParticipants([emptyParticipant()])
+      setSuccess('Team registered successfully! Waiting for admin review.')
       setEventId('')
+      setParticipants([])
     } catch (err) {
       setError(err.message)
     } finally {
@@ -92,11 +86,13 @@ export default function TeamRegistration() {
 
   return (
     <div>
-      <h2>Team registration</h2>
+      <h2>Team Registration</h2>
       <form onSubmit={handleSubmit} className="registration-form">
-        <label className="field">
+
+        {/* Event selector */}
+        <label className="field" style={{ maxWidth: 480 }}>
           <span>Event</span>
-          <select value={eventId} onChange={(e) => setEventId(e.target.value)} required>
+          <select value={eventId} onChange={(e) => { setEventId(e.target.value) }} required>
             <option value="">Select event…</option>
             {events.map((ev) => (
               <option key={ev.id} value={ev.id}>{ev.event_name}</option>
@@ -104,48 +100,138 @@ export default function TeamRegistration() {
           </select>
         </label>
 
+        {/* Event info banner */}
         {selectedEvent && (
-          <p className="muted">
-            {selectedEvent.minimum_participants}–{selectedEvent.maximum_participants} participants · Rs. {selectedEvent.registration_fee}
-          </p>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            background: 'rgba(16,185,129,0.07)',
+            border: '1px solid rgba(16,185,129,0.25)',
+            borderRadius: 8,
+            padding: '10px 16px',
+            marginBottom: 4,
+            maxWidth: 480,
+          }}>
+            <span style={{ fontSize: 20 }}>📋</span>
+            <div>
+              <strong style={{ color: '#10b981' }}>{selectedEvent.event_name}</strong>
+              <span className="muted" style={{ marginLeft: 12, fontSize: 13 }}>
+                Team size: <strong style={{ color: '#fff' }}>{teamSize}</strong> participant{teamSize !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
         )}
 
-        <table className="data-table">
-          <thead>
-            <tr><th>Name</th><th>Gender</th><th>Department</th><th>Year</th><th></th></tr>
-          </thead>
-          <tbody>
-            {participants.map((p, i) => (
-              <tr key={i}>
-                <td><input className="input" value={p.studentName} onChange={(e) => updateParticipant(i, 'studentName', e.target.value)} required /></td>
-                <td>
-                  <select value={p.gender} onChange={(e) => updateParticipant(i, 'gender', e.target.value)}>
-                    <option value="">—</option>
-                    <option>Male</option>
-                    <option>Female</option>
-                    <option>Other</option>
-                  </select>
-                </td>
-                <td><input className="input" value={p.department} onChange={(e) => updateParticipant(i, 'department', e.target.value)} /></td>
-                <td><input className="input" value={p.year} onChange={(e) => updateParticipant(i, 'year', e.target.value)} style={{ width: 60 }} /></td>
-                <td>
-                  {participants.length > 1 && (
-                    <button type="button" className="link danger" onClick={() => removeRow(i)}>Remove</button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* Participant slots — generated from team_size */}
+        {participants.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 36 }}>#</th>
+                  <th>Name <span style={{ color: '#ef4444' }}>*</span></th>
+                  <th>Email</th>
+                  <th>Gender</th>
+                  <th>Department</th>
+                  <th>Year</th>
+                </tr>
+              </thead>
+              <tbody>
+                {participants.map((p, i) => (
+                  <tr key={i}>
+                    <td>
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        background: 'rgba(var(--accent-rgb),0.15)',
+                        color: 'var(--accent)',
+                        fontWeight: 700,
+                        fontSize: 12,
+                      }}>{i + 1}</span>
+                    </td>
+                    <td>
+                      <input
+                        className="input"
+                        value={p.studentName}
+                        onChange={(e) => updateParticipant(i, 'studentName', e.target.value)}
+                        placeholder={`Participant ${i + 1} name`}
+                        required
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="input"
+                        type="email"
+                        value={p.email || ''}
+                        onChange={(e) => updateParticipant(i, 'email', e.target.value)}
+                        placeholder="name@email.com"
+                      />
+                    </td>
+                    <td>
+                      <select value={p.gender} onChange={(e) => updateParticipant(i, 'gender', e.target.value)}>
+                        <option value="">—</option>
+                        <option>Male</option>
+                        <option>Female</option>
+                        <option>Other</option>
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        className="input"
+                        value={p.department}
+                        onChange={(e) => updateParticipant(i, 'department', e.target.value)}
+                        placeholder="Dept"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="input"
+                        value={p.year}
+                        onChange={(e) => updateParticipant(i, 'year', e.target.value)}
+                        style={{ width: 64 }}
+                        placeholder="I/II…"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-        <button type="button" className="btn" onClick={addRow}>Add participant</button>
+        {/* No event selected placeholder */}
+        {!selectedEvent && (
+          <div style={{
+            textAlign: 'center',
+            padding: '40px 20px',
+            color: 'var(--text-secondary)',
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px dashed rgba(255,255,255,0.08)',
+            borderRadius: 10,
+            marginTop: 8,
+          }}>
+            Select an event above to view the participant slots.
+          </div>
+        )}
 
         {error && <p className="error">{error}</p>}
         {success && <p className="success">{success}</p>}
 
-        <button type="submit" className="btn btn-primary" disabled={submitting}>
-          {submitting ? 'Submitting…' : 'Submit registration'}
-        </button>
+        {selectedEvent && (
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={submitting || !eventId || participants.length === 0}
+            style={{ marginTop: 8 }}
+          >
+            {submitting ? 'Submitting…' : `Submit Registration (${teamSize} participant${teamSize !== 1 ? 's' : ''})`}
+          </button>
+        )}
       </form>
     </div>
   )

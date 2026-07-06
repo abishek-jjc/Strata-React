@@ -16,14 +16,26 @@ export default function CrudManager({
   columns,
   onAfterSave,
   renderExtraActions,
+  renderExtraHeaderActions,
+  disableEdit = false,
+  customData = null,
 }) {
-  const { data, loading } = useTable(table)
+  const { data: dbData, loading } = useTable(table)
+  const data = customData || dbData
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const [alertState, setAlertState] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info',
+    onConfirm: null,
+  })
 
   const visibleColumns = columns || fields.map((f) => f.name)
 
@@ -53,8 +65,16 @@ export default function CrudManager({
   }
 
   async function handleDelete(row) {
-    if (!confirm(`Delete "${row[fields[0].name]}"? This can't be undone.`)) return
-    await supabase.from(table).delete().eq('id', row.id)
+    const targetName = row[fields[0].name] || row.college || row.college_name || 'this record'
+    setAlertState({
+      isOpen: true,
+      title: 'Confirm Delete',
+      message: `Are you sure you want to delete "${targetName}"? This action cannot be undone.`,
+      type: 'danger',
+      onConfirm: async () => {
+        await supabase.from(table).delete().eq('id', row.id)
+      }
+    })
   }
 
   async function handleSave(e) {
@@ -74,7 +94,11 @@ export default function CrudManager({
       const payload = {}
       fields.forEach((f) => {
         if (f.persist === false) return
-        payload[f.name] = form[f.name]
+        let val = form[f.name]
+        if (f.type === 'number' && val !== '' && val !== null && val !== undefined) {
+          val = Number(val)
+        }
+        payload[f.name] = val
       })
 
       if (editing) {
@@ -109,6 +133,7 @@ export default function CrudManager({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          {renderExtraHeaderActions && renderExtraHeaderActions(filtered)}
           <button className="btn" onClick={() => exportToExcel(filtered, table)}>
             Export Excel
           </button>
@@ -133,13 +158,21 @@ export default function CrudManager({
           <tbody>
             {filtered.map((row) => (
               <tr key={row.id}>
-                {visibleColumns.map((c) => (
-                  <td key={c}>{String(row[c] ?? '')}</td>
-                ))}
+                {visibleColumns.map((c) => {
+                  const field = fields.find((f) => f.name === c)
+                  let val = row[c]
+                  if (field && field.type === 'select' && field.options) {
+                    const opt = field.options.find((o) => (o.value ?? o) === val)
+                    if (opt) val = opt.label ?? opt
+                  }
+                  return <td key={c}>{String(val ?? '')}</td>
+                })}
                 <td className="row-actions">
-                  <button className="link" onClick={() => openEdit(row)}>
-                    Edit
-                  </button>
+                  {!disableEdit && (
+                    <button className="link" onClick={() => openEdit(row)}>
+                      Edit
+                    </button>
+                  )}
                   <button className="link danger" onClick={() => handleDelete(row)}>
                     Delete
                   </button>
@@ -193,7 +226,7 @@ export default function CrudManager({
                     onChange={(e) =>
                       setForm({
                         ...form,
-                        [f.name]: f.type === 'number' ? Number(e.target.value) : e.target.value,
+                        [f.name]: e.target.value,
                       })
                     }
                   />
@@ -212,6 +245,43 @@ export default function CrudManager({
           </form>
         </div>
       )}
+      {alertState.isOpen && (
+        <div className="modal-backdrop" onClick={() => setAlertState({ ...alertState, isOpen: false })}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: '400px' }}>
+            <h3 style={{ borderBottom: '1px solid var(--border)', paddingBottom: '10px', color: alertState.type === 'danger' ? 'var(--danger)' : 'var(--text-primary)' }}>
+              {alertState.title}
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: '1.5', margin: '15px 0' }}>
+              {alertState.message}
+            </p>
+            <div className="modal-actions">
+              {alertState.onConfirm ? (
+                <>
+                  <button type="button" className="btn" onClick={() => setAlertState({ ...alertState, isOpen: false })}>
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ backgroundColor: alertState.type === 'danger' ? 'var(--danger)' : 'var(--accent)', borderColor: alertState.type === 'danger' ? 'var(--danger)' : 'var(--accent)', color: alertState.type === 'danger' ? '#fff' : '#0c0e12' }}
+                    onClick={() => {
+                      alertState.onConfirm()
+                      setAlertState({ ...alertState, isOpen: false })
+                    }}
+                  >
+                    Confirm
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="btn btn-primary" onClick={() => setAlertState({ ...alertState, isOpen: false })}>
+                  OK
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+

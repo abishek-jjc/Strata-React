@@ -7,22 +7,30 @@ const baseFields = [
   { name: 'name', label: 'Name', type: 'text', required: true },
   { name: 'phone', label: 'Phone', type: 'text', required: true },
   { name: 'email', label: 'Email', type: 'text', required: true },
-  { name: 'password', label: 'Temp password (new leaders only)', type: 'text', persist: false },
+  { name: 'password', label: 'Temp password (defaults to phone)', type: 'text', persist: false },
   { name: 'department', label: 'Department', type: 'text' },
   { name: 'college_id', label: 'College', type: 'select', options: [] },
   { name: 'status', label: 'Status', type: 'select', options: ['active', 'inactive'] },
 ]
 
-// New leader → calls the create-user Edge Function, which creates the
-// Supabase Auth account and the profiles row server-side (see
-// supabase/functions/create-user/index.ts for why this can't safely
-// happen directly from the browser).
+// Provision student leader auth account and link it to the profiles table
 async function provisionLeaderAuth(form, rowId) {
-  if (!form.password) return // editing an existing leader, no new account needed
+  // Check if profile already exists for this leader
+  const { data: profile } = await supabase
+    .from(TABLES.PROFILES)
+    .select('id')
+    .eq('ref_id', rowId)
+    .maybeSingle()
+
+  if (profile) return
+
+  const password = form.password || form.phone
+  if (!password) return
+
   const { error } = await supabase.functions.invoke('create-user', {
     body: {
       email: form.email,
-      password: form.password,
+      password: password,
       role: 'leader',
       name: form.name,
       ref_id: rowId,
@@ -34,11 +42,15 @@ async function provisionLeaderAuth(form, rowId) {
 
 export default function StudentLeaders() {
   const { data: colleges } = useTable(TABLES.COLLEGES)
+  const { data: profiles } = useTable(TABLES.PROFILES)
+
   const fields = baseFields.map((f) =>
     f.name === 'college_id'
-      ? { ...f, options: colleges.map((c) => ({ value: c.id, label: c.college_name })) }
+      ? { ...f, options: colleges.map((c) => ({ value: c.id, label: c.college })) }
       : f
   )
+
+  const hasProfile = (leaderId) => profiles.some((p) => p.ref_id === leaderId)
 
   return (
     <CrudManager
@@ -47,6 +59,26 @@ export default function StudentLeaders() {
       fields={fields}
       columns={['name', 'email', 'department', 'status']}
       onAfterSave={provisionLeaderAuth}
+      renderExtraActions={(row) => {
+        if (hasProfile(row.id)) return null
+        return (
+          <button
+            className="link"
+            onClick={async () => {
+              if (!confirm(`Provision auth account for ${row.name} (using phone as password)?`)) return
+              try {
+                await provisionLeaderAuth(row, row.id)
+                alert(`Successfully provisioned auth account for ${row.name}`)
+              } catch (err) {
+                alert(`Failed to provision account: ${err.message}`)
+              }
+            }}
+          >
+            Provision
+          </button>
+        )
+      }}
     />
   )
 }
+

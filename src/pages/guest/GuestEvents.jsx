@@ -11,17 +11,27 @@ export default function GuestEvents() {
   const [activeIndex, setActiveIndex] = useState(0)
   const [paused, setPaused] = useState(false)
 
+  const [venues, setVenues] = useState([])
+  const [incharges, setIncharges] = useState([])
+
   // Keep a ref to the interval ID so we can clear it dynamically
   const intervalRef = useRef(null)
 
   useEffect(() => {
     async function loadEvents() {
-      const { data } = await supabase
+      const { data: evs } = await supabase
         .from(TABLES.EVENTS)
         .select('*')
         .eq('status', 'active')
         .order('event_name', { ascending: true })
-      if (data) setEvents(data)
+      if (evs) setEvents(evs)
+
+      const { data: vns } = await supabase.from(TABLES.VENUES).select('*')
+      if (vns) setVenues(vns)
+
+      const { data: incs } = await supabase.from(TABLES.INCHARGES).select('*')
+      if (incs) setIncharges(incs)
+
       setLoading(false)
     }
     loadEvents()
@@ -59,6 +69,8 @@ export default function GuestEvents() {
   }
 
   const activeEvent = events[activeIndex]
+  const venueName = activeEvent ? (venues.find((v) => v.id === activeEvent.venue)?.venue_name || 'TBD') : 'TBD'
+  const staffName = activeEvent ? (incharges.find((i) => i.id === activeEvent.staff_incharge)?.name || 'TBD') : 'TBD'
 
   function getInitials(name) {
     if (!name) return ''
@@ -120,15 +132,15 @@ export default function GuestEvents() {
 
                   {/* Pills row */}
                   <div className="guest-details-meta-row">
-                    {activeEvent.details && (
-                      <div className="guest-meta-pill">📍 Timings: <strong>{activeEvent.details}</strong></div>
+                    <div className="guest-meta-pill">📍 Venue: <strong>{venueName}</strong></div>
+                    {activeEvent.preliminary && (
+                      <div className="guest-meta-pill">🕒 Prelims: <strong>{activeEvent.preliminary}</strong></div>
                     )}
-                    {activeEvent.team_size && (
-                      <div className="guest-meta-pill">👥 Team Size: <strong>{activeEvent.team_size}</strong></div>
+                    {activeEvent.mains && (
+                      <div className="guest-meta-pill">🕒 Mains: <strong>{activeEvent.mains}</strong></div>
                     )}
-                    {activeEvent.staff_incharge && (
-                      <div className="guest-meta-pill">👤 Staff in-charge: <strong>{activeEvent.staff_incharge}</strong></div>
-                    )}
+                    <div className="guest-meta-pill">👥 Team Size: <strong>{activeEvent.team_size || 1} members</strong></div>
+                    <div className="guest-meta-pill">👤 Staff in-charge: <strong>{staffName}</strong></div>
                   </div>
 
                   {/* Description Section */}

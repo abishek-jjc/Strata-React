@@ -14,7 +14,7 @@ export default function PaymentCollection() {
   const [mode, setMode] = useState({})
   const [busy, setBusy] = useState(null)
 
-  const collegeName = (id) => colleges.find((c) => c.id === id)?.college_name || id
+  const collegeName = (id) => colleges.find((c) => c.id === id)?.college || id
   const eventInfo = (id) => events.find((e) => e.id === id)
   const leaderName = (id) => leaders.find((l) => l.id === id)?.name || id
 
@@ -26,7 +26,7 @@ export default function PaymentCollection() {
     try {
       await supabase.from(TABLES.PAYMENTS).insert({
         registration_id: reg.id,
-        amount: event.registration_fee,
+        amount: 0,
         payment_mode: paymentMode,
         receipt_no: receiptNo,
       })
@@ -40,7 +40,7 @@ export default function PaymentCollection() {
         collegeName: collegeName(reg.college_id),
         eventName: event.event_name,
         leaderName: leaderName(reg.leader_id),
-        amount: event.registration_fee,
+        amount: 0,
         paymentMode,
         date: new Date().toLocaleDateString(),
       })
@@ -61,7 +61,7 @@ export default function PaymentCollection() {
             <tr key={reg.id}>
               <td>{collegeName(reg.college_id)}</td>
               <td>{eventInfo(reg.event_id)?.event_name}</td>
-              <td>Rs. {eventInfo(reg.event_id)?.registration_fee}</td>
+              <td>Free</td>
               <td>
                 <select value={mode[reg.id] || 'Cash'} onChange={(e) => setMode({ ...mode, [reg.id]: e.target.value })}>
                   <option>Cash</option>

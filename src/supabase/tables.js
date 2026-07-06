@@ -15,6 +15,10 @@ export const TABLES = {
   LEADERS: 'leaders',
   RULES: 'rules',
   SETTINGS: 'settings',
+  VENUES: 'venues',
+  WINNERS: 'winners',
+  PAYMENT_POLLS: 'payment_polls',
+  PAYMENT_LOGS: 'payment_logs',
 }
 
 // Registration status pipeline — mirrors the CHECK constraint on

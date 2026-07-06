@@ -8,6 +8,10 @@ export default function Settings() {
   const [invTagline, setInvTagline] = useState('')
   const [invBody, setInvBody] = useState('')
   const [invPdfUrl, setInvPdfUrl] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [contactPhone, setContactPhone] = useState('')
+  const [contactAddress, setContactAddress] = useState('')
+  const [contactExtra, setContactExtra] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [uploadingPdf, setUploadingPdf] = useState(false)
@@ -29,6 +33,10 @@ export default function Settings() {
             if (row.key_name === 'invitation_tagline') setInvTagline(row.value)
             if (row.key_name === 'invitation_body') setInvBody(row.value)
             if (row.key_name === 'invitation_pdf_url') setInvPdfUrl(row.value)
+            if (row.key_name === 'contact_email') setContactEmail(row.value)
+            if (row.key_name === 'contact_phone') setContactPhone(row.value)
+            if (row.key_name === 'contact_address') setContactAddress(row.value)
+            if (row.key_name === 'contact_extra') setContactExtra(row.value)
           })
         }
       } catch (err) {
@@ -53,6 +61,10 @@ export default function Settings() {
         { key_name: 'invitation_title', value: invTitle },
         { key_name: 'invitation_tagline', value: invTagline },
         { key_name: 'invitation_body', value: invBody },
+        { key_name: 'contact_email', value: contactEmail },
+        { key_name: 'contact_phone', value: contactPhone },
+        { key_name: 'contact_address', value: contactAddress },
+        { key_name: 'contact_extra', value: contactExtra },
       ])
 
       if (upsertError) throw upsertError
@@ -201,6 +213,53 @@ export default function Settings() {
             </div>
           )}
         </div>
+
+        <h3 style={{ fontSize: '1.2rem', color: 'var(--accent)', marginTop: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+          Contact Us Page Settings
+        </h3>
+
+        <label className="field">
+          <span>Contact Email Address</span>
+          <input
+            type="email"
+            placeholder="e.g. cs@anjaconline.org"
+            value={contactEmail}
+            onChange={(e) => setContactEmail(e.target.value)}
+            required
+          />
+        </label>
+
+        <label className="field">
+          <span>Contact Mobile Number</span>
+          <input
+            type="text"
+            placeholder="e.g. +91 98765 43210"
+            value={contactPhone}
+            onChange={(e) => setContactPhone(e.target.value)}
+            required
+          />
+        </label>
+
+        <label className="field">
+          <span>Contact Address</span>
+          <textarea
+            rows={3}
+            placeholder="e.g. Department of Computer Science, ANJAC, Sivakasi"
+            value={contactAddress}
+            onChange={(e) => setContactAddress(e.target.value)}
+            required
+          />
+        </label>
+
+        <label className="field">
+          <span>Extra Coordinator Details (e.g. HOD / Venue In-charge)</span>
+          <input
+            type="text"
+            placeholder="e.g. Venue Coordinator: Dr. V. Venkatesh Babu (HOD, CS Dept.)"
+            value={contactExtra}
+            onChange={(e) => setContactExtra(e.target.value)}
+          />
+        </label>
 
         {error && <p className="error">{error}</p>}
         {message && <p className="success">{message}</p>}

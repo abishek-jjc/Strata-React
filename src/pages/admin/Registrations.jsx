@@ -8,18 +8,60 @@ export default function Registrations() {
   const { data: colleges } = useTable(TABLES.COLLEGES)
   const { data: events } = useTable(TABLES.EVENTS)
   const { data: lots } = useTable(TABLES.LOTS)
-  const [lotChoice, setLotChoice] = useState({})
 
-  const collegeName = (id) => colleges.find((c) => c.id === id)?.college_name || id
+  // Edit / Delete and custom alert states
+  const [editingReg, setEditingReg] = useState(null)
+  const [editStatus, setEditStatus] = useState('')
+  const [editLotId, setEditLotId] = useState('')
+  const [alertState, setAlertState] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info',
+    onConfirm: null,
+  })
+
+  const collegeName = (id) => colleges.find((c) => c.id === id)?.college || id
   const eventName = (id) => events.find((e) => e.id === id)?.event_name || id
 
+  const showAlert = (title, message, type = 'info', onConfirm = null) => {
+    setAlertState({
+      isOpen: true,
+      title,
+      message,
+      type,
+      onConfirm,
+    })
+  }
+
   async function assignLot(reg) {
-    const lot_id = lotChoice[reg.id]
-    if (!lot_id) return
-    await supabase
+    const cName = collegeName(reg.college_id)
+    const lot = lots.find((l) => !l.is_assigned)
+    if (!lot) {
+      showAlert('No Unallocated Lots', 'All lots are currently assigned.', 'info')
+      return
+    }
+    
+    // Assign lot to this college
+    const { error: lotErr } = await supabase
+      .from(TABLES.LOTS)
+      .update({ is_assigned: true, assigned_college: cName })
+      .eq('id', lot.id)
+
+    if (lotErr) {
+      showAlert('Error', 'Failed to allocate lot: ' + lotErr.message, 'info')
+      return
+    }
+
+    // Update status to lot_assigned
+    const { error: regErr } = await supabase
       .from(TABLES.REGISTRATIONS)
-      .update({ lot_id, status: REGISTRATION_STATUS.LOT_ASSIGNED })
+      .update({ status: REGISTRATION_STATUS.LOT_ASSIGNED })
       .eq('id', reg.id)
+
+    if (regErr) {
+      showAlert('Error', 'Failed to update registration status: ' + regErr.message, 'info')
+    }
   }
 
   async function approve(reg) {
@@ -30,11 +72,50 @@ export default function Registrations() {
   }
 
   async function reject(reg) {
-    if (!confirm('Reject this registration?')) return
-    await supabase
+    showAlert(
+      'Confirm Rejection',
+      `Are you sure you want to reject the registration for "${collegeName(reg.college_id)}"?`,
+      'danger',
+      async () => {
+        await supabase
+          .from(TABLES.REGISTRATIONS)
+          .update({ status: REGISTRATION_STATUS.REJECTED })
+          .eq('id', reg.id)
+      }
+    )
+  }
+
+  function openEdit(reg) {
+    setEditingReg(reg)
+    setEditStatus(reg.status)
+  }
+
+  async function handleSaveEdit(e) {
+    e.preventDefault()
+    const { error } = await supabase
       .from(TABLES.REGISTRATIONS)
-      .update({ status: REGISTRATION_STATUS.REJECTED })
-      .eq('id', reg.id)
+      .update({ status: editStatus })
+      .eq('id', editingReg.id)
+
+    if (error) {
+      showAlert('Update Failed', 'Error updating registration: ' + error.message, 'info')
+    } else {
+      setEditingReg(null)
+    }
+  }
+
+  async function deleteRegistration(reg) {
+    showAlert(
+      'Confirm Delete Registration',
+      `Are you sure you want to delete the registration for "${collegeName(reg.college_id)}" - "${eventName(reg.event_id)}"? This will also delete all associated participant records.`,
+      'danger',
+      async () => {
+        const { error } = await supabase.from(TABLES.REGISTRATIONS).delete().eq('id', reg.id)
+        if (error) {
+          showAlert('Delete Failed', 'Failed to delete registration: ' + error.message, 'info')
+        }
+      }
+    )
   }
 
   if (loading) return <p className="muted">Loading…</p>
@@ -53,44 +134,108 @@ export default function Registrations() {
           </tr>
         </thead>
         <tbody>
-          {registrations.map((reg) => (
-            <tr key={reg.id}>
-              <td>{collegeName(reg.college_id)}</td>
-              <td>{eventName(reg.event_id)}</td>
-              <td><span className={`badge badge-${reg.status}`}>{reg.status}</span></td>
-              <td>
-                {reg.status === REGISTRATION_STATUS.PENDING ? (
-                  <select
-                    value={lotChoice[reg.id] || ''}
-                    onChange={(e) => setLotChoice({ ...lotChoice, [reg.id]: e.target.value })}
-                  >
-                    <option value="">Select lot…</option>
-                    {lots.filter((l) => l.event_id === reg.event_id).map((l) => (
-                      <option key={l.id} value={l.id}>{l.lot_name}</option>
-                    ))}
-                  </select>
-                ) : (
-                  lots.find((l) => l.id === reg.lot_id)?.lot_name || '—'
-                )}
-              </td>
-              <td className="row-actions">
-                {reg.status === REGISTRATION_STATUS.PENDING && (
-                  <button className="link" onClick={() => assignLot(reg)}>Assign lot</button>
-                )}
-                {reg.status === REGISTRATION_STATUS.PAID && (
-                  <button className="link" onClick={() => approve(reg)}>Approve</button>
-                )}
-                {reg.status !== REGISTRATION_STATUS.APPROVED && reg.status !== REGISTRATION_STATUS.REJECTED && (
-                  <button className="link danger" onClick={() => reject(reg)}>Reject</button>
-                )}
-              </td>
-            </tr>
-          ))}
+          {registrations.map((reg) => {
+            const cName = collegeName(reg.college_id)
+            const collegeLot = lots.find((l) => l.assigned_college === cName)
+            return (
+              <tr key={reg.id}>
+                <td>{cName}</td>
+                <td>{eventName(reg.event_id)}</td>
+                <td><span className={`badge badge-${reg.status}`}>{reg.status}</span></td>
+                <td>
+                  {collegeLot ? (
+                    <strong>{collegeLot.lot_name}</strong>
+                  ) : (
+                    <span className="muted" style={{ fontSize: '0.85rem' }}>No lot assigned</span>
+                  )}
+                </td>
+                <td className="row-actions">
+                  {reg.status === REGISTRATION_STATUS.PENDING && (
+                    <button className="link" onClick={() => assignLot(reg)}>Assign lot</button>
+                  )}
+                  {reg.status === REGISTRATION_STATUS.PAID && (
+                    <button className="link" onClick={() => approve(reg)}>Approve</button>
+                  )}
+                  <button className="link" onClick={() => openEdit(reg)}>Edit</button>
+                  <button className="link danger" onClick={() => deleteRegistration(reg)}>Delete</button>
+                </td>
+              </tr>
+            )
+          })}
           {registrations.length === 0 && (
             <tr><td colSpan={5} className="muted">No registrations yet.</td></tr>
           )}
         </tbody>
       </table>
+
+      {/* Edit Registration Modal Form */}
+      {editingReg && (
+        <div className="modal-backdrop" onClick={() => setEditingReg(null)}>
+          <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSaveEdit}>
+            <h3>Edit Registration</h3>
+            
+            <label className="field">
+              <span>Status</span>
+              <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)}>
+                <option value="pending">Pending</option>
+                <option value="lot_assigned">Lot Assigned</option>
+                <option value="paid">Paid</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </label>
+
+            <div className="modal-actions">
+              <button type="button" className="btn" onClick={() => setEditingReg(null)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary">
+                Save
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Custom Alert/Confirmation Modal */}
+      {alertState.isOpen && (
+        <div className="modal-backdrop" onClick={() => setAlertState({ ...alertState, isOpen: false })}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: '400px' }}>
+            <h3 style={{ borderBottom: '1px solid var(--border)', paddingBottom: '10px', color: alertState.type === 'danger' ? 'var(--danger)' : 'var(--text-primary)' }}>
+              {alertState.title}
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: '1.5', margin: '15px 0' }}>
+              {alertState.message}
+            </p>
+            <div className="modal-actions">
+              {alertState.onConfirm ? (
+                <>
+                  <button type="button" className="btn" onClick={() => setAlertState({ ...alertState, isOpen: false })}>
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ backgroundColor: alertState.type === 'danger' ? 'var(--danger)' : 'var(--accent)', borderColor: alertState.type === 'danger' ? 'var(--danger)' : 'var(--accent)', color: alertState.type === 'danger' ? '#fff' : '#0c0e12' }}
+                    onClick={() => {
+                      alertState.onConfirm()
+                      setAlertState({ ...alertState, isOpen: false })
+                    }}
+                  >
+                    Confirm
+                  </button>
+                </>
+              ) : (
+                <button type="button" className="btn btn-primary" onClick={() => setAlertState({ ...alertState, isOpen: false })}>
+                  OK
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
+

@@ -1,0 +1,257 @@
+import { useState } from 'react'
+import { supabase } from '../../supabase/client'
+import { TABLES } from '../../supabase/tables'
+import { useTable } from '../../hooks/useTable'
+
+import { useEffect } from 'react'
+
+export default function PaymentPolls() {
+  const { data: polls, loading: pollsLoading } = useTable(TABLES.PAYMENT_POLLS)
+  const { data: logs, loading: logsLoading } = useTable(TABLES.PAYMENT_LOGS)
+  const { data: settings, loading: settingsLoading } = useTable(TABLES.SETTINGS)
+
+  const [pollName, setPollName] = useState('')
+  const [pollKey, setPollKey] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [error, setError] = useState('')
+
+  // Fee state
+  const [feePerStudent, setFeePerStudent] = useState('100')
+  const [savingFee, setSavingFee] = useState(false)
+  const [feeSuccess, setFeeSuccess] = useState(false)
+
+  const loading = pollsLoading || logsLoading || settingsLoading
+
+  // Initialize fee from settings
+  useEffect(() => {
+    if (settings) {
+      const match = settings.find((s) => s.key_name === 'fee_per_student')
+      if (match) setFeePerStudent(match.value)
+    }
+  }, [settings])
+
+  async function handleSaveFee(e) {
+    e.preventDefault()
+    setSavingFee(true)
+    setFeeSuccess(false)
+    try {
+      const { error } = await supabase
+        .from(TABLES.SETTINGS)
+        .upsert({ key_name: 'fee_per_student', value: String(Number(feePerStudent)) })
+      if (error) throw error
+      setFeeSuccess(true)
+      setTimeout(() => setFeeSuccess(false), 2000)
+    } catch (err) {
+      alert('Failed to save fee: ' + err.message)
+    } finally {
+      setSavingFee(false)
+    }
+  }
+
+  // Generate a random 6-character key (excluding ambiguous chars like I, O, 1, 0)
+  function handleGenerateKey() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    let res = ''
+    for (let i = 0; i < 6; i++) {
+      res += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    setPollKey(res)
+  }
+
+  async function handleAddPoll(e) {
+    e.preventDefault()
+    if (!pollKey) {
+      return setError('Please generate a poll key first.')
+    }
+    setError('')
+    setAdding(true)
+    try {
+      const { error: err } = await supabase.from(TABLES.PAYMENT_POLLS).insert({
+        poll_name: pollName.trim(),
+        poll_key: pollKey,
+      })
+      if (err) throw err
+      setPollName('')
+      setPollKey('')
+      window.location.reload()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  async function handleDeletePoll(id) {
+    if (!confirm('Are you sure you want to delete this payment poll desk? Keys for this desk will instantly expire.')) return
+    try {
+      const { error } = await supabase.from(TABLES.PAYMENT_POLLS).delete().eq('id', id)
+      if (error) throw error
+      window.location.reload()
+    } catch (err) {
+      alert('Failed to delete poll: ' + err.message)
+    }
+  }
+
+  if (loading) return <p className="muted">Loading payment desks and audit logs...</p>
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '40px' }}>
+      
+      {/* Top: Manage active payment polls */}
+      <div>
+        <h2>Payment Poll Desks</h2>
+        <p className="muted" style={{ marginBottom: '20px' }}>
+          Create secure, temporary access keycodes for operator desks at spot registration counters.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '30px', alignItems: 'start' }}>
+          
+          {/* Active Polls Table */}
+          <div className="card">
+            <h3 style={{ marginTop: 0, marginBottom: '15px' }}>Active Operator Desks</h3>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Desk Name</th>
+                  <th>Keycode</th>
+                  <th>Created At</th>
+                  <th style={{ width: '80px' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {polls.map((p) => (
+                  <tr key={p.id}>
+                    <td><strong>{p.poll_name}</strong></td>
+                    <td>
+                      <code style={{ fontSize: '1rem', color: 'var(--accent)', fontWeight: 'bold' }}>{p.poll_key}</code>
+                    </td>
+                    <td>{new Date(p.created_at).toLocaleString()}</td>
+                    <td>
+                      <button className="link link-danger" onClick={() => handleDeletePoll(p.id)}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {polls.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
+                      No active payment poll desks created.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Add Poll Form & Config */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <form className="card" onSubmit={handleAddPoll} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '5px' }}>Create Desk Key</h3>
+              
+              <label className="field">
+                <span>Desk Name</span>
+                <input
+                  className="input"
+                  placeholder="e.g. Spot Counter 1"
+                  value={pollName}
+                  onChange={(e) => setPollName(e.target.value)}
+                  required
+                />
+              </label>
+
+              <label className="field">
+                <span>Access Keycode</span>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <input
+                    className="input"
+                    style={{ fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center' }}
+                    placeholder="Click Generate"
+                    value={pollKey}
+                    readOnly
+                    required
+                  />
+                  <button type="button" className="btn" onClick={handleGenerateKey}>
+                    Generate
+                  </button>
+                </div>
+              </label>
+
+              {error && <p className="error" style={{ margin: 0 }}>{error}</p>}
+
+              <button type="submit" className="btn btn-primary" disabled={adding}>
+                {adding ? 'Creating…' : 'Activate Desk Key'}
+              </button>
+            </form>
+
+            <form className="card" onSubmit={handleSaveFee} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '5px' }}>Fee Configuration</h3>
+              
+              <label className="field">
+                <span>Fee Per Student (Rs.)</span>
+                <input
+                  className="input"
+                  type="number"
+                  placeholder="e.g. 100"
+                  value={feePerStudent}
+                  onChange={(e) => setFeePerStudent(e.target.value)}
+                  required
+                />
+              </label>
+
+              <button type="submit" className="btn btn-primary" disabled={savingFee}>
+                {savingFee ? 'Saving…' : 'Save Config'}
+              </button>
+
+              {feeSuccess && (
+                <p style={{ color: 'var(--success)', fontSize: '0.85rem', margin: 0, fontWeight: 'bold' }}>
+                  ✓ Configuration saved
+                </p>
+              )}
+            </form>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Bottom: Payment Logs Audit View */}
+      <div>
+        <h2>Payment Clearance Logs</h2>
+        <p className="muted" style={{ marginBottom: '20px' }}>
+          Realtime audit of colleges marked paid, showing which operator desk issued the clearance.
+        </p>
+
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Operator Desk</th>
+              <th>College Cleared</th>
+              <th>Clearing Desk ID</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map((log) => (
+              <tr key={log.id}>
+                <td><strong>{log.poll_name}</strong></td>
+                <td>
+                  <span className="badge badge-approved" style={{ fontSize: '0.85rem' }}>✓ {log.college_name}</span>
+                </td>
+                <td className="muted">{log.poll_id || 'Desk deleted'}</td>
+                <td>{new Date(log.created_at).toLocaleString()}</td>
+              </tr>
+            ))}
+            {logs.length === 0 && (
+              <tr>
+                <td colSpan={4} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
+                  No payment clearance activities logged yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  )
+}

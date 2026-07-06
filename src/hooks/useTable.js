@@ -29,8 +29,11 @@ export function useTable(table, filters = []) {
 
     // Any change on the table triggers a refetch. Simpler than
     // patching local state per-event, and plenty fast at this scale.
+    // Use a unique channel name per hook instance to prevent cache collisions
+    // when subscribing to the same table in multiple places or during React 18's double-mount.
+    const subId = Math.random().toString(36).substring(2, 10)
     const channel = supabase
-      .channel(`realtime:${table}:${JSON.stringify(filters)}`)
+      .channel(`realtime:${table}:${subId}:${JSON.stringify(filters)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table }, load)
       .subscribe()
 

@@ -40,6 +40,19 @@ export default function GuestRegister() {
   const [warningText, setWarningText] = useState('')
   const [submitDisabled, setSubmitDisabled] = useState(false)
 
+  const [showQrScanPrompt, setShowQrScanPrompt] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const collegeParam = params.get('college')
+    const deptParam = params.get('department')
+    if (collegeParam) setCollegeName(collegeParam)
+    if (deptParam) setLeaderDept(deptParam)
+    if (!collegeParam || !deptParam) {
+      setShowQrScanPrompt(true)
+    }
+  }, [location.search])
+
   useEffect(() => {
     async function loadData() {
       // 1. Fetch active events
@@ -66,7 +79,7 @@ export default function GuestRegister() {
         let totalLimit = 0
         const initialParts = {}
         eventsData.forEach(e => {
-          const cap = e.maximum_participants || 1
+          const cap = e.team_size || 1
           totalLimit += cap
           
           initialParts[e.id] = Array.from({ length: cap }, () => ({
@@ -173,8 +186,8 @@ export default function GuestRegister() {
         // Filter out empty rows
         const filled = list.filter(p => p.studentName.trim() !== '')
         
-        if (filled.length < event.minimum_participants) {
-          setError(`Event "${event.event_name}" requires at least ${event.minimum_participants} participant(s).`)
+        if (filled.length !== event.team_size) {
+          setError(`Event "${event.event_name}" requires exactly ${event.team_size} participant(s) — currently you have entered ${filled.length}.`)
           return
         }
 
@@ -197,7 +210,7 @@ export default function GuestRegister() {
 
     setSubmitting(true)
     try {
-      const { error: rpcError } = await supabase.rpc('register_guest_team', {
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('register_guest_team', {
         p_leader_name: leaderName,
         p_email: leaderEmail,
         p_phone: leaderPhone,
@@ -214,6 +227,34 @@ export default function GuestRegister() {
 
       if (rpcError) throw rpcError
 
+      // Retrieve out_leader_id and out_college_id returned by register_guest_team
+      const { out_leader_id, out_college_id } = rpcResult?.[0] || {}
+
+      if (out_leader_id) {
+        // Automatically create auth account using email and mobile number as password
+        try {
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email: leaderEmail,
+            password: leaderPhone,
+          })
+          if (signUpError) throw signUpError
+
+          if (signUpData?.user) {
+            // Call RPC to bypass RLS and create profile row linked to student leader
+            const { error: profileError } = await supabase.rpc('create_leader_profile', {
+              p_user_id: signUpData.user.id,
+              p_ref_id: out_leader_id,
+              p_college_id: out_college_id,
+              p_name: leaderName,
+            })
+            if (profileError) throw profileError
+          }
+        } catch (authErr) {
+          console.error('Auto-provisioning auth account failed:', authErr)
+          alert('Leader auth account creation failed: ' + authErr.message + '\n(Your registration is saved but you might not be able to log in yet.)')
+        }
+      }
+
       setSuccessMessage('Your college team has been successfully registered. Please verify payment at the spot desk.')
       
       // Reset Form State
@@ -229,7 +270,7 @@ export default function GuestRegister() {
       // Reset participant slots
       const initialParts = {}
       events.forEach(e => {
-        initialParts[e.id] = Array.from({ length: e.maximum_participants || 1 }, () => ({
+        initialParts[e.id] = Array.from({ length: e.team_size || 1 }, () => ({
           studentName: '',
           year: '',
           email: ''
@@ -358,9 +399,10 @@ export default function GuestRegister() {
                   <input 
                     type="text" 
                     required 
-                    placeholder="e.g. III BCA / II MSc CS" 
+                    readOnly
+                    style={{ backgroundColor: 'rgba(255,255,255,0.02)', cursor: 'not-allowed', opacity: 0.8 }}
+                    placeholder="Auto-filled via QR Code scan" 
                     value={leaderDept}
-                    onChange={(e) => setLeaderDept(e.target.value)}
                   />
                 </label>
               </div>
@@ -370,9 +412,10 @@ export default function GuestRegister() {
                   <input 
                     type="text" 
                     required 
-                    placeholder="e.g. Ayya Nadar Janaki Ammal College" 
+                    readOnly
+                    style={{ backgroundColor: 'rgba(255,255,255,0.02)', cursor: 'not-allowed', opacity: 0.8 }}
+                    placeholder="Auto-filled via QR Code scan" 
                     value={collegeName}
-                    onChange={(e) => setCollegeName(e.target.value)}
                   />
                 </label>
               </div>
@@ -404,11 +447,11 @@ export default function GuestRegister() {
                   {activeEvent && (
                     <div className="guest-event-panel-wrapper">
                       <div style={{ marginBottom: '12px', fontSize: '0.95rem', color: 'var(--g-secondary)', fontWeight: '600' }}>
-                        Event: <span style={{ color: 'var(--g-text)' }}>{activeEvent.event_name}</span> (Allowed size: {activeEvent.team_size || `${activeEvent.minimum_participants}-${activeEvent.maximum_participants} members`})
+                        Event: <span style={{ color: 'var(--g-text)' }}>{activeEvent.event_name}</span> (Allowed size: {activeEvent.team_size} members)
                       </div>
 
                       <div className="guest-sub-team-inputs-container">
-                        {Array.from({ length: activeEvent.maximum_participants || 1 }).map((_, idx) => {
+                        {Array.from({ length: activeEvent.team_size || 1 }).map((_, idx) => {
                           const pData = participants[activeEvent.id]?.[idx] || { studentName: '', year: '', email: '' }
                           const isRequired = idx === 0 && isTabFilled(activeEvent.id)
                           const leftColor = borderColors[idx % borderColors.length]
@@ -544,6 +587,24 @@ export default function GuestRegister() {
       <div className={`guest-sticky-counter-badge ${uniqueCount > maxAllowedLimit ? 'warning' : ''}`} id="counterBadge">
         Unique Team Members: <span>{uniqueCount}</span> / <span>{maxAllowedLimit}</span>
       </div>
+
+      {/* QR Code Scan Prompt Modal Overlay */}
+      {showQrScanPrompt && (
+        <div className="guest-success-overlay" style={{ backdropFilter: 'blur(20px)', zIndex: 1000 }}>
+          <div className="guest-success-card guest-glass-panel" style={{ maxWidth: '480px', textAlign: 'center', padding: '40px' }}>
+            <div className="guest-success-icon" style={{ background: 'rgba(255, 23, 68, 0.1)', color: 'var(--g-accent)', border: '1px solid rgba(255, 23, 68, 0.2)' }}>🛈</div>
+            <h2>Scan Invitation QR</h2>
+            <p style={{ color: 'var(--g-text-muted)', fontSize: '0.95rem', margin: '20px 0', lineHeight: '1.6' }}>
+              Registrations are restricted. Please scan the QR code printed on your official manual invitation letter to access the registration form.
+            </p>
+            <div style={{ marginTop: '25px' }}>
+              <button onClick={() => navigate('/')} className="guest-btn guest-btn-secondary" style={{ width: '100%' }}>
+                Return to Homepage
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </GuestLayout>
   )
 }

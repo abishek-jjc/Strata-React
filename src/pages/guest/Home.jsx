@@ -5,7 +5,6 @@ import { TABLES } from '../../supabase/tables'
 import GuestLayout from '../../components/layout/GuestLayout'
 
 export default function Home() {
-  const [leaders, setLeaders] = useState([])
   const [eventDate, setEventDate] = useState('2026-09-25T09:00:00')
   const [invTitle, setInvTitle] = useState('You Are Cordially Invited')
   const [invTagline, setInvTagline] = useState('STRATA 2K26 — State Level Intercollegiate Technical Meet, ANJAC Sivakasi')
@@ -16,15 +15,8 @@ export default function Home() {
   const [timeLeft, setTimeLeft] = useState({ days: '00', hours: '00', minutes: '00', seconds: '00' })
 
   useEffect(() => {
-    // Fetch settings and leaders
+    // Fetch settings and event count
     async function loadData() {
-      // Leaders
-      const { data: leadersData } = await supabase
-        .from(TABLES.LEADERS)
-        .select('*')
-        .order('created_at', { ascending: true })
-      if (leadersData) setLeaders(leadersData)
-
       // Settings
       const { data: settingsData } = await supabase
         .from(TABLES.SETTINGS)
@@ -95,8 +87,8 @@ export default function Home() {
         </p>
 
         <div className="guest-cta-container">
-          <Link to="/register" className="guest-btn guest-btn-primary">
-            Register College Team →
+          <Link to="/login" className="guest-btn guest-btn-primary">
+            Login Portal →
           </Link>
           <Link to="/events" className="guest-btn guest-btn-secondary">
             Explore Contests
@@ -125,7 +117,7 @@ export default function Home() {
       </section>
 
       {/* Invitation Section */}
-      <section className="guest-section" id="invitation" style={{ paddingTop: 0 }}>
+      <section className="guest-section" id="invitation" style={{ paddingTop: 0, paddingBottom: '60px' }}>
         <div className="guest-glass-panel guest-invitation-container" style={{ margin: '0 auto' }}>
           <h2 className="guest-inv-title">{invTitle}</h2>
           <p className="guest-inv-tagline">{invTagline}</p>
@@ -145,97 +137,14 @@ export default function Home() {
               <Link to="/invitation" style={{ padding: '12px 24px', borderRadius: '50px', border: '1px solid var(--g-glass-border)', color: 'var(--g-secondary)', textDecoration: 'none', fontWeight: '600', fontSize: '0.9rem' }}>
                 View Full Invitation
               </Link>
-              <Link to="/register" className="guest-btn guest-btn-primary" style={{ padding: '12px 28px', fontSize: '0.9rem' }}>
-                Register Now →
+              <Link to="/login" className="guest-btn guest-btn-primary" style={{ padding: '12px 28px', fontSize: '0.9rem' }}>
+                Login Portal →
               </Link>
             </div>
           </div>
         </div>
       </section>
-
-      {/* About Section */}
-      <section className="guest-section" id="about">
-        <div className="guest-section-header">
-          <span className="guest-section-tag">A Legacy of Light</span>
-          <h2 className="guest-section-title">The College</h2>
-        </div>
-        <div className="guest-about-grid">
-          <div className="guest-college-highlight guest-glass-panel">
-            <h3>ANJAC Sivakasi</h3>
-            <div className="guest-highlight-item">
-              <div className="guest-highlight-icon">★</div>
-              <div className="guest-highlight-text">
-                <h4>Estd. 1963</h4>
-                <p>Founded by Thiru. P. Ayya Nadar and Thirumathi A. Janaki Ammal to cater to rural education needs.</p>
-              </div>
-            </div>
-            <div className="guest-highlight-item">
-              <div className="guest-highlight-icon">★</div>
-              <div className="guest-highlight-text">
-                <h4>College of Excellence</h4>
-                <p>Conferred with the prestigious "College of Excellence" status by the UGC.</p>
-              </div>
-            </div>
-            <div className="guest-highlight-item">
-              <div className="guest-highlight-icon">★</div>
-              <div className="guest-highlight-text">
-                <h4>Sprawling 150+ Acres</h4>
-                <p>State-of-the-art campus infrastructure located on the Sivakasi-Srivilliputhur highway.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="guest-about-content">
-            <h3>Academic Eminence</h3>
-            <p>
-              Ayya Nadar Janaki Ammal College (ANJAC), established in 1963, stands as a beacon of academic excellence in Southern Tamil Nadu. As an autonomous institution affiliated with Madurai Kamaraj University, the college has earned wide repute for its rigorous training, moral values, and research activities.
-            </p>
-            <p>
-              Nurtured by the Janaki Ammal Ayya Nadar Trust and P. Iya Nadar Charitable Trust, the institution has successfully evolved into a multi-disciplinary campus offering diverse UG, PG, and doctoral programs, consistently achieving top scores in NAAC accreditation cycles.
-            </p>
-            <a href="https://www.anjaconline.org" target="_blank" rel="noopener noreferrer" className="guest-btn guest-btn-secondary">
-              Visit College Portal
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Leadership Messages */}
-      <section className="guest-section" id="leaders">
-        <div className="guest-section-header">
-          <span className="guest-section-tag">Visionary Guides</span>
-          <h2 className="guest-section-title">Our Leaders</h2>
-        </div>
-        <div className="guest-leaders-grid">
-          {leaders.map((leader) => (
-            <div className="guest-leader-card guest-glass-panel" key={leader.id}>
-              <div className="guest-leader-header">
-                <div className="guest-leader-avatar">
-                  {leader.name.split(' ')
-                    .filter(w => !['dr.', 'mr.', 'ms.'].includes(w.toLowerCase()))
-                    .map(w => w[0]).join('').substring(0, 2).toUpperCase()}
-                </div>
-                <div className="guest-leader-meta">
-                  <h3>{leader.name}</h3>
-                  <h4>{leader.position}</h4>
-                  <p>Ayya Nadar Janaki Ammal College</p>
-                </div>
-              </div>
-              <p className="guest-leader-quote">
-                {leader.description}
-              </p>
-              <span className="guest-leader-badge">
-                {leader.position.toLowerCase().includes('principal') ? 'Patron' : 'Convener'}
-              </span>
-            </div>
-          ))}
-          {leaders.length === 0 && (
-            <p className="muted" style={{ gridColumn: '1/-1', textAlign: 'center' }}>
-              No messages loaded yet.
-            </p>
-          )}
-        </div>
-      </section>
     </GuestLayout>
   )
 }
+

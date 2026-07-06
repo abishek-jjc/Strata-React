@@ -120,7 +120,7 @@ values ('10000000-0000-0000-0000-000000000001', 'Strata Admin', 'admin@example.c
 -- ------------------------------------------------------------------------
 -- 4. Insert into public.colleges
 -- ------------------------------------------------------------------------
-insert into public.colleges (id, college_name, department, phone, email, address, security_token, status)
+insert into public.colleges (id, college, department, phone, email, address, security_token, status)
 values ('40000000-0000-0000-0000-000000000001', 'Alpha College of Engineering', 'Computer Science', '123-456-7890', 'contact@alphacollege.edu', '123 Tech Way, Engineering City', 'tok_alpha_789', 'active');
 
 -- ------------------------------------------------------------------------
@@ -295,8 +295,8 @@ Formal attire is mandatory. Participants must submit their Resume.',
 -- ------------------------------------------------------------------------
 -- 10. Insert into public.lots
 -- ------------------------------------------------------------------------
-insert into public.lots (id, lot_name, event_id)
-values ('70000000-0000-0000-0000-000000000001', 'Lot Alpha-01', '50000000-0000-0000-0000-000000000001');
+insert into public.lots (id, lot_name, college_id)
+values ('70000000-0000-0000-0000-000000000001', 'Lot Alpha-01', '40000000-0000-0000-0000-000000000001');
 
 -- ------------------------------------------------------------------------
 -- 11. Insert into public.registrations
