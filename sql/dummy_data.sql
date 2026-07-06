@@ -150,11 +150,147 @@ values
 insert into public.incharges (id, name, phone, department)
 values ('60000000-0000-0000-0000-000000000001', 'Dr. Robert Incharge', '111-222-3333', 'Computer Science & Engineering');
 
--- ------------------------------------------------------------------------
 -- 9. Insert into public.events
 -- ------------------------------------------------------------------------
-insert into public.events (id, event_name, registration_fee, minimum_participants, maximum_participants, prelims_date, prelims_venue, mains_date, mains_venue, rules, winner_count, incharge_id, status)
-values ('50000000-0000-0000-0000-000000000001', 'Vite & Supabase Coding Hackathon', 150.00, 1, 3, '2026-08-15', 'Lab A', '2026-08-16', 'Main Auditorium', '1. Use React and Supabase. 2. Work in teams of up to 3.', 3, '60000000-0000-0000-0000-000000000001', 'active');
+insert into public.events (id, event_name, category, details, team_size, description, rules, staff_incharge, registration_fee, minimum_participants, maximum_participants, prelims_date, prelims_venue, mains_date, mains_venue, winner_count, status) values
+(
+  '50000000-0000-0000-0000-000000000001',
+  'Code Craft',
+  'Coding & Debugging',
+  'CS Lab 3 | 10:00 AM',
+  '1 Member (Individual)',
+  'Unleash your programming intellect. Solve algorithmic puzzles, complete data structure challenges, and write clean, optimized code under time constraints.',
+  'Individual event.
+Participants can choose between C, C++, Java, or Python.
+Duration: 45 minutes.
+Strictly no internet access or external devices allowed.
+Decisions of the jury will be final and binding.',
+  'Mrs. A. Devi',
+  150.00,
+  1,
+  1,
+  '2026-09-25',
+  'CS Lab 3',
+  '2026-09-25',
+  'CS Lab 3',
+  3,
+  'active'
+),
+(
+  '50000000-0000-0000-0000-000000000002',
+  'Web Vision',
+  'Web Design',
+  'UG Lab 5 | 10:30 AM',
+  'Max 2 Members per Team',
+  'Build the future of UI. Design and implement responsive, visually outstanding, and accessible web experiences based on a surprise live theme.',
+  'Team of 2 members maximum.
+HTML, CSS, JS, and CSS Frameworks (Bootstrap/Tailwind via CDN) are permitted.
+Time limit: 60 minutes.
+Pre-made templates or themes are strictly forbidden.
+Theme will be announced at the commencement of the event.',
+  'Mr. M. Rajesh',
+  150.00,
+  1,
+  2,
+  '2026-09-25',
+  'UG Lab 5',
+  '2026-09-25',
+  'UG Lab 5',
+  3,
+  'active'
+),
+(
+  '50000000-0000-0000-0000-000000000003',
+  'Quiz Quest',
+  'Technical Quiz',
+  'Main Seminar Hall | 11:30 AM',
+  '2 Members per Team',
+  'Test your range of IT knowledge. A fast-paced contest testing your familiarity with computer history, networking, modern tools, and system architecture.',
+  'Team of 2 members.
+Preliminary written round will filter top 6 teams for the stage quiz.
+No negative marking in preliminary round.
+Stage quiz consists of Audio-Visual, Rapid Fire, and Buzz rounds.
+Mobile usage results in instant disqualification.',
+  'Dr. P. Senthil',
+  150.00,
+  2,
+  2,
+  '2026-09-25',
+  'Main Seminar Hall',
+  '2026-09-25',
+  'Main Seminar Hall',
+  3,
+  'active'
+),
+(
+  '50000000-0000-0000-0000-000000000004',
+  'Paper Vista',
+  'PPT Presentation',
+  'CS Seminar Hall | 10:15 AM',
+  'Max 2 Members per Team',
+  'Present your technical findings. Showcase original research papers and ideas on AI, Cloud Computing, Cyber Security, and Big Data.',
+  'Team of maximum 2 members.
+Submit a soft copy of the PPT and abstract during desk registration.
+Topics: AI/ML, Blockchain, Cybersecurity, Cloud Systems, IoT.
+Presentation: 7 minutes | Q&A: 3 minutes.',
+  'Dr. R. Kavitha',
+  150.00,
+  1,
+  2,
+  '2026-09-25',
+  'CS Seminar Hall',
+  '2026-09-25',
+  'CS Seminar Hall',
+  3,
+  'active'
+),
+(
+  '50000000-0000-0000-0000-000000000005',
+  'AI Fusion',
+  'Prompt Engineering',
+  'PG Lab | 11:00 AM',
+  '1 Member (Individual)',
+  'Prompt engineering challenge. Leverage LLMs and generative design interfaces to complete complex asset creation and prompt-optimization tasks.',
+  'Individual event.
+Prompt engineering challenge.
+Tools and platforms will be provided by the host department.
+Participants must achieve the target generated output in the fewest steps.
+Strict time limit of 30 minutes.
+Prompt logs must be saved and submitted.',
+  'Mrs. S. Nancy',
+  150.00,
+  1,
+  1,
+  '2026-09-25',
+  'PG Lab',
+  '2026-09-25',
+  'PG Lab',
+  3,
+  'active'
+),
+(
+  '50000000-0000-0000-0000-000000000006',
+  'Pitch Perfect',
+  'IT Manager',
+  'HOD Office | 12:00 PM',
+  '1 Member (Individual)',
+  'Enter the boardroom. Face high-pressure stress interviews, team coordination tests, and showcase manager-level problem-solving capacities.',
+  'Individual event.
+Round 1: Technical & Managerial Aptitude Test.
+Round 2: Group Discussion.
+Round 3: Stress Interview.
+Formal attire is mandatory. Participants must submit their Resume.',
+  'V. Venkatesh Babu',
+  150.00,
+  1,
+  1,
+  '2026-09-25',
+  'HOD Office',
+  '2026-09-25',
+  'HOD Office',
+  3,
+  'active'
+);
 
 -- ------------------------------------------------------------------------
 -- 10. Insert into public.lots

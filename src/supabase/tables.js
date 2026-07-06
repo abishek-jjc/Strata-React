@@ -12,6 +12,9 @@ export const TABLES = {
   STUDENTS: 'students',
   PAYMENTS: 'payments',
   CERTIFICATES: 'certificates',
+  LEADERS: 'leaders',
+  RULES: 'rules',
+  SETTINGS: 'settings',
 }
 
 // Registration status pipeline — mirrors the CHECK constraint on

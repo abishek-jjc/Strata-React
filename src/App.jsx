@@ -3,8 +3,15 @@ import { AuthProvider } from './auth/AuthContext'
 import ProtectedRoute from './auth/ProtectedRoute'
 import AppShell from './components/layout/AppShell'
 
+// Auth & Guest Portal
 import Login from './pages/auth/Login'
+import Home from './pages/guest/Home'
+import GuestEvents from './pages/guest/GuestEvents'
+import GuestRules from './pages/guest/GuestRules'
+import GuestInvitation from './pages/guest/GuestInvitation'
+import GuestRegister from './pages/guest/GuestRegister'
 
+// Admin Portal
 import AdminDashboard from './pages/admin/Dashboard'
 import Events from './pages/admin/Events'
 import Colleges from './pages/admin/Colleges'
@@ -15,12 +22,17 @@ import Incharges from './pages/admin/Incharges'
 import Accountants from './pages/admin/Accountants'
 import Certificates from './pages/admin/Certificates'
 import Reports from './pages/admin/Reports'
+import AdminRules from './pages/admin/Rules'
+import AdminLeaders from './pages/admin/Leaders'
+import AdminSettings from './pages/admin/Settings'
 
+// Student Leader Portal
 import LeaderDashboard from './pages/leader/Dashboard'
 import TeamRegistration from './pages/leader/TeamRegistration'
 import StudentList from './pages/leader/StudentList'
 import CertificateDownload from './pages/leader/CertificateDownload'
 
+// Accountant Portal
 import AccountantDashboard from './pages/accountant/Dashboard'
 import PaymentCollection from './pages/accountant/PaymentCollection'
 import PaymentHistory from './pages/accountant/PaymentHistory'
@@ -34,8 +46,15 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          {/* Guest Portal */}
+          <Route path="/" element={<Home />} />
+          <Route path="/events" element={<GuestEvents />} />
+          <Route path="/rules" element={<GuestRules />} />
+          <Route path="/invitation" element={<GuestInvitation />} />
+          <Route path="/register" element={<GuestRegister />} />
+
+          {/* Auth */}
           <Route path="/login" element={<Login />} />
-          <Route path="/" element={<Navigate to="/login" replace />} />
 
           {/* Admin */}
           <Route path="/admin" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminDashboard />)}</ProtectedRoute>} />
@@ -48,6 +67,9 @@ export default function App() {
           <Route path="/admin/accountants" element={<ProtectedRoute allow={['admin']}>{withShell(<Accountants />)}</ProtectedRoute>} />
           <Route path="/admin/certificates" element={<ProtectedRoute allow={['admin']}>{withShell(<Certificates />)}</ProtectedRoute>} />
           <Route path="/admin/reports" element={<ProtectedRoute allow={['admin']}>{withShell(<Reports />)}</ProtectedRoute>} />
+          <Route path="/admin/rules" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminRules />)}</ProtectedRoute>} />
+          <Route path="/admin/homepage-leaders" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminLeaders />)}</ProtectedRoute>} />
+          <Route path="/admin/settings" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminSettings />)}</ProtectedRoute>} />
 
           {/* Student leader */}
           <Route path="/leader" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderDashboard />)}</ProtectedRoute>} />

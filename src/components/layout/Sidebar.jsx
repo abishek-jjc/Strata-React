@@ -12,6 +12,9 @@ const NAV = {
     ['/admin/accountants', 'Accountants'],
     ['/admin/certificates', 'Certificates'],
     ['/admin/reports', 'Reports'],
+    ['/admin/rules', 'Common Rules'],
+    ['/admin/homepage-leaders', 'Greetings / Leaders'],
+    ['/admin/settings', 'Page Settings'],
   ],
   leader: [
     ['/leader', 'Dashboard'],
