@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTable } from '../../hooks/useTable'
 import { TABLES } from '../../supabase/tables'
 import { exportToExcel } from '../../utils/excelExport'
@@ -18,12 +18,32 @@ export default function Reports() {
   const [search, setSearch] = useState('')
   const { data, loading } = useTable(active)
 
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
+  // Reset page when active table or search term changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [active, search])
+
   const columns = data[0] ? Object.keys(data[0]).filter((k) => k !== 'id') : []
   const filtered = search.trim()
     ? data.filter((row) =>
         columns.some((c) => String(row[c] ?? '').toLowerCase().includes(search.toLowerCase()))
       )
     : data
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage)
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages)
+    }
+  }, [filtered, totalPages, currentPage])
+
+  const paginatedData = useMemo(() => {
+    return filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+  }, [filtered, currentPage])
 
   return (
     <div>
@@ -47,21 +67,69 @@ export default function Reports() {
       {loading ? (
         <p className="muted">Loading…</p>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>{columns.map((c) => <th key={c}>{c}</th>)}</tr>
-          </thead>
-          <tbody>
-            {filtered.map((row) => (
-              <tr key={row.id}>
-                {columns.map((c) => <td key={c}>{String(row[c] ?? '')}</td>)}
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={columns.length || 1} className="muted">No records.</td></tr>
-            )}
-          </tbody>
-        </table>
+        <>
+          <div style={{ overflowX: 'auto', marginBottom: '15px' }}>
+            <table className="data-table">
+              <thead>
+                <tr>{columns.map((c) => <th key={c}>{c}</th>)}</tr>
+              </thead>
+              <tbody>
+                {paginatedData.map((row) => (
+                  <tr key={row.id}>
+                    {columns.map((c) => <td key={c}>{String(row[c] ?? '')}</td>)}
+                  </tr>
+                ))}
+                {paginatedData.length === 0 && (
+                  <tr><td colSpan={columns.length || 1} className="muted">No records.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="pagination" style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '16px', alignItems: 'center' }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                First
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                Prev
+              </button>
+              <span className="muted" style={{ fontSize: '0.85rem', margin: '0 8px' }}>
+                Page <strong>{currentPage}</strong> of {totalPages} ({filtered.length} items)
+              </span>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                Next
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                Last
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

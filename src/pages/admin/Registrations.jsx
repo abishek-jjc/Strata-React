@@ -1,13 +1,29 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
 import { useTable } from '../../hooks/useTable'
 import { TABLES, REGISTRATION_STATUS } from '../../supabase/tables'
 
 export default function Registrations() {
-  const { data: registrations, loading } = useTable(TABLES.REGISTRATIONS)
+  const { data: dataRegs, loading } = useTable(TABLES.REGISTRATIONS)
+  const registrations = useMemo(() => dataRegs || [], [dataRegs])
   const { data: colleges } = useTable(TABLES.COLLEGES)
   const { data: events } = useTable(TABLES.EVENTS)
   const { data: lots } = useTable(TABLES.LOTS)
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
+  const totalPages = Math.ceil(registrations.length / itemsPerPage)
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages)
+    }
+  }, [registrations, totalPages, currentPage])
+
+  const paginatedRegs = useMemo(() => {
+    return registrations.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+  }, [registrations, currentPage])
 
   // Edit / Delete and custom alert states
   const [editingReg, setEditingReg] = useState(null)
@@ -130,50 +146,96 @@ export default function Registrations() {
   return (
     <div>
       <h2>Registrations</h2>
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>College</th>
-            <th>Event</th>
-            <th>Status</th>
-            <th>Lot</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {registrations.map((reg) => {
-            const cName = collegeName(reg.college_id)
-            const collegeLot = lots.find((l) => l.assigned_college === cName)
-            return (
-              <tr key={reg.id}>
-                <td>{cName}</td>
-                <td>{eventName(reg.event_id)}</td>
-                <td><span className={`badge badge-${reg.status}`}>{reg.status}</span></td>
-                <td>
-                  {collegeLot ? (
-                    <strong>{collegeLot.lot_name}</strong>
-                  ) : (
-                    <span className="muted" style={{ fontSize: '0.85rem' }}>No lot assigned</span>
-                  )}
-                </td>
-                <td className="row-actions">
-                  {reg.status === REGISTRATION_STATUS.PENDING && (
-                    <button className="link" onClick={() => assignLot(reg)}>Assign lot</button>
-                  )}
-                  {reg.status === REGISTRATION_STATUS.PAID && (
-                    <button className="link" onClick={() => approve(reg)}>Approve</button>
-                  )}
-                  <button className="link" onClick={() => openEdit(reg)}>Edit</button>
-                  <button className="link danger" onClick={() => deleteRegistration(reg)}>Delete</button>
-                </td>
-              </tr>
-            )
-          })}
-          {registrations.length === 0 && (
-            <tr><td colSpan={5} className="muted">No registrations yet.</td></tr>
-          )}
-        </tbody>
-      </table>
+      <div style={{ overflowX: 'auto', marginBottom: '15px' }}>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>College</th>
+              <th>Event</th>
+              <th>Status</th>
+              <th>Lot</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedRegs.map((reg) => {
+              const cName = collegeName(reg.college_id)
+              const collegeLot = lots.find((l) => l.assigned_college === cName)
+              return (
+                <tr key={reg.id}>
+                  <td>{cName}</td>
+                  <td>{eventName(reg.event_id)}</td>
+                  <td><span className={`badge badge-${reg.status}`}>{reg.status}</span></td>
+                  <td>
+                    {collegeLot ? (
+                      <strong>{collegeLot.lot_name}</strong>
+                    ) : (
+                      <span className="muted" style={{ fontSize: '0.85rem' }}>No lot assigned</span>
+                    )}
+                  </td>
+                  <td className="row-actions">
+                    {reg.status === REGISTRATION_STATUS.PENDING && (
+                      <button className="link" onClick={() => assignLot(reg)}>Assign lot</button>
+                    )}
+                    {reg.status === REGISTRATION_STATUS.PAID && (
+                      <button className="link" onClick={() => approve(reg)}>Approve</button>
+                    )}
+                    <button className="link" onClick={() => openEdit(reg)}>Edit</button>
+                    <button className="link danger" onClick={() => deleteRegistration(reg)}>Delete</button>
+                  </td>
+                </tr>
+              )
+            })}
+            {paginatedRegs.length === 0 && (
+              <tr><td colSpan={5} className="muted">No registrations yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {totalPages > 1 && (
+        <div className="pagination" style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '16px', alignItems: 'center' }}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+            style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+          >
+            First
+          </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+          >
+            Prev
+          </button>
+          <span className="muted" style={{ fontSize: '0.85rem', margin: '0 8px' }}>
+            Page <strong>{currentPage}</strong> of {totalPages} ({registrations.length} items)
+          </span>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+            style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+          >
+            Next
+          </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
+            style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+          >
+            Last
+          </button>
+        </div>
+      )}
 
       {/* Edit Registration Modal Form */}
       {editingReg && (

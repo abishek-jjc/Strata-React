@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
-import { TABLES } from '../../supabase/tables'
+import { TABLES, REGISTRATION_STATUS } from '../../supabase/tables'
 import { useTable } from '../../hooks/useTable'
 import { generateLeaderboardPdf } from '../../utils/pdfLeaderboard'
 
@@ -9,11 +9,12 @@ export default function Winners() {
   const { data: lots, loading: lotsLoading } = useTable(TABLES.LOTS)
   const { data: colleges, loading: collegesLoading } = useTable(TABLES.COLLEGES)
   const { data: winners, loading: winnersLoading } = useTable(TABLES.WINNERS)
+  const { data: registrations, loading: registrationsLoading } = useTable(TABLES.REGISTRATIONS)
 
   const [savingId, setSavingId] = useState(null)
   const [successEventId, setSuccessEventId] = useState(null)
 
-  const loading = eventsLoading || lotsLoading || collegesLoading || winnersLoading
+  const loading = eventsLoading || lotsLoading || collegesLoading || winnersLoading || registrationsLoading
 
   // Keep track of the selections locally before committing
   const [selections, setSelections] = useState({})
@@ -40,7 +41,14 @@ export default function Winners() {
   // Handle auto-saving on dropdown change
   async function handleChange(eventId, field, value) {
     const current = selections[eventId] || { first_place: '-', second_place: '-' }
-    const updated = { ...current, [field]: value }
+    let updated = { ...current, [field]: value }
+
+    // Similarly same team cannot be selected for 1st and second prize
+    if (field === 'first_place' && value !== '-' && value === current.second_place) {
+      updated.second_place = '-'
+    } else if (field === 'second_place' && value !== '-' && value === current.first_place) {
+      updated.first_place = '-'
+    }
 
     setSelections((prev) => ({
       ...prev,
@@ -126,6 +134,29 @@ export default function Winners() {
           <tbody>
             {events.map((ev) => {
               const sel = selections[ev.id] || { first_place: '-', second_place: '-' }
+
+              // Only show contestants that are registered for this event
+              const eventRegs = registrations.filter(
+                (r) => r.event_id === ev.id && r.status !== REGISTRATION_STATUS.REJECTED
+              )
+              const registeredCollegeIds = eventRegs.map((r) => r.college_id)
+              const registeredCollegeNames = colleges
+                .filter((c) => registeredCollegeIds.includes(c.id))
+                .map((c) => c.college.toLowerCase().trim())
+
+              // Filter active lots to only those assigned to these colleges
+              const allowedLots = activeLots.filter((l) =>
+                registeredCollegeNames.includes(l.assigned_college.toLowerCase().trim())
+              )
+
+              // 1st and 2nd place cannot select the same team
+              const firstPlaceOptions = allowedLots.filter(
+                (l) => l.lot_name !== sel.second_place || sel.second_place === '-'
+              )
+              const secondPlaceOptions = allowedLots.filter(
+                (l) => l.lot_name !== sel.first_place || sel.first_place === '-'
+              )
+
               return (
                 <tr key={ev.id}>
                   <td>
@@ -137,10 +168,10 @@ export default function Winners() {
                     <select
                       value={sel.first_place}
                       onChange={(e) => handleChange(ev.id, 'first_place', e.target.value)}
-                      style={{ padding: '5px 8px', fontSize: '0.85rem' }}
+                      style={{ padding: '5px 8px', fontSize: '0.85rem', width: '180px' }}
                     >
                       <option value="-">—</option>
-                      {activeLots.map((l) => (
+                      {firstPlaceOptions.map((l) => (
                         <option key={l.id} value={l.lot_name}>
                           {l.lot_name} ({l.assigned_college})
                         </option>
@@ -151,10 +182,10 @@ export default function Winners() {
                     <select
                       value={sel.second_place}
                       onChange={(e) => handleChange(ev.id, 'second_place', e.target.value)}
-                      style={{ padding: '5px 8px', fontSize: '0.85rem' }}
+                      style={{ padding: '5px 8px', fontSize: '0.85rem', width: '180px' }}
                     >
                       <option value="-">—</option>
-                      {activeLots.map((l) => (
+                      {secondPlaceOptions.map((l) => (
                         <option key={l.id} value={l.lot_name}>
                           {l.lot_name} ({l.assigned_college})
                         </option>

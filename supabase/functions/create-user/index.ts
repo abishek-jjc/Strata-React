@@ -15,11 +15,25 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
 serve(async (req) => {
+  // Handle preflight CORS request
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   try {
     const { email, password, role, name, ref_id, college_id } = await req.json()
     if (!email || !password || !role || !ref_id) {
-      return new Response(JSON.stringify({ error: 'Missing required fields.' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'Missing required fields.' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
@@ -73,7 +87,10 @@ serve(async (req) => {
     }
 
     if (!allowed) {
-      return new Response(JSON.stringify({ error: 'Not authorized to create this account.' }), { status: 403 })
+      return new Response(JSON.stringify({ error: 'Not authorized to create this account.' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     const { data: created, error: createError } = await adminClient.auth.admin.createUser({
@@ -82,7 +99,10 @@ serve(async (req) => {
       email_confirm: true,
     })
     if (createError) {
-      return new Response(JSON.stringify({ error: createError.message }), { status: 400 })
+      return new Response(JSON.stringify({ error: createError.message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     const { error: profileError } = await adminClient
@@ -90,14 +110,20 @@ serve(async (req) => {
       .insert({ id: created.user.id, role, name, ref_id, college_id: college_id || null })
 
     if (profileError) {
-      return new Response(JSON.stringify({ error: profileError.message }), { status: 400 })
+      return new Response(JSON.stringify({ error: profileError.message }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     return new Response(JSON.stringify({ id: created.user.id }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 })
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 })
 

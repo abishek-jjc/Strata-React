@@ -33,6 +33,8 @@ export default function GuestRegister() {
   // Modal and overlays
   const [showRulesModal, setShowRulesModal] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
+  const [successCredentials, setSuccessCredentials] = useState(null)
+  const [whatsappLink, setWhatsappLink] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -46,7 +48,7 @@ export default function GuestRegister() {
   const [scanError, setScanError] = useState('')
 
   useEffect(() => {
-    if (isDecrypted || loading) return
+    if (isDecrypted || loading || successMessage) return
 
     const qrScanner = new Html5Qrcode("reader")
 
@@ -85,7 +87,19 @@ export default function GuestRegister() {
       () => {}
     ).catch((err) => {
       console.error("Camera start error:", err)
-      setScanError("Failed to start camera scanner. Please ensure camera permissions are granted.")
+      let msg = "Failed to start camera scanner. Please ensure camera permissions are granted."
+      if (!window.isSecureContext) {
+        msg = "Camera access requires a secure connection (HTTPS) or localhost. Please reload the page securely."
+      } else if (err && (String(err).includes("NotAllowedError") || String(err).includes("Permission denied"))) {
+        msg = "Camera permission was denied. Please grant camera access in your browser settings."
+      } else if (err && (String(err).includes("NotFoundError") || String(err).includes("no devices"))) {
+        msg = "No camera device found on this system."
+      } else if (err && (String(err).includes("supported") || String(err).includes("streaming"))) {
+        msg = "Camera streaming is not supported by your browser or environment."
+      } else if (err) {
+        msg = `Camera scanner error: ${err}`
+      }
+      setScanError(msg)
     })
 
     return () => {
@@ -119,6 +133,16 @@ export default function GuestRegister() {
         .from(TABLES.RULES)
         .select('*')
         .order('created_at', { ascending: true })
+
+      // 3. Fetch settings for WhatsApp group link
+      const { data: settingsData } = await supabase
+        .from(TABLES.SETTINGS)
+        .select('*')
+
+      if (settingsData) {
+        const wa = settingsData.find((s) => s.key_name === 'whatsapp_group_link')?.value || ''
+        setWhatsappLink(wa)
+      }
 
       if (rulesData) {
         setRulesList(rulesData)
@@ -226,9 +250,14 @@ export default function GuestRegister() {
       return setError('You must agree to the STRATA Rules & Regulations.')
     }
 
+    if (leaderName.trim().length < 3) {
+      return setError('Student leader name must be at least 3 characters long.')
+    }
+
     // Identify registered events
     const activeRegs = []
     let activeEventsCount = 0
+    let validationError = ''
 
     events.forEach(event => {
       if (isTabFilled(event.id)) {
@@ -239,7 +268,12 @@ export default function GuestRegister() {
         const filled = list.filter(p => p.studentName.trim() !== '')
         
         if (filled.length !== event.team_size) {
-          setError(`Event "${event.event_name}" requires exactly ${event.team_size} participant(s) — currently you have entered ${filled.length}.`)
+          validationError = `Event "${event.event_name}" requires exactly ${event.team_size} participant(s) — currently you have entered ${filled.length}.`
+          return
+        }
+
+        if (filled.some(p => p.studentName.trim().length < 3)) {
+          validationError = `Participant names in event "${event.event_name}" must be at least 3 characters long.`
           return
         }
 
@@ -255,7 +289,10 @@ export default function GuestRegister() {
       }
     })
 
-    if (error) return
+    if (validationError) {
+      return setError(validationError)
+    }
+
     if (activeEventsCount === 0) {
       return setError('Please enter participant details for at least one technical event.')
     }
@@ -307,6 +344,11 @@ export default function GuestRegister() {
         }
       }
 
+      setSuccessCredentials({
+        email: leaderEmail,
+        phone: leaderPhone,
+        whatsappLink: whatsappLink
+      })
       setSuccessMessage('Your college team has been successfully registered. Please verify payment at the spot desk.')
       
       // Reset Form State
@@ -342,6 +384,93 @@ export default function GuestRegister() {
       <GuestLayout>
         <section className="guest-section">
           <p style={{ textAlign: 'center', color: 'var(--g-text-muted)', paddingTop: '60px' }}>Loading registration...</p>
+        </section>
+      </GuestLayout>
+    )
+  }
+
+  if (successMessage && successCredentials) {
+    return (
+      <GuestLayout>
+        <section className="guest-section" style={{ display: 'flex', minHeight: '65vh', justifyContent: 'center', alignItems: 'center', padding: '20px 0' }}>
+          <div className="guest-success-card guest-glass-panel" style={{ maxWidth: '550px', width: '100%', padding: '40px', borderRadius: '24px', textAlign: 'center' }}>
+            <div className="guest-success-icon" style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'linear-gradient(135deg, #00e5ff, #7c4dff)', color: '#fff', fontSize: '2.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', margin: '0 auto 25px auto', boxShadow: '0 0 20px rgba(0,229,255,0.4)' }}>✓</div>
+            <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '2.2rem', marginBottom: '15px', color: '#fff' }}>Registration Successful!</h2>
+            <p style={{ color: 'var(--g-text-muted)', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '25px' }}>{successMessage}</p>
+            
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--g-glass-border)', borderRadius: '16px', padding: '20px', marginBottom: '25px', textAlign: 'left' }}>
+              <h4 style={{ margin: '0 0 12px 0', fontSize: '1.1rem', color: 'var(--g-secondary)', fontFamily: 'Syne, sans-serif' }}>Your Login Credentials</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.8)' }}>
+                  <strong style={{ color: 'var(--g-text-muted)' }}>Login ID (Email): </strong>
+                  <code style={{ fontSize: '1rem', color: '#00e5ff', background: 'rgba(0,229,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>{successCredentials.email}</code>
+                </div>
+                <div style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.8)' }}>
+                  <strong style={{ color: 'var(--g-text-muted)' }}>Password (Mobile): </strong>
+                  <code style={{ fontSize: '1rem', color: '#00e5ff', background: 'rgba(0,229,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>{successCredentials.phone}</code>
+                </div>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--g-accent)', marginTop: '12px', margin: '12px 0 0 0', opacity: 0.9 }}>
+                ⚠️ Please note down these details. Use them to log in to your dashboard to track verification status.
+              </p>
+            </div>
+
+            {successCredentials.whatsappLink && (
+              <a 
+                href={successCredentials.whatsappLink} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="guest-btn" 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  gap: '10px', 
+                  padding: '14px 28px', 
+                  borderRadius: '12px', 
+                  textDecoration: 'none', 
+                  marginBottom: '25px', 
+                  fontWeight: 'bold',
+                  background: 'linear-gradient(135deg, #25D366, #128C7E)',
+                  border: 'none',
+                  boxShadow: '0 4px 15px rgba(37,211,102,0.3)',
+                  color: '#fff'
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '6px' }}>
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436.002 9.858-4.417 9.86-9.86.001-2.638-1.024-5.117-2.884-6.979C16.574 1.897 14.1 1.072 11.464 1.072c-5.404 0-9.81 4.403-9.811 9.845 0 1.698.448 3.355 1.3 4.803L1.93 21.05l5.525-1.453.192.115zm10.763-7.061c-.29-.145-1.71-.845-1.973-.94-.264-.096-.456-.145-.647.145-.19.29-.738.94-.902 1.129-.165.19-.33.213-.62.068-.29-.145-1.226-.452-2.336-1.441-.864-.771-1.447-1.724-1.616-2.014-.17-.29-.018-.447.127-.591.13-.13.29-.338.435-.507.145-.169.19-.29.29-.483.096-.193.048-.361-.025-.506-.072-.145-.647-1.56-.887-2.138-.233-.564-.49-.488-.673-.497-.174-.007-.375-.009-.575-.009-.201 0-.528.075-.802.375-.274.3-.1.748.1.94.2.19.435.507.69.75.25.244.526.471.821.683.473.342.92.518 1.341.528.433.01.87-.197 1.13-.393.26-.197.66-.456.9-.663.24-.207.45-.483.626-.827.177-.345.263-.662.13-.94-.132-.276-.757-1.828-.757-1.828s-.24-.583-.6-.72c-.36-.137-1.225.412-1.225.412s-.78.583-.98 1.46c-.2.877-.52 2.508.82 4.417 1.34 1.91 3.52 3.65 6.08 4.67.66.26 1.3.47 1.83.64.6.19 1.16.16 1.6.1.48-.07 1.48-.6 1.69-1.18.21-.58.21-1.08.15-1.18-.06-.1-.23-.19-.52-.335z"/>
+                </svg>
+                Join Official WhatsApp Group
+              </a>
+            )}
+
+            <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setSuccessMessage('')
+                  setSuccessCredentials(null)
+                  navigate('/login')
+                }} 
+                className="guest-btn guest-btn-primary"
+                style={{ flex: 1 }}
+              >
+                Go to Login Portal
+              </button>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setSuccessMessage('')
+                  setSuccessCredentials(null)
+                  navigate('/')
+                }} 
+                className="guest-btn guest-btn-secondary"
+                style={{ flex: 1 }}
+              >
+                Return Home
+              </button>
+            </div>
+          </div>
         </section>
       </GuestLayout>
     )
@@ -400,19 +529,6 @@ export default function GuestRegister() {
 
   return (
     <GuestLayout>
-      {/* Dynamic Success Card overlay */}
-      {successMessage && (
-        <div className="guest-success-overlay">
-          <div className="guest-success-card guest-glass-panel">
-            <div className="guest-success-icon">✓</div>
-            <h2>Registration Successful!</h2>
-            <p>{successMessage}</p>
-            <button onClick={() => navigate('/')} className="guest-btn guest-btn-primary">
-              Return to Homepage
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Rules & Regulations Popup Modal */}
       <div className={`guest-rules-modal ${showRulesModal ? 'active' : ''}`}>
@@ -593,13 +709,16 @@ export default function GuestRegister() {
                                 </label>
                                 <label className="guest-field">
                                   <span>Class {isRequired && '*'}</span>
-                                  <input 
-                                    type="text" 
-                                    placeholder="e.g. III BCA / I MSc IT" 
+                                  <select
                                     value={pData.year}
                                     required={isRequired}
                                     onChange={(e) => updateParticipant(activeEvent.id, idx, 'year', e.target.value)}
-                                  />
+                                  >
+                                    <option value="">Select Year…</option>
+                                    <option value="1st">1st</option>
+                                    <option value="2nd">2nd</option>
+                                    <option value="3rd">3rd</option>
+                                  </select>
                                 </label>
                               </div>
                               <div className="guest-form-row" style={{ margin: 0 }}>
@@ -685,7 +804,7 @@ export default function GuestRegister() {
                   style={{ width: '18px', height: '18px', accentColor: 'var(--g-secondary)', cursor: 'pointer' }}
                 />
                 <label htmlFor="agree_rules" style={{ fontSize: '0.95rem', textTransform: 'none', color: '#e0e0e0', cursor: 'pointer' }}>
-                  I agree to all the <a href="javascript:void(0)" onClick={() => setShowRulesModal(true)} style={{ color: 'var(--g-secondary)', textDecoration: 'none', fontWeight: '500' }}>STRATA 2K26 Rules & Regulations</a> and certify that our team meets the eligibility requirements.
+                  I agree to all the <a href="#" onClick={(e) => { e.preventDefault(); setShowRulesModal(true); }} style={{ color: 'var(--g-secondary)', textDecoration: 'none', fontWeight: '500' }}>STRATA 2K26 Rules & Regulations</a> and certify that our team meets the eligibility requirements.
                 </label>
               </div>
 

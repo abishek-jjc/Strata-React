@@ -59,7 +59,19 @@ export default function GuestLayout({ children }) {
       () => {}
     ).catch((err) => {
       console.error("Camera start error:", err)
-      setScanError("Failed to start camera scanner. Please ensure camera permissions are granted.")
+      let msg = "Failed to start camera scanner. Please ensure camera permissions are granted."
+      if (!window.isSecureContext) {
+        msg = "Camera access requires a secure connection (HTTPS) or localhost. Please reload the page securely."
+      } else if (err && (String(err).includes("NotAllowedError") || String(err).includes("Permission denied"))) {
+        msg = "Camera permission was denied. Please grant camera access in your browser settings."
+      } else if (err && (String(err).includes("NotFoundError") || String(err).includes("no devices"))) {
+        msg = "No camera device found on this system."
+      } else if (err && (String(err).includes("supported") || String(err).includes("streaming"))) {
+        msg = "Camera streaming is not supported by your browser or environment."
+      } else if (err) {
+        msg = `Camera scanner error: ${err}`
+      }
+      setScanError(msg)
     })
 
     return () => {

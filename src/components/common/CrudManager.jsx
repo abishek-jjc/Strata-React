@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
 import { useTable } from '../../hooks/useTable'
 import { exportToExcel } from '../../utils/excelExport'
@@ -30,6 +30,14 @@ export default function CrudManager({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
+  // Reset page when search term or customData changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, customData])
+
   const [alertState, setAlertState] = useState({
     isOpen: false,
     title: '',
@@ -48,6 +56,18 @@ export default function CrudManager({
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, search])
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage)
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages)
+    }
+  }, [filtered, totalPages, currentPage])
+
+  const paginatedData = useMemo(() => {
+    return filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+  }, [filtered, currentPage])
 
   function openAdd() {
     const blank = {}
@@ -149,49 +169,97 @@ export default function CrudManager({
       {loading ? (
         <p className="muted">Loading…</p>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              {visibleColumns.map((c) => (
-                <th key={c}>{fields.find((f) => f.name === c)?.label || c}</th>
-              ))}
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((row) => (
-              <tr key={row.id}>
-                {visibleColumns.map((c) => {
-                  const field = fields.find((f) => f.name === c)
-                  let val = row[c]
-                  if (field && field.type === 'select' && field.options) {
-                    const opt = field.options.find((o) => (o.value ?? o) === val)
-                    if (opt) val = opt.label ?? opt
-                  }
-                  return <td key={c}>{String(val ?? '')}</td>
-                })}
-                <td className="row-actions">
-                  {!disableEdit && (
-                    <button className="link" onClick={() => openEdit(row)}>
-                      Edit
-                    </button>
-                  )}
-                  <button className="link danger" onClick={() => handleDelete(row)}>
-                    Delete
-                  </button>
-                  {renderExtraActions && renderExtraActions(row)}
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={visibleColumns.length + 1} className="muted">
-                  No records yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <>
+          <div style={{ overflowX: 'auto', marginBottom: '15px' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  {visibleColumns.map((c) => (
+                    <th key={c}>{fields.find((f) => f.name === c)?.label || c}</th>
+                  ))}
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedData.map((row) => (
+                  <tr key={row.id}>
+                    {visibleColumns.map((c) => {
+                      const field = fields.find((f) => f.name === c)
+                      let val = row[c]
+                      if (field && field.type === 'select' && field.options) {
+                        const opt = field.options.find((o) => (o.value ?? o) === val)
+                        if (opt) val = opt.label ?? opt
+                      }
+                      return <td key={c}>{String(val ?? '')}</td>
+                    })}
+                    <td className="row-actions">
+                      {!disableEdit && (
+                        <button className="link" onClick={() => openEdit(row)}>
+                          Edit
+                        </button>
+                      )}
+                      <button className="link danger" onClick={() => handleDelete(row)}>
+                        Delete
+                      </button>
+                      {renderExtraActions && renderExtraActions(row)}
+                    </td>
+                  </tr>
+                ))}
+                {paginatedData.length === 0 && (
+                  <tr>
+                    <td colSpan={visibleColumns.length + 1} className="muted">
+                      No records yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="pagination" style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '16px', alignItems: 'center' }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                First
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                Prev
+              </button>
+              <span className="muted" style={{ fontSize: '0.85rem', margin: '0 8px' }}>
+                Page <strong>{currentPage}</strong> of {totalPages} ({filtered.length} items)
+              </span>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                Next
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                Last
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {modalOpen && (

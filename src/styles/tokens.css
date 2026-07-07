@@ -941,6 +941,8 @@ select option {
   background: transparent;
   position: relative;
   z-index: 10;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .app-content {
@@ -948,6 +950,8 @@ select option {
   max-width: 1240px;
   width: 100%;
   margin: 0 auto;
+  flex: 1;
+  overflow-y: auto;
 }
 
 /* =========================================================

@@ -226,13 +226,17 @@ export default function TeamRegistration() {
                       </select>
                     </td>
                     <td>
-                      <input
-                        className="input"
+                      <select
                         value={p.year}
                         onChange={(e) => updateParticipant(i, 'year', e.target.value)}
-                        placeholder="e.g. III BCA"
                         required
-                      />
+                        style={{ padding: '5px 8px', fontSize: '0.85rem' }}
+                      >
+                        <option value="">—</option>
+                        <option value="1st">1st</option>
+                        <option value="2nd">2nd</option>
+                        <option value="3rd">3rd</option>
+                      </select>
                     </td>
                   </tr>
                 ))}

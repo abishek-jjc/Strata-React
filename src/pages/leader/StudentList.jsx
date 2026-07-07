@@ -30,6 +30,11 @@ export default function StudentList() {
   async function handleSaveEdit(e) {
     e.preventDefault()
     setError('')
+
+    if (!editingStudent.student_name || editingStudent.student_name.trim().length < 3) {
+      return setError('Student name must contain at least 3 characters.')
+    }
+
     setSaving(true)
 
     const { error: updateError } = await supabase
@@ -133,13 +138,16 @@ export default function StudentList() {
 
             <label className="field">
               <span>Class</span>
-              <input
-                type="text"
+              <select
                 required
-                placeholder="e.g. III BCA"
                 value={editingStudent.year}
                 onChange={(e) => setEditingStudent({ ...editingStudent, year: e.target.value })}
-              />
+              >
+                <option value="">Select Year…</option>
+                <option value="1st">1st</option>
+                <option value="2nd">2nd</option>
+                <option value="3rd">3rd</option>
+              </select>
             </label>
 
             {error && <p className="error">{error}</p>}

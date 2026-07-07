@@ -1,9 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../supabase/client'
 import { TABLES } from '../../supabase/tables'
 import { useTable } from '../../hooks/useTable'
-
-import { useEffect } from 'react'
 
 export default function PaymentPolls() {
   const { data: polls, loading: pollsLoading } = useTable(TABLES.PAYMENT_POLLS)
@@ -21,6 +19,21 @@ export default function PaymentPolls() {
   const [feeSuccess, setFeeSuccess] = useState(false)
 
   const loading = pollsLoading || logsLoading || settingsLoading
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
+  const totalPages = Math.ceil(logs.length / itemsPerPage)
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages)
+    }
+  }, [logs, totalPages, currentPage])
+
+  const paginatedLogs = useMemo(() => {
+    return logs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+  }, [logs, currentPage])
 
   // Initialize fee from settings
   useEffect(() => {
@@ -107,39 +120,41 @@ export default function PaymentPolls() {
           {/* Active Polls Table */}
           <div className="card">
             <h3 style={{ marginTop: 0, marginBottom: '15px' }}>Active Operator Desks</h3>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Desk Name</th>
-                  <th>Keycode</th>
-                  <th>Created At</th>
-                  <th style={{ width: '80px' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {polls.map((p) => (
-                  <tr key={p.id}>
-                    <td><strong>{p.poll_name}</strong></td>
-                    <td>
-                      <code style={{ fontSize: '1rem', color: 'var(--accent)', fontWeight: 'bold' }}>{p.poll_key}</code>
-                    </td>
-                    <td>{new Date(p.created_at).toLocaleString()}</td>
-                    <td>
-                      <button className="link link-danger" onClick={() => handleDeletePoll(p.id)}>
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {polls.length === 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <td colSpan={4} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
-                      No active payment poll desks created.
-                    </td>
+                    <th>Desk Name</th>
+                    <th>Keycode</th>
+                    <th>Created At</th>
+                    <th style={{ width: '80px' }}>Actions</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {polls.map((p) => (
+                    <tr key={p.id}>
+                      <td><strong>{p.poll_name}</strong></td>
+                      <td>
+                        <code style={{ fontSize: '1rem', color: 'var(--accent)', fontWeight: 'bold' }}>{p.poll_key}</code>
+                      </td>
+                      <td>{new Date(p.created_at).toLocaleString()}</td>
+                      <td>
+                        <button className="link link-danger" onClick={() => handleDeletePoll(p.id)}>
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {polls.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
+                        No active payment poll desks created.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Add Poll Form & Config */}
@@ -219,35 +234,81 @@ export default function PaymentPolls() {
           Realtime audit of colleges marked paid, showing which operator desk issued the clearance.
         </p>
 
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Operator Desk</th>
-              <th>College Cleared</th>
-              <th>Clearing Desk Name</th>
-              <th>Timestamp</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.map((log) => (
-              <tr key={log.id}>
-                <td><strong>{log.poll_name}</strong></td>
-                <td>
-                  <span className="badge badge-approved" style={{ fontSize: '0.85rem' }}>✓ {log.college_name}</span>
-                </td>
-                <td className="muted">{log.poll_name || 'Desk deleted'}</td>
-                <td>{new Date(log.created_at).toLocaleString()}</td>
-              </tr>
-            ))}
-            {logs.length === 0 && (
+        <div style={{ overflowX: 'auto', marginBottom: '15px' }}>
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={4} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
-                  No payment clearance activities logged yet.
-                </td>
+                <th>Operator Desk</th>
+                <th>College Cleared</th>
+                <th>Clearing Desk Name</th>
+                <th>Timestamp</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paginatedLogs.map((log) => (
+                <tr key={log.id}>
+                  <td><strong>{log.poll_name}</strong></td>
+                  <td>
+                    <span className="badge badge-approved" style={{ fontSize: '0.85rem' }}>✓ {log.college_name}</span>
+                  </td>
+                  <td className="muted">{log.poll_name || 'Desk deleted'}</td>
+                  <td>{new Date(log.created_at).toLocaleString()}</td>
+                </tr>
+              ))}
+              {paginatedLogs.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
+                    No payment clearance logs recorded.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {totalPages > 1 && (
+          <div className="pagination" style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '16px', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+            >
+              First
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+            >
+              Prev
+            </button>
+            <span className="muted" style={{ fontSize: '0.85rem', margin: '0 8px' }}>
+              Page <strong>{currentPage}</strong> of {totalPages} ({logs.length} items)
+            </span>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+            >
+              Next
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+            >
+              Last
+            </button>
+          </div>
+        )}
       </div>
 
     </div>

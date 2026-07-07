@@ -31,7 +31,7 @@ export default function Login() {
 
       navigate(REDIRECT[profile?.role] || '/login')
     } catch (err) {
-      setError('Incorrect email or password.')
+      setError(err?.message || 'Incorrect email or password.')
     } finally {
       setLoading(false)
     }

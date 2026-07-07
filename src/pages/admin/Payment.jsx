@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../supabase/client'
 import { TABLES } from '../../supabase/tables'
 import '../../styles/guest.css'
@@ -22,6 +22,13 @@ export default function Payment() {
 
   // Table search & edit states
   const [search, setSearch] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
+  // Reset page when search term changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search])
   const [editingCollege, setEditingCollege] = useState(null)
   const [editPaid, setEditPaid] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -100,6 +107,18 @@ export default function Payment() {
   const filteredColleges = registeredColleges.filter((c) =>
     c.college.toLowerCase().includes(search.toLowerCase())
   )
+
+  const totalPages = Math.ceil(filteredColleges.length / itemsPerPage)
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages)
+    }
+  }, [filteredColleges, totalPages, currentPage])
+
+  const paginatedColleges = useMemo(() => {
+    return filteredColleges.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+  }, [filteredColleges, currentPage])
 
   function openEdit(college) {
     setEditingCollege(college)
@@ -218,50 +237,96 @@ export default function Payment() {
             />
           </div>
 
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>College Name</th>
-                <th>Lot Name</th>
-                <th>Registered Students</th>
-                <th>Amount Payable</th>
-                <th>Payment Status</th>
-                <th style={{ width: '100px' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredColleges.map((c) => {
-                const collegeLot = lots.find((l) => l.assigned_college === c.college)
-                const studentCount = students.filter((s) => s.college_id === c.id).length
-                const payableAmount = studentCount * feePerStudent
-                return (
-                  <tr key={c.id}>
-                    <td><strong>{c.college}</strong></td>
-                    <td>{collegeLot ? <strong>{collegeLot.lot_name}</strong> : <span className="muted">—</span>}</td>
-                    <td>{studentCount} student(s)</td>
-                    <td><strong>Rs. {payableAmount}</strong> <span className="muted" style={{ fontSize: '0.8rem' }}>(Rs. {feePerStudent}/std)</span></td>
-                    <td>
-                      <span className={`badge badge-${c.is_paid ? 'approved' : 'pending'}`}>
-                        {c.is_paid ? 'Paid' : 'Unpaid'}
-                      </span>
-                    </td>
-                    <td>
-                      <button className="link" onClick={() => openEdit(c)}>
-                        Edit Status
-                      </button>
+          <div style={{ overflowX: 'auto', marginBottom: '15px' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>College Name</th>
+                  <th>Lot Name</th>
+                  <th>Registered Students</th>
+                  <th>Amount Payable</th>
+                  <th>Payment Status</th>
+                  <th style={{ width: '100px' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedColleges.map((c) => {
+                  const collegeLot = lots.find((l) => l.assigned_college === c.college)
+                  const studentCount = students.filter((s) => s.college_id === c.id).length
+                  const payableAmount = studentCount * feePerStudent
+                  return (
+                    <tr key={c.id}>
+                      <td><strong>{c.college}</strong></td>
+                      <td>{collegeLot ? <strong>{collegeLot.lot_name}</strong> : <span className="muted">—</span>}</td>
+                      <td>{studentCount} student(s)</td>
+                      <td><strong>Rs. {payableAmount}</strong> <span className="muted" style={{ fontSize: '0.8rem' }}>(Rs. {feePerStudent}/std)</span></td>
+                      <td>
+                        <span className={`badge badge-${c.is_paid ? 'approved' : 'pending'}`}>
+                          {c.is_paid ? 'Paid' : 'Unpaid'}
+                        </span>
+                      </td>
+                      <td>
+                        <button className="link" onClick={() => openEdit(c)}>
+                          Edit Status
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {paginatedColleges.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
+                      {search ? 'No matching colleges found.' : 'No registered colleges found yet.'}
                     </td>
                   </tr>
-                )
-              })}
-              {filteredColleges.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
-                    {search ? 'No matching colleges found.' : 'No registered colleges found yet.'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="pagination" style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '16px', alignItems: 'center' }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                First
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                Prev
+              </button>
+              <span className="muted" style={{ fontSize: '0.85rem', margin: '0 8px' }}>
+                Page <strong>{currentPage}</strong> of {totalPages} ({filteredColleges.length} items)
+              </span>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                Next
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                Last
+              </button>
+            </div>
+          )}
         </>
       )}
 

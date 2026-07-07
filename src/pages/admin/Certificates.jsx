@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../supabase/client'
 import { useTable } from '../../hooks/useTable'
 import { TABLES, REGISTRATION_STATUS } from '../../supabase/tables'
@@ -23,6 +23,16 @@ export default function Certificates() {
   // Tab and search state
   const [activeTab, setActiveTab] = useState('participation')
   const [searchQuery, setSearchQuery] = useState('')
+
+  const [participationPage, setParticipationPage] = useState(1)
+  const [winnersPage, setWinnersPage] = useState(1)
+  const itemsPerPage = 10
+
+  // Reset pages on search or tab changes
+  useEffect(() => {
+    setParticipationPage(1)
+    setWinnersPage(1)
+  }, [searchQuery, activeTab])
 
   useEffect(() => {
     async function loadSettings() {
@@ -161,6 +171,29 @@ export default function Certificates() {
       s.winnerCollegeName.toLowerCase().includes(q)
     )
   })
+
+  const totalParticipationPages = Math.ceil(filteredParticipation.length / itemsPerPage)
+  const totalWinnersPages = Math.ceil(filteredWinners.length / itemsPerPage)
+
+  useEffect(() => {
+    if (participationPage > totalParticipationPages && totalParticipationPages > 0) {
+      setParticipationPage(totalParticipationPages)
+    }
+  }, [filteredParticipation, totalParticipationPages, participationPage])
+
+  useEffect(() => {
+    if (winnersPage > totalWinnersPages && totalWinnersPages > 0) {
+      setWinnersPage(totalWinnersPages)
+    }
+  }, [filteredWinners, totalWinnersPages, winnersPage])
+
+  const paginatedParticipation = useMemo(() => {
+    return filteredParticipation.slice((participationPage - 1) * itemsPerPage, participationPage * itemsPerPage)
+  }, [filteredParticipation, participationPage])
+
+  const paginatedWinners = useMemo(() => {
+    return filteredWinners.slice((winnersPage - 1) * itemsPerPage, winnersPage * itemsPerPage)
+  }, [filteredWinners, winnersPage])
 
   // Issue helpers
   async function issueParticipation(student) {
@@ -332,105 +365,201 @@ export default function Certificates() {
       {studentsLoading ? (
         <p className="muted">Loading students data…</p>
       ) : activeTab === 'participation' ? (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Student</th>
-              <th>College</th>
-              <th>Event</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredParticipation.map((s) => {
-              const isIssued = certificates.some(
-                (c) => c.student_id === s.id && c.position === 'Participation'
-              )
-              return (
-                <tr key={s.id}>
-                  <td>{s.student_name}</td>
-                  <td>{getCollegeName(s.college_id)}</td>
-                  <td>{getEventName(s.event_id)}</td>
-                  <td>
-                    <span className={isIssued ? 'success' : 'muted'}>
-                      {isIssued ? 'Issued' : 'Not Issued'}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      className="link"
-                      disabled={isIssued}
-                      onClick={() => issueParticipation(s)}
-                    >
-                      {isIssued ? 'Issued' : 'Issue Certificate'}
-                    </button>
-                  </td>
+        <>
+          <div style={{ overflowX: 'auto', marginBottom: '15px' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>College</th>
+                  <th>Event</th>
+                  <th>Status</th>
+                  <th>Action</th>
                 </tr>
-              )
-            })}
-            {filteredParticipation.length === 0 && (
-              <tr>
-                <td colSpan={5} className="muted" style={{ textAlign: 'center' }}>
-                  No eligible students found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {paginatedParticipation.map((s) => {
+                  const isIssued = certificates.some(
+                    (c) => c.student_id === s.id && c.position === 'Participation'
+                  )
+                  return (
+                    <tr key={s.id}>
+                      <td>{s.student_name}</td>
+                      <td>{getCollegeName(s.college_id)}</td>
+                      <td>{getEventName(s.event_id)}</td>
+                      <td>
+                        <span className={isIssued ? 'success' : 'muted'}>
+                          {isIssued ? 'Issued' : 'Not Issued'}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          className="link"
+                          disabled={isIssued}
+                          onClick={() => issueParticipation(s)}
+                        >
+                          {isIssued ? 'Issued' : 'Issue Certificate'}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {paginatedParticipation.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="muted" style={{ textAlign: 'center' }}>
+                      No eligible students found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {totalParticipationPages > 1 && (
+            <div className="pagination" style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '16px', alignItems: 'center' }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setParticipationPage(1)}
+                disabled={participationPage === 1}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                First
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setParticipationPage((prev) => Math.max(prev - 1, 1))}
+                disabled={participationPage === 1}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                Prev
+              </button>
+              <span className="muted" style={{ fontSize: '0.85rem', margin: '0 8px' }}>
+                Page <strong>{participationPage}</strong> of {totalParticipationPages} ({filteredParticipation.length} items)
+              </span>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setParticipationPage((prev) => Math.min(prev + 1, totalParticipationPages))}
+                disabled={participationPage === totalParticipationPages}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                Next
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setParticipationPage(totalParticipationPages)}
+                disabled={participationPage === totalParticipationPages}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                Last
+              </button>
+            </div>
+          )}
+        </>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Student Name</th>
-              <th>College</th>
-              <th>Event</th>
-              <th>Winner Place</th>
-              <th>Cert Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredWinners.map((s, idx) => {
-              const isIssued = certificates.some(
-                (c) => c.student_id === s.id && c.position === s.winnerPlace
-              )
-              return (
-                <tr key={`${s.id}-${s.winnerPlace}-${idx}`}>
-                  <td><strong>{s.student_name}</strong></td>
-                  <td>{s.winnerCollegeName}</td>
-                  <td>{s.winnerEventName}</td>
-                  <td>
-                    <span className={`badge badge-${s.winnerPlace === '1st Place' ? 'approved' : 'pending'}`}>
-                      {s.winnerPlace}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={isIssued ? 'success' : 'muted'}>
-                      {isIssued ? '✓ Issued' : 'Not Issued'}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      className="link"
-                      disabled={isIssued}
-                      onClick={() => issueWinner(s)}
-                    >
-                      {isIssued ? 'Issued' : 'Issue Certificate'}
-                    </button>
-                  </td>
+        <>
+          <div style={{ overflowX: 'auto', marginBottom: '15px' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Student Name</th>
+                  <th>College</th>
+                  <th>Event</th>
+                  <th>Winner Place</th>
+                  <th>Cert Status</th>
+                  <th>Action</th>
                 </tr>
-              )
-            })}
-            {filteredWinners.length === 0 && (
-              <tr>
-                <td colSpan={6} className="muted" style={{ textAlign: 'center' }}>
-                  No winners assigned yet. Assign winners in the Winners page first.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {paginatedWinners.map((s, idx) => {
+                  const isIssued = certificates.some(
+                    (c) => c.student_id === s.id && c.position === s.winnerPlace
+                  )
+                  return (
+                    <tr key={`${s.id}-${s.winnerPlace}-${idx}`}>
+                      <td><strong>{s.student_name}</strong></td>
+                      <td>{s.winnerCollegeName}</td>
+                      <td>{s.winnerEventName}</td>
+                      <td>
+                        <span className={`badge badge-${s.winnerPlace === '1st Place' ? 'approved' : 'pending'}`}>
+                          {s.winnerPlace}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={isIssued ? 'success' : 'muted'}>
+                          {isIssued ? '✓ Issued' : 'Not Issued'}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          className="link"
+                          disabled={isIssued}
+                          onClick={() => issueWinner(s)}
+                        >
+                          {isIssued ? 'Issued' : 'Issue Certificate'}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {paginatedWinners.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="muted" style={{ textAlign: 'center' }}>
+                      No winners assigned yet. Assign winners in the Winners page first.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {totalWinnersPages > 1 && (
+            <div className="pagination" style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '16px', alignItems: 'center' }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setWinnersPage(1)}
+                disabled={winnersPage === 1}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                First
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setWinnersPage((prev) => Math.max(prev - 1, 1))}
+                disabled={winnersPage === 1}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                Prev
+              </button>
+              <span className="muted" style={{ fontSize: '0.85rem', margin: '0 8px' }}>
+                Page <strong>{winnersPage}</strong> of {totalWinnersPages} ({filteredWinners.length} items)
+              </span>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setWinnersPage((prev) => Math.min(prev + 1, totalWinnersPages))}
+                disabled={winnersPage === totalWinnersPages}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                Next
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setWinnersPage(totalWinnersPages)}
+                disabled={winnersPage === totalWinnersPages}
+                style={{ padding: '6px 12px', fontSize: '0.8rem', minHeight: 'auto' }}
+              >
+                Last
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

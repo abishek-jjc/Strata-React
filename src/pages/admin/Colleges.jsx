@@ -45,6 +45,7 @@ export default function Colleges() {
   const { data } = useTable(TABLES.COLLEGES)
   const fileInputRef = useRef(null)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+  const [selectedQrCollege, setSelectedQrCollege] = useState(null)
   const [domain, setDomain] = useState(() => {
     return localStorage.getItem('qr_domain_prefix') || window.location.origin
   })
@@ -184,7 +185,20 @@ export default function Colleges() {
         fields={fields}
         columns={['college', 'department', 'status']}
         onAfterSave={generateAndAttachQr}
-        renderExtraActions={(row) => <DownloadQrButton row={row} />}
+        renderExtraActions={(row) => (
+          <>
+            <DownloadQrButton row={row} />
+            {row.qr_image_data_url && (
+              <button
+                type="button"
+                className="link"
+                onClick={() => setSelectedQrCollege(row)}
+              >
+                Show QR
+              </button>
+            )}
+          </>
+        )}
         renderExtraHeaderActions={() => (
           <div style={{ display: 'flex', gap: '8px' }}>
             <button className="btn" onClick={() => setIsImportModalOpen(true)}>
@@ -196,14 +210,6 @@ export default function Colleges() {
           </div>
         )}
       />
-      <div className="qr-preview-grid">
-        {data.filter((c) => c.qr_image_data_url).map((c) => (
-          <div className="qr-preview" key={c.id}>
-            <img src={c.qr_image_data_url} alt={`QR for ${c.college || c.college_name}`} width={100} />
-            <span>{c.college || c.college_name}</span>
-          </div>
-        ))}
-      </div>
 
       {/* Excel Import Modal showing required format */}
       {isImportModalOpen && (
@@ -281,6 +287,35 @@ export default function Colleges() {
                   OK
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Show QR Modal */}
+      {selectedQrCollege && (
+        <div className="modal-backdrop" onClick={() => setSelectedQrCollege(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: '360px', textAlign: 'center', padding: '24px' }}>
+            <h3 style={{ borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
+              QR Code
+            </h3>
+            <div style={{ background: '#fff', padding: '16px', borderRadius: '12px', display: 'inline-block', margin: '0 auto 16px auto', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+              <img
+                src={selectedQrCollege.qr_image_data_url}
+                alt={`QR for ${selectedQrCollege.college || selectedQrCollege.college_name}`}
+                style={{ width: '220px', height: '220px', display: 'block' }}
+              />
+            </div>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', color: '#fff' }}>
+              {selectedQrCollege.college || selectedQrCollege.college_name}
+            </h4>
+            <p className="muted" style={{ fontSize: '0.85rem', margin: '0 0 24px 0' }}>
+              {selectedQrCollege.department} Department
+            </p>
+            <div className="modal-actions" style={{ justifyContent: 'center', marginTop: 0 }}>
+              <button type="button" className="btn btn-primary" onClick={() => setSelectedQrCollege(null)} style={{ width: '100%' }}>
+                Close
+              </button>
             </div>
           </div>
         </div>
