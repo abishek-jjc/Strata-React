@@ -73,7 +73,6 @@ export default function PaymentPolls() {
       if (err) throw err
       setPollName('')
       setPollKey('')
-      window.location.reload()
     } catch (err) {
       setError(err.message)
     } finally {
@@ -86,7 +85,6 @@ export default function PaymentPolls() {
     try {
       const { error } = await supabase.from(TABLES.PAYMENT_POLLS).delete().eq('id', id)
       if (error) throw error
-      window.location.reload()
     } catch (err) {
       alert('Failed to delete poll: ' + err.message)
     }
@@ -226,7 +224,7 @@ export default function PaymentPolls() {
             <tr>
               <th>Operator Desk</th>
               <th>College Cleared</th>
-              <th>Clearing Desk ID</th>
+              <th>Clearing Desk Name</th>
               <th>Timestamp</th>
             </tr>
           </thead>
@@ -237,7 +235,7 @@ export default function PaymentPolls() {
                 <td>
                   <span className="badge badge-approved" style={{ fontSize: '0.85rem' }}>✓ {log.college_name}</span>
                 </td>
-                <td className="muted">{log.poll_id || 'Desk deleted'}</td>
+                <td className="muted">{log.poll_name || 'Desk deleted'}</td>
                 <td>{new Date(log.created_at).toLocaleString()}</td>
               </tr>
             ))}

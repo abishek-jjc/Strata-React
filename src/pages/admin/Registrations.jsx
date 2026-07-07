@@ -36,21 +36,28 @@ export default function Registrations() {
 
   async function assignLot(reg) {
     const cName = collegeName(reg.college_id)
-    const lot = lots.find((l) => !l.is_assigned)
-    if (!lot) {
-      showAlert('No Unallocated Lots', 'All lots are currently assigned.', 'info')
-      return
-    }
     
-    // Assign lot to this college
-    const { error: lotErr } = await supabase
-      .from(TABLES.LOTS)
-      .update({ is_assigned: true, assigned_college: cName })
-      .eq('id', lot.id)
+    // Check if college already has a lot assigned
+    let lot = lots.find((l) => l.assigned_college.toLowerCase().trim() === cName.toLowerCase().trim())
+    
+    if (!lot) {
+      // Find the first unallocated lot
+      lot = lots.find((l) => !l.is_assigned)
+      if (!lot) {
+        showAlert('No Unallocated Lots', 'All lots are currently assigned.', 'info')
+        return
+      }
+      
+      // Assign lot to this college
+      const { error: lotErr } = await supabase
+        .from(TABLES.LOTS)
+        .update({ is_assigned: true, assigned_college: cName })
+        .eq('id', lot.id)
 
-    if (lotErr) {
-      showAlert('Error', 'Failed to allocate lot: ' + lotErr.message, 'info')
-      return
+      if (lotErr) {
+        showAlert('Error', 'Failed to allocate lot: ' + lotErr.message, 'info')
+        return
+      }
     }
 
     // Update status to lot_assigned

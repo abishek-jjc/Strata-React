@@ -46,6 +46,7 @@ BEGIN
   ALTER TABLE public.events DROP COLUMN IF EXISTS minimum_participants;
   ALTER TABLE public.events DROP COLUMN IF EXISTS maximum_participants;
   ALTER TABLE public.events DROP COLUMN IF EXISTS details;
+  ALTER TABLE public.events DROP COLUMN IF EXISTS venue;
 
   -- Recreate team_size if it is text
   IF EXISTS (
@@ -57,7 +58,8 @@ BEGIN
   END IF;
 
   -- Add columns if not exist
-  ALTER TABLE public.events ADD COLUMN IF NOT EXISTS venue uuid REFERENCES public.venues(id) ON DELETE SET NULL;
+  ALTER TABLE public.events ADD COLUMN IF NOT EXISTS prelims_venue uuid REFERENCES public.venues(id) ON DELETE SET NULL;
+  ALTER TABLE public.events ADD COLUMN IF NOT EXISTS mains_venue uuid REFERENCES public.venues(id) ON DELETE SET NULL;
   ALTER TABLE public.events ADD COLUMN IF NOT EXISTS preliminary time;
   ALTER TABLE public.events ADD COLUMN IF NOT EXISTS mains time;
   ALTER TABLE public.events ADD COLUMN IF NOT EXISTS team_size int NOT NULL DEFAULT 1;
@@ -190,15 +192,20 @@ BEGIN
     RETURNING id INTO v_leader_id;
   END IF;
 
-  -- Find the first unallocated lot (where is_assigned is false)
-  SELECT id, lot_name INTO v_lot_id, v_lot_name FROM lots WHERE is_assigned = false ORDER BY lot_name ASC LIMIT 1;
+  -- Check if the college already has a lot assigned
+  SELECT id, lot_name INTO v_lot_id, v_lot_name FROM lots WHERE lower(trim(assigned_college)) = lower(trim(p_college_name)) LIMIT 1;
 
-  -- If found, assign this lot to the college name
-  IF v_lot_id IS NOT NULL THEN
-    UPDATE lots 
-       SET is_assigned = true, 
-           assigned_college = p_college_name 
-     WHERE id = v_lot_id;
+  -- If not found, find the first unallocated lot (where is_assigned is false)
+  IF v_lot_id IS NULL THEN
+    SELECT id, lot_name INTO v_lot_id, v_lot_name FROM lots WHERE is_assigned = false ORDER BY lot_name ASC LIMIT 1;
+
+    -- If found, assign this lot to the college name
+    IF v_lot_id IS NOT NULL THEN
+      UPDATE lots 
+         SET is_assigned = true, 
+             assigned_college = p_college_name 
+       WHERE id = v_lot_id;
+    END IF;
   END IF;
 
   -- Register team for each event

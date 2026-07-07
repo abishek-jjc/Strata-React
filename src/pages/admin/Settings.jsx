@@ -8,6 +8,8 @@ export default function Settings() {
   const [invTagline, setInvTagline] = useState('')
   const [invBody, setInvBody] = useState('')
   const [invPdfUrl, setInvPdfUrl] = useState('')
+  const [paymentQrUrl, setPaymentQrUrl] = useState('')
+  const [whatsappLink, setWhatsappLink] = useState('')
   const [contactEmail, setContactEmail] = useState('')
   const [contactPhone, setContactPhone] = useState('')
   const [contactAddress, setContactAddress] = useState('')
@@ -15,6 +17,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [uploadingPdf, setUploadingPdf] = useState(false)
+  const [uploadingQr, setUploadingQr] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
@@ -33,6 +36,8 @@ export default function Settings() {
             if (row.key_name === 'invitation_tagline') setInvTagline(row.value)
             if (row.key_name === 'invitation_body') setInvBody(row.value)
             if (row.key_name === 'invitation_pdf_url') setInvPdfUrl(row.value)
+            if (row.key_name === 'payment_qr_url') setPaymentQrUrl(row.value)
+            if (row.key_name === 'whatsapp_group_link') setWhatsappLink(row.value)
             if (row.key_name === 'contact_email') setContactEmail(row.value)
             if (row.key_name === 'contact_phone') setContactPhone(row.value)
             if (row.key_name === 'contact_address') setContactAddress(row.value)
@@ -61,6 +66,7 @@ export default function Settings() {
         { key_name: 'invitation_title', value: invTitle },
         { key_name: 'invitation_tagline', value: invTagline },
         { key_name: 'invitation_body', value: invBody },
+        { key_name: 'whatsapp_group_link', value: whatsappLink },
         { key_name: 'contact_email', value: contactEmail },
         { key_name: 'contact_phone', value: contactPhone },
         { key_name: 'contact_address', value: contactAddress },
@@ -128,6 +134,60 @@ export default function Settings() {
       setMessage('PDF invitation removed successfully.')
     } catch (err) {
       setError(err.message || 'Failed to remove PDF setting.')
+    }
+  }
+
+  async function handleQrUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Only image files are allowed for the QR Code.')
+      return
+    }
+
+    setError('')
+    setMessage('')
+    setUploadingQr(true)
+
+    try {
+      const fileName = `payment_qr_${Date.now()}.${file.name.split('.').pop()}`
+      const { data, error: uploadError } = await supabase.storage
+        .from('assets')
+        .upload(fileName, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('assets')
+        .getPublicUrl(fileName)
+
+      const { error: upsertError } = await supabase.from(TABLES.SETTINGS).upsert([
+        { key_name: 'payment_qr_url', value: publicUrl }
+      ])
+      if (upsertError) throw upsertError
+
+      setPaymentQrUrl(publicUrl)
+      setMessage('Payment QR Code uploaded and saved successfully!')
+    } catch (err) {
+      setError(err.message || 'Failed to upload QR code image.')
+    } finally {
+      setUploadingQr(false)
+    }
+  }
+
+  async function handleRemoveQr() {
+    setError('')
+    setMessage('')
+    try {
+      const { error: upsertError } = await supabase.from(TABLES.SETTINGS).upsert([
+        { key_name: 'payment_qr_url', value: '' }
+      ])
+      if (upsertError) throw upsertError
+
+      setPaymentQrUrl('')
+      setMessage('Payment QR Code removed successfully.')
+    } catch (err) {
+      setError(err.message || 'Failed to remove QR code setting.')
     }
   }
 
@@ -213,6 +273,46 @@ export default function Settings() {
             </div>
           )}
         </div>
+
+        <div className="field" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <span>Payment QR Code Image (for GPay / PhonePe)</span>
+          {paymentQrUrl ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '8px', maxWidth: '300px' }}>
+              <img src={paymentQrUrl} alt="Payment QR" style={{ width: '100%', borderRadius: '8px', border: '1px solid var(--border)' }} />
+              <button 
+                type="button" 
+                onClick={handleRemoveQr}
+                className="btn btn-secondary"
+                style={{ padding: '8px 12px', fontSize: '0.8rem', background: '#e11d48', border: 'none', color: '#fff', cursor: 'pointer', width: '100%' }}
+              >
+                Remove QR Image
+              </button>
+            </div>
+          ) : (
+            <div style={{ border: '2px dashed var(--border)', padding: '20px', borderRadius: '8px', textAlign: 'center' }}>
+              <input 
+                type="file" 
+                accept="image/*"
+                onChange={handleQrUpload}
+                disabled={uploadingQr}
+                style={{ display: 'block', margin: '0 auto 10px' }}
+              />
+              <p className="muted" style={{ fontSize: '13px', margin: 0 }}>
+                {uploadingQr ? 'Uploading QR image...' : 'PNG, JPG, JPEG formats accepted.'}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <label className="field">
+          <span>WhatsApp Group Invite Link</span>
+          <input
+            type="text"
+            placeholder="e.g. https://chat.whatsapp.com/..."
+            value={whatsappLink}
+            onChange={(e) => setWhatsappLink(e.target.value)}
+          />
+        </label>
 
         <h3 style={{ fontSize: '1.2rem', color: 'var(--accent)', marginTop: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
           Contact Us Page Settings

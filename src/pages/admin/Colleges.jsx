@@ -5,6 +5,7 @@ import CrudManager from '../../components/common/CrudManager'
 import { TABLES } from '../../supabase/tables'
 import { supabase } from '../../supabase/client'
 import { useTable } from '../../hooks/useTable'
+import { encryptCollegePayload } from '../../utils/qrCrypto'
 
 const fields = [
   { name: 'college', label: 'College', type: 'text', required: true },
@@ -17,7 +18,13 @@ const fields = [
 async function generateAndAttachQr(formData, rowId) {
   const collegeVal = formData.college || formData.college_name || ''
   const deptVal = formData.department || ''
-  const qrUrl = `https://anjacstrata.netlify.app/register?college=${encodeURIComponent(collegeVal)}&department=${encodeURIComponent(deptVal)}`
+  const payload = {
+    college: collegeVal,
+    department: deptVal
+  }
+  const encrypted = encryptCollegePayload(payload)
+  const domain = localStorage.getItem('qr_domain_prefix') || window.location.origin
+  const qrUrl = `${domain}/register?payload=${encodeURIComponent(encrypted)}`
   const qrImageDataUrl = await QRCode.toDataURL(qrUrl, { width: 240 })
   await supabase
     .from(TABLES.COLLEGES)
@@ -38,6 +45,15 @@ export default function Colleges() {
   const { data } = useTable(TABLES.COLLEGES)
   const fileInputRef = useRef(null)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+  const [domain, setDomain] = useState(() => {
+    return localStorage.getItem('qr_domain_prefix') || window.location.origin
+  })
+
+  const handleDomainChange = (e) => {
+    const val = e.target.value
+    setDomain(val)
+    localStorage.setItem('qr_domain_prefix', val)
+  }
   const [alertState, setAlertState] = useState({
     isOpen: false,
     title: '',
@@ -103,8 +119,7 @@ export default function Colleges() {
         showAlert(
           'Import Successful',
           `Successfully imported and generated QRs for ${successCount} colleges!`,
-          'info',
-          () => window.location.reload()
+          'info'
         )
       } catch (err) {
         showAlert('Import Failed', 'Failed to parse Excel file: ' + err.message, 'info')
@@ -131,8 +146,7 @@ export default function Colleges() {
         showAlert(
           'Regeneration Complete',
           `Successfully generated redirect URL QR codes for ${count} colleges!`,
-          'info',
-          () => window.location.reload()
+          'info'
         )
       }
     )
@@ -147,6 +161,23 @@ export default function Colleges() {
         accept=".xlsx,.xls"
         style={{ display: 'none' }}
       />
+      
+      {/* Domain prefix setting card */}
+      <div className="card" style={{ padding: '20px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <h3 style={{ margin: 0, fontSize: '1.1rem' }}>QR Code Redirect Domain</h3>
+        <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
+          Enter the domain where the register page is hosted. This prefix is embedded into the QR code URL.
+        </p>
+        <input
+          type="text"
+          className="input"
+          value={domain}
+          onChange={handleDomainChange}
+          placeholder="e.g. https://anjacstrata.netlify.app"
+          style={{ maxWidth: '450px', marginTop: '5px' }}
+        />
+      </div>
+
       <CrudManager
         title="Colleges"
         table={TABLES.COLLEGES}

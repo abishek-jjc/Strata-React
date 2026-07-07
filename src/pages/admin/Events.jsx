@@ -8,11 +8,11 @@ const baseFields = [
   { name: 'description', label: 'Detailed Description', type: 'textarea' },
   { name: 'staff_incharge', label: 'Staff Incharge', type: 'select', options: [] },
   { name: 'team_size', label: 'Team Size (Exact count)', type: 'number', required: true },
-  { name: 'venue', label: 'Venue', type: 'select', options: [] },
+  { name: 'prelims_venue', label: 'Prelims Venue', type: 'select', options: [] },
   { name: 'preliminary', label: 'Preliminary Round Time', type: 'time' },
+  { name: 'mains_venue', label: 'Mains Venue', type: 'select', options: [] },
   { name: 'mains', label: 'Mains Round Time', type: 'time' },
   { name: 'rules', label: 'Rules & Guidelines', type: 'textarea' },
-  { name: 'winner_count', label: 'Number of winners', type: 'number' },
   { name: 'status', label: 'Status', type: 'select', options: ['active', 'inactive'] },
 ]
 
@@ -21,7 +21,7 @@ export default function Events() {
   const { data: incharges } = useTable(TABLES.INCHARGES)
 
   const fields = baseFields.map((f) => {
-    if (f.name === 'venue') {
+    if (f.name === 'prelims_venue' || f.name === 'mains_venue') {
       return { ...f, options: venues.map((v) => ({ value: v.id, label: v.venue_name })) }
     }
     if (f.name === 'staff_incharge') {

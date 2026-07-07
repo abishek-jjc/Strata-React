@@ -18,6 +18,7 @@ export default function CrudManager({
   renderExtraActions,
   renderExtraHeaderActions,
   disableEdit = false,
+  disableAdd = false,
   customData = null,
 }) {
   const { data: dbData, loading } = useTable(table)
@@ -137,9 +138,11 @@ export default function CrudManager({
           <button className="btn" onClick={() => exportToExcel(filtered, table)}>
             Export Excel
           </button>
-          <button className="btn btn-primary" onClick={openAdd}>
-            Add
-          </button>
+          {!disableAdd && (
+            <button className="btn btn-primary" onClick={openAdd}>
+              Add
+            </button>
+          )}
         </div>
       </div>
 

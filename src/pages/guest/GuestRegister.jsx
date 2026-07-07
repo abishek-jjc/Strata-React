@@ -3,6 +3,8 @@ import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { TABLES } from '../../supabase/tables'
 import GuestLayout from '../../components/layout/GuestLayout'
+import { Html5Qrcode } from 'html5-qrcode'
+import { decryptCollegePayload } from '../../utils/qrCrypto'
 
 export default function GuestRegister() {
   const location = useLocation()
@@ -40,18 +42,68 @@ export default function GuestRegister() {
   const [warningText, setWarningText] = useState('')
   const [submitDisabled, setSubmitDisabled] = useState(false)
 
-  const [showQrScanPrompt, setShowQrScanPrompt] = useState(false)
+  const [isDecrypted, setIsDecrypted] = useState(false)
+  const [scanError, setScanError] = useState('')
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    const collegeParam = params.get('college')
-    const deptParam = params.get('department')
-    if (collegeParam) setCollegeName(collegeParam)
-    if (deptParam) setLeaderDept(deptParam)
-    if (!collegeParam || !deptParam) {
-      setShowQrScanPrompt(true)
+    if (isDecrypted || loading) return
+
+    const qrScanner = new Html5Qrcode("reader")
+
+    const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+      let ciphertext = decodedText
+      if (decodedText.startsWith('http://') || decodedText.startsWith('https://')) {
+        try {
+          const url = new URL(decodedText)
+          ciphertext = url.searchParams.get('payload') || ''
+        } catch (e) {
+          ciphertext = ''
+        }
+      }
+
+      const decrypted = decryptCollegePayload(ciphertext)
+      if (decrypted && decrypted.college && decrypted.department) {
+        setCollegeName(decrypted.college)
+        setLeaderDept(decrypted.department)
+        setIsDecrypted(true)
+        setScanError('')
+        
+        qrScanner.stop().then(() => {
+          qrScanner.clear()
+        }).catch(err => console.error("Failed to stop scanner", err))
+      } else {
+        setScanError('Invalid QR Code. Decryption failed. Please scan a valid invitation QR.')
+      }
     }
-  }, [location.search])
+
+    const config = { fps: 10 }
+    
+    qrScanner.start(
+      { facingMode: "environment" },
+      config,
+      qrCodeSuccessCallback,
+      () => {}
+    ).catch((err) => {
+      console.error("Camera start error:", err)
+      setScanError("Failed to start camera scanner. Please ensure camera permissions are granted.")
+    })
+
+    return () => {
+      if (qrScanner.isScanning) {
+        qrScanner.stop().then(() => {
+          qrScanner.clear()
+        }).catch(err => console.error("Clean stop error:", err))
+      }
+    }
+  }, [isDecrypted, loading])
+
+  useEffect(() => {
+    if (location.state?.autoDecryptedCollege && location.state?.autoDecryptedDept) {
+      setCollegeName(location.state.autoDecryptedCollege)
+      setLeaderDept(location.state.autoDecryptedDept)
+      setIsDecrypted(true)
+    }
+  }, [location.state])
 
   useEffect(() => {
     async function loadData() {
@@ -195,7 +247,7 @@ export default function GuestRegister() {
           eventId: event.id,
           participants: filled.map(p => ({
             studentName: p.studentName.trim(),
-            gender: 'Male', // Default compatible attribute
+            gender: p.gender || 'Male',
             department: leaderDept.trim(), // Default to Leader's Department
             year: p.year.trim()
           }))
@@ -266,6 +318,7 @@ export default function GuestRegister() {
       setVegCount(0)
       setNonVegCount(0)
       setAgreeRules(false)
+      setIsDecrypted(false)
       
       // Reset participant slots
       const initialParts = {}
@@ -282,6 +335,64 @@ export default function GuestRegister() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (loading) {
+    return (
+      <GuestLayout>
+        <section className="guest-section">
+          <p style={{ textAlign: 'center', color: 'var(--g-text-muted)', paddingTop: '60px' }}>Loading registration...</p>
+        </section>
+      </GuestLayout>
+    )
+  }
+
+  if (!isDecrypted) {
+    return (
+      <GuestLayout>
+        <section className="guest-section">
+          <div className="guest-section-header">
+            <span className="guest-section-tag">Verify Invitation</span>
+            <h2 className="guest-section-title">Invitation Scanner</h2>
+          </div>
+
+          <div className="guest-glass-panel" style={{ padding: '40px', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
+            <h3 style={{ fontFamily: 'Syne, sans-serif', color: 'var(--g-secondary)', marginBottom: '15px' }}>
+              Scan QR Code to Register
+            </h3>
+            <p style={{ color: 'var(--g-text-muted)', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.6' }}>
+              Please scan the QR code printed on your official STRATA invitation letter using your device camera to unlock the registration form.
+            </p>
+
+            <div 
+              id="reader" 
+              style={{ 
+                width: '100%', 
+                maxWidth: '350px', 
+                margin: '0 auto 25px auto', 
+                borderRadius: '16px', 
+                overflow: 'hidden',
+                border: '1px solid var(--g-glass-border)',
+                background: 'rgba(0,0,0,0.3)',
+                aspectRatio: '1'
+              }}
+            ></div>
+
+            {scanError && (
+              <div style={{ color: 'var(--g-accent)', fontSize: '0.95rem', margin: '15px 0', padding: '10px 15px', borderRadius: '8px', background: 'rgba(255,23,68,0.05)', border: '1px solid rgba(255,23,68,0.2)' }}>
+                {scanError}
+              </div>
+            )}
+
+            <div style={{ marginTop: '20px' }}>
+              <button type="button" onClick={() => navigate('/')} className="guest-btn guest-btn-secondary">
+                Cancel & Return Home
+              </button>
+            </div>
+          </div>
+        </section>
+      </GuestLayout>
+    )
   }
 
   const borderColors = ['#7c4dff', '#00e5ff', '#ff1744', '#ffeb3b', '#4caf50', '#ff9800']
@@ -452,8 +563,8 @@ export default function GuestRegister() {
 
                       <div className="guest-sub-team-inputs-container">
                         {Array.from({ length: activeEvent.team_size || 1 }).map((_, idx) => {
-                          const pData = participants[activeEvent.id]?.[idx] || { studentName: '', year: '', email: '' }
-                          const isRequired = idx === 0 && isTabFilled(activeEvent.id)
+                          const pData = participants[activeEvent.id]?.[idx] || { studentName: '', year: '', email: '', gender: '' }
+                          const isRequired = isTabFilled(activeEvent.id)
                           const leftColor = borderColors[idx % borderColors.length]
                           
                           return (
@@ -481,22 +592,37 @@ export default function GuestRegister() {
                                   />
                                 </label>
                                 <label className="guest-field">
-                                  <span>Class / Year</span>
+                                  <span>Class {isRequired && '*'}</span>
                                   <input 
                                     type="text" 
                                     placeholder="e.g. III BCA / I MSc IT" 
                                     value={pData.year}
+                                    required={isRequired}
                                     onChange={(e) => updateParticipant(activeEvent.id, idx, 'year', e.target.value)}
                                   />
                                 </label>
                               </div>
                               <div className="guest-form-row" style={{ margin: 0 }}>
-                                <label className="guest-field" style={{ gridColumn: 'span 2' }}>
-                                  <span>Email Address</span>
+                                <label className="guest-field">
+                                  <span>Gender {isRequired && '*'}</span>
+                                  <select
+                                    value={pData.gender || ''}
+                                    required={isRequired}
+                                    onChange={(e) => updateParticipant(activeEvent.id, idx, 'gender', e.target.value)}
+                                  >
+                                    <option value="">Select Gender…</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                  </select>
+                                </label>
+                                <label className="guest-field">
+                                  <span>Email Address {isRequired && '*'}</span>
                                   <input 
                                     type="email" 
                                     placeholder="e.g. participant@gmail.com" 
                                     value={pData.email}
+                                    required={isRequired}
                                     onChange={(e) => updateParticipant(activeEvent.id, idx, 'email', e.target.value)}
                                   />
                                 </label>
@@ -587,24 +713,6 @@ export default function GuestRegister() {
       <div className={`guest-sticky-counter-badge ${uniqueCount > maxAllowedLimit ? 'warning' : ''}`} id="counterBadge">
         Unique Team Members: <span>{uniqueCount}</span> / <span>{maxAllowedLimit}</span>
       </div>
-
-      {/* QR Code Scan Prompt Modal Overlay */}
-      {showQrScanPrompt && (
-        <div className="guest-success-overlay" style={{ backdropFilter: 'blur(20px)', zIndex: 1000 }}>
-          <div className="guest-success-card guest-glass-panel" style={{ maxWidth: '480px', textAlign: 'center', padding: '40px' }}>
-            <div className="guest-success-icon" style={{ background: 'rgba(255, 23, 68, 0.1)', color: 'var(--g-accent)', border: '1px solid rgba(255, 23, 68, 0.2)' }}>🛈</div>
-            <h2>Scan Invitation QR</h2>
-            <p style={{ color: 'var(--g-text-muted)', fontSize: '0.95rem', margin: '20px 0', lineHeight: '1.6' }}>
-              Registrations are restricted. Please scan the QR code printed on your official manual invitation letter to access the registration form.
-            </p>
-            <div style={{ marginTop: '25px' }}>
-              <button onClick={() => navigate('/')} className="guest-btn guest-btn-secondary" style={{ width: '100%' }}>
-                Return to Homepage
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </GuestLayout>
   )
 }

@@ -27,6 +27,7 @@ export default function Participants() {
       table={TABLES.STUDENTS}
       fields={fields}
       columns={['student_name', 'year', 'email', 'event_id', 'winner_place']}
+      disableAdd={true}
     />
   )
 }

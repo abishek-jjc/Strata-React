@@ -6,13 +6,21 @@ import { supabase } from '../../supabase/client'
 
 export default function StudentList() {
   const { profile } = useAuth()
-  const { data: students, loading } = useTable(TABLES.STUDENTS, [
+  const { data: students, loading: studentsLoading } = useTable(TABLES.STUDENTS, [
     ['leader_id', 'eq', profile?.ref_id],
   ])
+  const { data: events, loading: eventsLoading } = useTable(TABLES.EVENTS)
   
   const [editingStudent, setEditingStudent] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const loading = studentsLoading || eventsLoading
+
+  const getEventName = (eventId) => {
+    const ev = events.find((e) => e.id === eventId)
+    return ev ? ev.event_name : 'Unknown Event'
+  }
 
   function openEdit(student) {
     setEditingStudent({ ...student })
@@ -29,7 +37,7 @@ export default function StudentList() {
       .update({
         student_name: editingStudent.student_name,
         gender: editingStudent.gender,
-        department: editingStudent.department,
+        department: '',
         year: editingStudent.year
       })
       .eq('id', editingStudent.id)
@@ -40,7 +48,6 @@ export default function StudentList() {
       setError(updateError.message)
     } else {
       setEditingStudent(null)
-      window.location.reload()
     }
   }
 
@@ -54,8 +61,8 @@ export default function StudentList() {
           <tr>
             <th>Name</th>
             <th>Gender</th>
-            <th>Department</th>
-            <th>Year</th>
+            <th>Event</th>
+            <th>Class</th>
             <th>Certificate Status</th>
             <th>Actions</th>
           </tr>
@@ -65,7 +72,7 @@ export default function StudentList() {
             <tr key={s.id}>
               <td>{s.student_name}</td>
               <td>{s.gender}</td>
-              <td>{s.department}</td>
+              <td>{getEventName(s.event_id)}</td>
               <td>{s.year}</td>
               <td>
                 <span className={`badge badge-${s.certificate_status === 'Issued' ? 'approved' : 'pending'}`}>
@@ -115,21 +122,21 @@ export default function StudentList() {
             </label>
 
             <label className="field">
-              <span>Department</span>
+              <span>Event</span>
               <input
                 type="text"
-                required
-                value={editingStudent.department}
-                onChange={(e) => setEditingStudent({ ...editingStudent, department: e.target.value })}
+                disabled
+                style={{ backgroundColor: 'rgba(255,255,255,0.02)', cursor: 'not-allowed', opacity: 0.8 }}
+                value={getEventName(editingStudent.event_id)}
               />
             </label>
 
             <label className="field">
-              <span>Class / Year</span>
+              <span>Class</span>
               <input
                 type="text"
                 required
-                placeholder="e.g. III BCA / II MSc CS"
+                placeholder="e.g. III BCA"
                 value={editingStudent.year}
                 onChange={(e) => setEditingStudent({ ...editingStudent, year: e.target.value })}
               />

@@ -57,7 +57,6 @@ export default function Lots() {
       if (error) throw error
 
       alert(`Successfully imported ${lots.length} lot(s)!`)
-      window.location.reload()
     } catch (err) {
       alert('Import failed: ' + err.message)
     }

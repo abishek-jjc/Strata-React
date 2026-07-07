@@ -69,7 +69,8 @@ export default function GuestEvents() {
   }
 
   const activeEvent = events[activeIndex]
-  const venueName = activeEvent ? (venues.find((v) => v.id === activeEvent.venue)?.venue_name || 'TBD') : 'TBD'
+  const prelimsVenue = activeEvent ? (venues.find((v) => v.id === activeEvent.prelims_venue)?.venue_name || 'TBD') : 'TBD'
+  const mainsVenue = activeEvent ? (venues.find((v) => v.id === activeEvent.mains_venue)?.venue_name || 'TBD') : 'TBD'
   const staffName = activeEvent ? (incharges.find((i) => i.id === activeEvent.staff_incharge)?.name || 'TBD') : 'TBD'
 
   function getInitials(name) {
@@ -132,12 +133,13 @@ export default function GuestEvents() {
 
                   {/* Pills row */}
                   <div className="guest-details-meta-row">
-                    <div className="guest-meta-pill">📍 Venue: <strong>{venueName}</strong></div>
+                    <div className="guest-meta-pill">📍 Prelims Venue: <strong>{prelimsVenue}</strong></div>
                     {activeEvent.preliminary && (
-                      <div className="guest-meta-pill">🕒 Prelims: <strong>{activeEvent.preliminary}</strong></div>
+                      <div className="guest-meta-pill">🕒 Prelims Time: <strong>{activeEvent.preliminary}</strong></div>
                     )}
+                    <div className="guest-meta-pill">📍 Mains Venue: <strong>{mainsVenue}</strong></div>
                     {activeEvent.mains && (
-                      <div className="guest-meta-pill">🕒 Mains: <strong>{activeEvent.mains}</strong></div>
+                      <div className="guest-meta-pill">🕒 Mains Time: <strong>{activeEvent.mains}</strong></div>
                     )}
                     <div className="guest-meta-pill">👥 Team Size: <strong>{activeEvent.team_size || 1} members</strong></div>
                     <div className="guest-meta-pill">👤 Staff in-charge: <strong>{staffName}</strong></div>

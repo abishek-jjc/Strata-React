@@ -16,6 +16,7 @@ export default function Dashboard() {
 
   // Fetch colleges so we can map student.college_id to name
   const { data: colleges } = useTable(TABLES.COLLEGES)
+  const { data: venues } = useTable(TABLES.VENUES)
 
   useEffect(() => {
     async function loadInchargeProfile() {
@@ -118,6 +119,8 @@ export default function Dashboard() {
   })
 
   const getCollegeName = (id) => colleges.find((c) => c.id === id)?.college || 'Loading…'
+  const prelimsVenue = event ? (venues.find((v) => v.id === event.prelims_venue)?.venue_name || 'N/A') : 'N/A'
+  const mainsVenue = event ? (venues.find((v) => v.id === event.mains_venue)?.venue_name || 'N/A') : 'N/A'
 
   return (
     <div>
@@ -141,15 +144,21 @@ export default function Dashboard() {
               <div style={{ fontWeight: 'bold', marginTop: 5 }}>{event.category || 'N/A'}</div>
             </div>
             <div className="stat" style={{ border: '1px solid var(--border)', background: 'var(--bg-muted)', padding: 10 }}>
-              <div className="stat-label">Mains Date & Venue</div>
+              <div className="stat-label">Prelims Time & Venue</div>
               <div style={{ fontWeight: 'bold', marginTop: 5 }}>
-                {event.mains_date || 'N/A'} · {event.mains_venue || 'N/A'}
+                {event.preliminary || 'N/A'} · {prelimsVenue}
+              </div>
+            </div>
+            <div className="stat" style={{ border: '1px solid var(--border)', background: 'var(--bg-muted)', padding: 10 }}>
+              <div className="stat-label">Mains Time & Venue</div>
+              <div style={{ fontWeight: 'bold', marginTop: 5 }}>
+                {event.mains || 'N/A'} · {mainsVenue}
               </div>
             </div>
             <div className="stat" style={{ border: '1px solid var(--border)', background: 'var(--bg-muted)', padding: 10 }}>
               <div className="stat-label">Team Constraints</div>
               <div style={{ fontWeight: 'bold', marginTop: 5 }}>
-                Size: {event.team_size || 'N/A'} ({event.minimum_participants}–{event.maximum_participants} members)
+                Size: {event.team_size || 'N/A'} members
               </div>
             </div>
           </div>

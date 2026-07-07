@@ -26,6 +26,8 @@ const NAV = {
     ['/leader/register', 'Team Registration'],
     ['/leader/students', 'Student List'],
     ['/leader/certificates', 'Certificates'],
+    ['/leader/profile', 'Profile / Password'],
+    ['/leader/payment', 'Payment'],
   ],
   accountant: [
     ['/accountant', 'Dashboard'],

@@ -53,8 +53,9 @@ export default function Dashboard() {
             <tr>
               <th>Event Name</th>
               <th>Category</th>
-              <th>Venue</th>
+              <th>Prelims Venue</th>
               <th>Prelims Time</th>
+              <th>Mains Venue</th>
               <th>Mains Time</th>
               <th>Status</th>
             </tr>
@@ -62,15 +63,17 @@ export default function Dashboard() {
           <tbody>
             {registrations.map((r) => {
               const event = events.find((e) => e.id === r.event_id)
-              const eventVenue = event ? (venues.find((v) => v.id === event.venue)?.venue_name || 'TBD') : 'TBD'
+              const prelimsVenue = event ? (venues.find((v) => v.id === event.prelims_venue)?.venue_name || 'TBD') : 'TBD'
+              const mainsVenue = event ? (venues.find((v) => v.id === event.mains_venue)?.venue_name || 'TBD') : 'TBD'
               return (
                 <tr key={r.id}>
                   <td>
                     <strong>{event?.event_name || r.event_id}</strong>
                   </td>
                   <td>{event?.category || '—'}</td>
-                  <td>{eventVenue}</td>
+                  <td>{prelimsVenue}</td>
                   <td>{event?.preliminary || '—'}</td>
+                  <td>{mainsVenue}</td>
                   <td>{event?.mains || '—'}</td>
                   <td>
                     <span className={`badge badge-${r.status}`}>{r.status}</span>
@@ -80,7 +83,7 @@ export default function Dashboard() {
             })}
             {registrations.length === 0 && (
               <tr>
-                <td colSpan={6} className="muted" style={{ textAlign: 'center', padding: '30px' }}>
+                <td colSpan={7} className="muted" style={{ textAlign: 'center', padding: '30px' }}>
                   No contest registrations found yet.
                 </td>
               </tr>

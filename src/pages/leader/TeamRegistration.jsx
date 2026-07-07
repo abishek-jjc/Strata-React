@@ -5,19 +5,37 @@ import { useTable } from '../../hooks/useTable'
 import { TABLES } from '../../supabase/tables'
 import { hasDuplicateNamesWithinTeam } from '../../utils/validators'
 
-const emptyParticipant = () => ({ studentName: '', email: '', gender: '', department: '', year: '' })
+const emptyParticipant = () => ({ studentName: '', email: '', gender: '', year: '' })
 
 export default function TeamRegistration() {
   const { profile } = useAuth()
   const { data: events } = useTable(TABLES.EVENTS, [['status', 'eq', 'active']])
+  const { data: registrations } = useTable(TABLES.REGISTRATIONS, [['leader_id', 'eq', profile?.ref_id]])
   const [eventId, setEventId] = useState('')
   const [participants, setParticipants] = useState([])
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [whatsappLink, setWhatsappLink] = useState('')
+
+  useEffect(() => {
+    async function loadSettings() {
+      const { data } = await supabase
+        .from(TABLES.SETTINGS)
+        .select('*')
+      if (data) {
+        const wa = data.find(s => s.key_name === 'whatsapp_group_link')?.value || ''
+        setWhatsappLink(wa)
+      }
+    }
+    loadSettings()
+  }, [])
 
   const selectedEvent = events.find((e) => e.id === eventId)
   const teamSize = selectedEvent?.team_size || 0
+
+  const registeredEventIds = registrations.map((r) => r.event_id)
+  const availableEvents = events.filter((ev) => !registeredEventIds.includes(ev.id))
 
   // When event changes, reset participants to exactly team_size empty rows
   useEffect(() => {
@@ -48,6 +66,18 @@ export default function TeamRegistration() {
 
     const names = participants.map((p) => p.studentName.trim())
     if (names.some((n) => !n)) return setError('Every participant needs a name.')
+    if (names.some((n) => n.length < 3)) {
+      return setError('Every participant name must contain at least 3 characters.')
+    }
+    if (participants.some((p) => !p.email.trim())) {
+      return setError('Every participant needs an email address.')
+    }
+    if (participants.some((p) => !p.gender)) {
+      return setError('Every participant needs a gender.')
+    }
+    if (participants.some((p) => !p.year)) {
+      return setError('Every participant needs a class/year.')
+    }
 
     if (participants.length !== teamSize) {
       return setError(`This event requires exactly ${teamSize} participant(s).`)
@@ -67,7 +97,7 @@ export default function TeamRegistration() {
           studentName: p.studentName.trim(),
           email: p.email.trim(),
           gender: p.gender,
-          department: p.department,
+          department: '',
           year: p.year,
         })),
       })
@@ -92,12 +122,26 @@ export default function TeamRegistration() {
         {/* Event selector */}
         <label className="field" style={{ maxWidth: 480 }}>
           <span>Event</span>
-          <select value={eventId} onChange={(e) => { setEventId(e.target.value) }} required>
-            <option value="">Select event…</option>
-            {events.map((ev) => (
-              <option key={ev.id} value={ev.id}>{ev.event_name}</option>
-            ))}
-          </select>
+          {availableEvents.length === 0 ? (
+            <div style={{
+              padding: '12px',
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '8px',
+              color: 'var(--text-secondary)',
+              fontSize: '0.95rem',
+              marginTop: '5px'
+            }}>
+              ✓ You have registered for all available events.
+            </div>
+          ) : (
+            <select value={eventId} onChange={(e) => { setEventId(e.target.value) }} required>
+              <option value="">Select event…</option>
+              {availableEvents.map((ev) => (
+                <option key={ev.id} value={ev.id}>{ev.event_name}</option>
+              ))}
+            </select>
+          )}
         </label>
 
         {/* Event info banner */}
@@ -131,10 +175,9 @@ export default function TeamRegistration() {
                 <tr>
                   <th style={{ width: 36 }}>#</th>
                   <th>Name <span style={{ color: '#ef4444' }}>*</span></th>
-                  <th>Email</th>
-                  <th>Gender</th>
-                  <th>Department</th>
-                  <th>Year</th>
+                  <th>Email <span style={{ color: '#ef4444' }}>*</span></th>
+                  <th>Gender <span style={{ color: '#ef4444' }}>*</span></th>
+                  <th>Class <span style={{ color: '#ef4444' }}>*</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -161,6 +204,7 @@ export default function TeamRegistration() {
                         onChange={(e) => updateParticipant(i, 'studentName', e.target.value)}
                         placeholder={`Participant ${i + 1} name`}
                         required
+                        minLength={3}
                       />
                     </td>
                     <td>
@@ -170,10 +214,11 @@ export default function TeamRegistration() {
                         value={p.email || ''}
                         onChange={(e) => updateParticipant(i, 'email', e.target.value)}
                         placeholder="name@email.com"
+                        required
                       />
                     </td>
                     <td>
-                      <select value={p.gender} onChange={(e) => updateParticipant(i, 'gender', e.target.value)}>
+                      <select value={p.gender} onChange={(e) => updateParticipant(i, 'gender', e.target.value)} required>
                         <option value="">—</option>
                         <option>Male</option>
                         <option>Female</option>
@@ -183,18 +228,10 @@ export default function TeamRegistration() {
                     <td>
                       <input
                         className="input"
-                        value={p.department}
-                        onChange={(e) => updateParticipant(i, 'department', e.target.value)}
-                        placeholder="Dept"
-                      />
-                    </td>
-                    <td>
-                      <input
-                        className="input"
                         value={p.year}
                         onChange={(e) => updateParticipant(i, 'year', e.target.value)}
-                        style={{ width: 64 }}
-                        placeholder="I/II…"
+                        placeholder="e.g. III BCA"
+                        required
                       />
                     </td>
                   </tr>
@@ -220,7 +257,35 @@ export default function TeamRegistration() {
         )}
 
         {error && <p className="error">{error}</p>}
-        {success && <p className="success">{success}</p>}
+        {success && (
+          <div style={{
+            background: 'rgba(16,185,129,0.08)',
+            border: '1px solid rgba(16,185,129,0.3)',
+            borderRadius: '10px',
+            padding: '16px 20px',
+            margin: '15px 0'
+          }}>
+            <p className="success" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent' }}>
+              {success}
+            </p>
+            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '0.9rem' }}>
+              <span>You must join the WhatsApp Group for further updates:</span>
+              {whatsappLink ? (
+                <a 
+                  href={whatsappLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="btn btn-primary"
+                  style={{ padding: '6px 16px', fontSize: '0.8rem', textDecoration: 'none', background: '#22c55e', borderColor: '#22c55e' }}
+                >
+                  Join WhatsApp Group
+                </a>
+              ) : (
+                <span className="muted">(WhatsApp group link not set by admin yet)</span>
+              )}
+            </div>
+          </div>
+        )}
 
         {selectedEvent && (
           <button

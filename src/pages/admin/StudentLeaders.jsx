@@ -57,8 +57,9 @@ export default function StudentLeaders() {
       title="Student leaders"
       table={TABLES.STUDENT_LEADERS}
       fields={fields}
-      columns={['name', 'email', 'department', 'status']}
+      columns={['name', 'email', 'college_id', 'department', 'status']}
       onAfterSave={provisionLeaderAuth}
+      disableAdd={true}
       renderExtraActions={(row) => {
         if (hasProfile(row.id)) return null
         return (
