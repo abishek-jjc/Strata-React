@@ -5,7 +5,7 @@ import { useTable } from '../../hooks/useTable'
 import { TABLES } from '../../supabase/tables'
 import { hasDuplicateNamesWithinTeam } from '../../utils/validators'
 
-const emptyParticipant = () => ({ studentName: '', email: '', gender: '', year: '' })
+const emptyParticipant = () => ({ studentName: '', rollNo: '' })
 
 export default function TeamRegistration() {
   const { profile } = useAuth()
@@ -69,11 +69,8 @@ export default function TeamRegistration() {
     if (names.some((n) => n.length < 3)) {
       return setError('Every participant name must contain at least 3 characters.')
     }
-    if (participants.some((p) => !p.gender)) {
-      return setError('Every participant needs a gender.')
-    }
-    if (participants.some((p) => !p.year)) {
-      return setError('Every participant needs a class/year.')
+    if (participants.some((p) => !p.rollNo || !p.rollNo.trim())) {
+      return setError('Every participant needs a roll number.')
     }
 
     if (participants.length !== teamSize) {
@@ -92,10 +89,7 @@ export default function TeamRegistration() {
         p_event_id: eventId,
         p_participants: participants.map((p) => ({
           studentName: p.studentName.trim(),
-          email: p.email ? p.email.trim() : null,
-          gender: p.gender,
-          department: '',
-          year: p.year,
+          rollNo: p.rollNo.trim(),
         })),
       })
 
@@ -172,9 +166,7 @@ export default function TeamRegistration() {
                 <tr>
                   <th style={{ width: 36 }}>#</th>
                   <th>Name <span style={{ color: '#ef4444' }}>*</span></th>
-                  <th>Email</th>
-                  <th>Gender <span style={{ color: '#ef4444' }}>*</span></th>
-                  <th>Class <span style={{ color: '#ef4444' }}>*</span></th>
+                  <th>Roll Number <span style={{ color: '#ef4444' }}>*</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -207,32 +199,11 @@ export default function TeamRegistration() {
                     <td>
                       <input
                         className="input"
-                        type="email"
-                        value={p.email || ''}
-                        onChange={(e) => updateParticipant(i, 'email', e.target.value)}
-                        placeholder="name@email.com"
-                      />
-                    </td>
-                    <td>
-                      <select value={p.gender} onChange={(e) => updateParticipant(i, 'gender', e.target.value)} required>
-                        <option value="">—</option>
-                        <option>Male</option>
-                        <option>Female</option>
-                        <option>Other</option>
-                      </select>
-                    </td>
-                    <td>
-                      <select
-                        value={p.year}
-                        onChange={(e) => updateParticipant(i, 'year', e.target.value)}
+                        value={p.rollNo || ''}
+                        onChange={(e) => updateParticipant(i, 'rollNo', e.target.value)}
+                        placeholder={`Participant ${i + 1} roll number`}
                         required
-                        style={{ padding: '5px 8px', fontSize: '0.85rem' }}
-                      >
-                        <option value="">—</option>
-                        <option value="1st">1st</option>
-                        <option value="2nd">2nd</option>
-                        <option value="3rd">3rd</option>
-                      </select>
+                      />
                     </td>
                   </tr>
                 ))}

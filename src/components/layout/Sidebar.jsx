@@ -46,10 +46,10 @@ const ROLE_ICON = {
   incharge: '🏆',
 }
 
-export default function Sidebar({ role }) {
+export default function Sidebar({ role, isOpen, onClose }) {
   const items = NAV[role] || []
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       {/* Logo */}
       <div className="sidebar-brand">
         <span className="sidebar-brand-logo">STRATA</span>
@@ -66,7 +66,13 @@ export default function Sidebar({ role }) {
 
       <nav>
         {items.map(([to, label]) => (
-          <NavLink key={to} to={to} end className={({ isActive }) => (isActive ? 'active' : '')}>
+          <NavLink 
+            key={to} 
+            to={to} 
+            end 
+            className={({ isActive }) => (isActive ? 'active' : '')}
+            onClick={onClose}
+          >
             <span className="nav-dot" />
             {label}
           </NavLink>

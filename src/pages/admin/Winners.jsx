@@ -43,11 +43,21 @@ export default function Winners() {
     const current = selections[eventId] || { first_place: '-', second_place: '-' }
     let updated = { ...current, [field]: value }
 
-    // Similarly same team cannot be selected for 1st and second prize
-    if (field === 'first_place' && value !== '-' && value === current.second_place) {
-      updated.second_place = '-'
-    } else if (field === 'second_place' && value !== '-' && value === current.first_place) {
-      updated.first_place = '-'
+    // Same college cannot be selected for both 1st and 2nd place
+    if (updated.first_place !== '-' && updated.second_place !== '-') {
+      const firstLotObj = activeLots.find((l) => l.lot_name === updated.first_place)
+      const secondLotObj = activeLots.find((l) => l.lot_name === updated.second_place)
+      
+      const firstCollege = firstLotObj ? (firstLotObj.assigned_college || '').toLowerCase().trim() : ''
+      const secondCollege = secondLotObj ? (secondLotObj.assigned_college || '').toLowerCase().trim() : ''
+
+      if (firstCollege !== '' && secondCollege !== '' && firstCollege === secondCollege) {
+        if (field === 'first_place') {
+          updated.second_place = '-'
+        } else {
+          updated.first_place = '-'
+        }
+      }
     }
 
     setSelections((prev) => ({
@@ -143,7 +153,8 @@ export default function Winners() {
           Select the winning college lot numbers for each contest arena. Changes will automatically update participant prizes.
         </p>
 
-        <table className="data-table">
+        <div className="table-responsive">
+          <table className="data-table">
           <thead>
             <tr>
               <th>Event</th>
@@ -165,20 +176,32 @@ export default function Winners() {
               const registeredCollegeIds = eventRegs.map((r) => r.college_id)
               const registeredCollegeNames = colleges
                 .filter((c) => registeredCollegeIds.includes(c.id))
-                .map((c) => c.college.toLowerCase().trim())
+                .map((c) => (c.college || c.college_name || '').toLowerCase().trim())
+                .filter(Boolean)
 
-              // Filter active lots to only those assigned to these colleges
-              const allowedLots = activeLots.filter((l) =>
-                registeredCollegeNames.includes(l.assigned_college.toLowerCase().trim())
-              )
+              // Filter active lots to only those assigned to these registered colleges
+              const allowedLots = activeLots.filter((l) => {
+                const assigned = (l.assigned_college || '').toLowerCase().trim()
+                return assigned !== '-' && registeredCollegeNames.includes(assigned)
+              })
 
-              // 1st and 2nd place cannot select the same team
-              const firstPlaceOptions = allowedLots.filter(
-                (l) => l.lot_name !== sel.second_place || sel.second_place === '-'
-              )
-              const secondPlaceOptions = allowedLots.filter(
-                (l) => l.lot_name !== sel.first_place || sel.first_place === '-'
-              )
+              // Find the college of the selected lot for first / second place
+              const firstSelectedLot = allowedLots.find((l) => l.lot_name === sel.first_place)
+              const secondSelectedLot = allowedLots.find((l) => l.lot_name === sel.second_place)
+              const firstSelectedCollege = firstSelectedLot ? (firstSelectedLot.assigned_college || '').toLowerCase().trim() : ''
+              const secondSelectedCollege = secondSelectedLot ? (secondSelectedLot.assigned_college || '').toLowerCase().trim() : ''
+
+              // 1st place cannot select a lot from the same college as 2nd place
+              const firstPlaceOptions = allowedLots.filter((l) => {
+                const assigned = (l.assigned_college || '').toLowerCase().trim()
+                return sel.second_place === '-' || assigned !== secondSelectedCollege
+              })
+
+              // 2nd place cannot select a lot from the same college as 1st place
+              const secondPlaceOptions = allowedLots.filter((l) => {
+                const assigned = (l.assigned_college || '').toLowerCase().trim()
+                return sel.first_place === '-' || assigned !== firstSelectedCollege
+              })
 
               return (
                 <tr key={ev.id}>
@@ -235,6 +258,7 @@ export default function Winners() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Right Column: Side Leaderboard Card */}
@@ -251,7 +275,8 @@ export default function Winners() {
             Scoring: First Place = 5 points | Second Place = 3 points.
           </p>
 
-          <table className="data-table" style={{ fontSize: '0.85rem' }}>
+          <div className="table-responsive">
+            <table className="data-table" style={{ fontSize: '0.85rem' }}>
             <thead>
               <tr>
                 <th style={{ width: '40px' }}>Rank</th>
@@ -280,7 +305,8 @@ export default function Winners() {
                 </tr>
               )}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       </div>
     </div>

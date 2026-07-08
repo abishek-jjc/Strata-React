@@ -1103,3 +1103,126 @@ select option {
   box-shadow: 0 0 0 3px rgba(124, 77, 255, 0.15);
 }
 
+/* =========================================================
+   RESPONSIVE LAYOUT & SIDEBAR TOGGLE RULES
+   ========================================================= */
+
+.sidebar-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.sidebar-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+/* Responsive sidebar and container overrides */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 150;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 8px 0 30px rgba(0, 0, 0, 0.6);
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 140;
+    animation: fadeIn 0.2s ease-out;
+  }
+  
+  .app-content {
+    padding: var(--space-2);
+  }
+  
+  .topbar {
+    padding: var(--space-1) var(--space-2);
+  }
+  
+  .crud-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+  
+  .crud-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: var(--space-1);
+  }
+  
+  .crud-actions input {
+    width: 100%;
+  }
+  
+  .crud-actions button, .crud-actions .btn {
+    width: 100%;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   UNIVERSAL SCROLLABLE TABLES (HORIZONTAL & VERTICAL)
+   ========================================================= */
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 580px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  margin-bottom: var(--space-2);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.table-responsive .data-table {
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  margin-bottom: 0;
+  width: 100%;
+  min-width: 700px; /* Forces horizontal scrolling on narrow screens */
+}
+
+/* Make sure inner scrollbar styling looks premium */
+.table-responsive::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.table-responsive::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+.table-responsive::-webkit-scrollbar-thumb {
+  background: var(--surface-raised);
+  border-radius: 3px;
+}
+.table-responsive::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+

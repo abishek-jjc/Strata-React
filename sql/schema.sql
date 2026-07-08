@@ -90,6 +90,11 @@ ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
 ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check
   CHECK (role IN ('admin','leader','accountant','incharge'));
 
+-- Safe column additions for existing profiles table
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS name text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS ref_id uuid;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS college_id uuid;
+
 -- 2f. admins
 CREATE TABLE IF NOT EXISTS public.admins (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -241,6 +246,7 @@ CREATE TABLE IF NOT EXISTS public.students (
 );
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS student_name_normalized text;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS roll_no                  text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS gender                  text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS department              text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS year                    text;
@@ -392,19 +398,25 @@ DECLARE
   v_college_name text;
   v_lot_id uuid;
 BEGIN
+  -- Fetch college name
   SELECT college INTO v_college_name FROM colleges WHERE id = NEW.college_id;
   
   IF v_college_name IS NOT NULL THEN
+    -- Check if a lot is already assigned to this college (and lock the row)
     SELECT id INTO v_lot_id FROM lots 
      WHERE lower(trim(assigned_college)) = lower(trim(v_college_name)) 
-     LIMIT 1;
+     LIMIT 1
+     FOR UPDATE;
     
+    -- If no lot is assigned, find the first available unassigned lot and lock it exclusively
     IF v_lot_id IS NULL THEN
       SELECT id INTO v_lot_id FROM lots 
        WHERE is_assigned = false 
        ORDER BY lot_name ASC 
-       LIMIT 1;
+       LIMIT 1
+       FOR UPDATE SKIP LOCKED;
       
+      -- If an unassigned lot is found, claim it for this college
       IF v_lot_id IS NOT NULL THEN
         UPDATE lots 
            SET is_assigned = true, 
@@ -413,6 +425,7 @@ BEGIN
       END IF;
     END IF;
     
+    -- Assign the lot_id to the registration
     IF v_lot_id IS NOT NULL THEN
       NEW.lot_id := v_lot_id;
       IF NEW.status = 'pending' THEN
@@ -465,9 +478,9 @@ BEGIN
      LIMIT 1;
   END IF;
 
+  -- If unrecognized user, DO NOT create a public profiles row
   IF v_ref_id IS NULL THEN
-    v_role := 'leader';
-    v_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email);
+    RETURN NEW;
   END IF;
 
   INSERT INTO public.profiles (id, role, name, ref_id, college_id)
@@ -533,15 +546,12 @@ BEGIN
 
   FOR v_participant IN SELECT * FROM jsonb_array_elements(p_participants) LOOP
     INSERT INTO public.students (
-      student_name, student_name_normalized, gender, department, year, email,
+      student_name, student_name_normalized, roll_no,
       registration_id, leader_id, college_id, event_id, certificate_status
     ) VALUES (
       v_participant->>'studentName',
       lower(trim(v_participant->>'studentName')),
-      v_participant->>'gender',
-      v_participant->>'department',
-      v_participant->>'year',
-      v_participant->>'email',
+      v_participant->>'rollNo',
       v_reg_id, p_leader_id, p_college_id, p_event_id, 'not issued'
     );
   END LOOP;
@@ -557,14 +567,24 @@ $$;
 -- Trigger to sync profiles when public.admins row is inserted or updated
 CREATE OR REPLACE FUNCTION public.sync_profile_on_admin_change()
 RETURNS trigger AS $$
+DECLARE
+  v_user_id uuid;
 BEGIN
-  UPDATE public.profiles
-     SET role = 'admin',
-         ref_id = NEW.id,
-         college_id = NULL
-   WHERE id IN (
-     SELECT id FROM auth.users WHERE lower(trim(email)) = lower(trim(NEW.email))
-   );
+  SELECT id INTO v_user_id
+    FROM auth.users
+   WHERE lower(trim(email)) = lower(trim(NEW.email))
+   LIMIT 1;
+
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO public.profiles (id, role, name, ref_id, college_id)
+    VALUES (v_user_id, 'admin', NEW.name, NEW.id, NULL)
+    ON CONFLICT (id) DO UPDATE
+    SET role = EXCLUDED.role,
+        ref_id = EXCLUDED.ref_id,
+        college_id = EXCLUDED.college_id,
+        name = EXCLUDED.name;
+  END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -577,14 +597,25 @@ CREATE TRIGGER trg_sync_profile_on_admin_change
 -- Trigger to sync profiles when public.student_leaders row is inserted or updated
 CREATE OR REPLACE FUNCTION public.sync_profile_on_leader_change()
 RETURNS trigger AS $$
+DECLARE
+  v_user_id uuid;
 BEGIN
-  UPDATE public.profiles
-     SET role = 'leader',
-         ref_id = NEW.id,
-         college_id = NEW.college_id
-   WHERE id IN (
-     SELECT id FROM auth.users WHERE lower(trim(email)) = lower(trim(NEW.email))
-   );
+  -- Find the user ID matching the email
+  SELECT id INTO v_user_id
+    FROM auth.users
+   WHERE lower(trim(email)) = lower(trim(NEW.email))
+   LIMIT 1;
+
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO public.profiles (id, role, name, ref_id, college_id)
+    VALUES (v_user_id, 'leader', NEW.name, NEW.id, NEW.college_id)
+    ON CONFLICT (id) DO UPDATE
+    SET role = EXCLUDED.role,
+        ref_id = EXCLUDED.ref_id,
+        college_id = EXCLUDED.college_id,
+        name = EXCLUDED.name;
+  END IF;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -638,11 +669,13 @@ BEGIN
   )
   RETURNING id INTO v_leader_id;
 
-  UPDATE public.profiles
-     SET ref_id = v_leader_id,
-         college_id = v_college_id,
-         name = p_leader_name
-   WHERE id = p_user_id;
+  INSERT INTO public.profiles (id, role, name, ref_id, college_id)
+  VALUES (p_user_id, 'leader', p_leader_name, v_leader_id, v_college_id)
+  ON CONFLICT (id) DO UPDATE
+  SET ref_id = EXCLUDED.ref_id,
+      college_id = EXCLUDED.college_id,
+      name = EXCLUDED.name,
+      role = EXCLUDED.role;
 
   RETURN jsonb_build_object(
     'college_id', v_college_id,
@@ -780,7 +813,8 @@ CREATE POLICY "profiles: own read"     ON public.profiles FOR SELECT USING (auth
 CREATE POLICY "profiles: admin write"  ON public.profiles FOR ALL    USING (current_role_name() = 'admin');
 
 DROP POLICY IF EXISTS "admins: admin read"     ON public.admins;
-CREATE POLICY "admins: admin read"     ON public.admins FOR SELECT USING (current_role_name() = 'admin');
+DROP POLICY IF EXISTS "admins: admin write"    ON public.admins;
+CREATE POLICY "admins: admin write"    ON public.admins FOR ALL USING (current_role_name() = 'admin');
 
 DROP POLICY IF EXISTS "accountants: signed-in read" ON public.accountants;
 DROP POLICY IF EXISTS "accountants: admin write"    ON public.accountants;
@@ -800,8 +834,9 @@ CREATE POLICY "colleges: admin write"      ON public.colleges FOR ALL    USING (
 CREATE POLICY "colleges: payment update"   ON public.colleges FOR UPDATE USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "student_leaders: signed-in read" ON public.student_leaders;
+DROP POLICY IF EXISTS "student_leaders: public read"    ON public.student_leaders;
 DROP POLICY IF EXISTS "student_leaders: admin write"    ON public.student_leaders;
-CREATE POLICY "student_leaders: signed-in read" ON public.student_leaders FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "student_leaders: public read"    ON public.student_leaders FOR SELECT USING (true);
 CREATE POLICY "student_leaders: admin write"    ON public.student_leaders FOR ALL    USING (current_role_name() = 'admin');
 
 DROP POLICY IF EXISTS "lots: public read"     ON public.lots;
@@ -1039,6 +1074,40 @@ INSERT INTO public.lots (lot_name, is_assigned, assigned_college) VALUES
   ('Lot 9',  false, '-'),
   ('Lot 10', false, '-')
 ON CONFLICT DO NOTHING;
+
+-- ============================================================================
+-- 7. STORAGE BUCKET CONFIGURATION (assets bucket for media and templates)
+-- ============================================================================
+
+-- Create assets bucket if it does not exist
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('assets', 'assets', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Policy to allow anyone (anonymous and authenticated users) to download assets
+DROP POLICY IF EXISTS "Public Download Assets" ON storage.objects;
+CREATE POLICY "Public Download Assets" ON storage.objects
+  FOR SELECT TO public
+  USING (bucket_id = 'assets');
+
+-- Policy to allow anyone (anonymous and authenticated users) to upload assets
+DROP POLICY IF EXISTS "Public Upload Assets" ON storage.objects;
+CREATE POLICY "Public Upload Assets" ON storage.objects
+  FOR INSERT TO public
+  WITH CHECK (bucket_id = 'assets');
+
+-- Policy to allow updates on assets
+DROP POLICY IF EXISTS "Public Update Assets" ON storage.objects;
+CREATE POLICY "Public Update Assets" ON storage.objects
+  FOR UPDATE TO public
+  USING (bucket_id = 'assets')
+  WITH CHECK (bucket_id = 'assets');
+
+-- Policy to allow deletions of assets
+DROP POLICY IF EXISTS "Public Delete Assets" ON storage.objects;
+CREATE POLICY "Public Delete Assets" ON storage.objects
+  FOR DELETE TO public
+  USING (bucket_id = 'assets');
 
 -- ============================================================================
 -- END OF SCRIPT

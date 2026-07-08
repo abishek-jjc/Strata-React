@@ -41,9 +41,7 @@ export default function StudentList() {
       .from(TABLES.STUDENTS)
       .update({
         student_name: editingStudent.student_name,
-        gender: editingStudent.gender,
-        department: '',
-        year: editingStudent.year
+        roll_no: editingStudent.roll_no || ''
       })
       .eq('id', editingStudent.id)
 
@@ -61,41 +59,41 @@ export default function StudentList() {
   return (
     <div>
       <h2>Your Participants</h2>
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Gender</th>
-            <th>Event</th>
-            <th>Class</th>
-            <th>Certificate Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {students.map((s) => (
-            <tr key={s.id}>
-              <td>{s.student_name}</td>
-              <td>{s.gender}</td>
-              <td>{getEventName(s.event_id)}</td>
-              <td>{s.year}</td>
-              <td>
-                <span className={`badge badge-${s.certificate_status === 'Issued' ? 'approved' : 'pending'}`}>
-                  {s.certificate_status || 'Pending'}
-                </span>
-              </td>
-              <td>
-                <button className="link" onClick={() => openEdit(s)}>
-                  Edit
-                </button>
-              </td>
+      <div className="table-responsive">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Roll Number</th>
+              <th>Event</th>
+              <th>Certificate Status</th>
+              <th>Actions</th>
             </tr>
-          ))}
-          {students.length === 0 && (
-            <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: '20px' }}>No participants registered yet.</td></tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {students.map((s) => (
+              <tr key={s.id}>
+                <td>{s.student_name}</td>
+                <td>{s.roll_no || '—'}</td>
+                <td>{getEventName(s.event_id)}</td>
+                <td>
+                  <span className={`badge badge-${s.certificate_status === 'Issued' ? 'approved' : 'pending'}`}>
+                    {s.certificate_status || 'Pending'}
+                  </span>
+                </td>
+                <td>
+                  <button className="link" onClick={() => openEdit(s)}>
+                    Edit
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {students.length === 0 && (
+              <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: '20px' }}>No participants registered yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {/* Edit Student Modal */}
       {editingStudent && (
@@ -114,16 +112,13 @@ export default function StudentList() {
             </label>
 
             <label className="field">
-              <span>Gender</span>
-              <select
-                value={editingStudent.gender}
-                onChange={(e) => setEditingStudent({ ...editingStudent, gender: e.target.value })}
+              <span>Roll Number</span>
+              <input
+                type="text"
                 required
-              >
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
-              </select>
+                value={editingStudent.roll_no || ''}
+                onChange={(e) => setEditingStudent({ ...editingStudent, roll_no: e.target.value })}
+              />
             </label>
 
             <label className="field">
@@ -134,20 +129,6 @@ export default function StudentList() {
                 style={{ backgroundColor: 'rgba(255,255,255,0.02)', cursor: 'not-allowed', opacity: 0.8 }}
                 value={getEventName(editingStudent.event_id)}
               />
-            </label>
-
-            <label className="field">
-              <span>Class</span>
-              <select
-                required
-                value={editingStudent.year}
-                onChange={(e) => setEditingStudent({ ...editingStudent, year: e.target.value })}
-              >
-                <option value="">Select Year…</option>
-                <option value="1st">1st</option>
-                <option value="2nd">2nd</option>
-                <option value="3rd">3rd</option>
-              </select>
             </label>
 
             {error && <p className="error">{error}</p>}

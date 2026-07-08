@@ -170,7 +170,7 @@ export default function CrudManager({
         <p className="muted">Loading…</p>
       ) : (
         <>
-          <div style={{ overflowX: 'auto', marginBottom: '15px' }}>
+          <div className="table-responsive">
             <table className="data-table">
               <thead>
                 <tr>

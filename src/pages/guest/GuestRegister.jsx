@@ -254,8 +254,7 @@ export default function GuestRegister() {
           
           initialParts[e.id] = Array.from({ length: cap }, () => ({
             studentName: '',
-            year: '',
-            email: ''
+            rollNo: ''
           }))
         })
         
@@ -415,10 +414,7 @@ export default function GuestRegister() {
           eventId: event.id,
           participants: filled.map(p => ({
             studentName: p.studentName.trim(),
-            gender: p.gender || 'Male',
-            department: leaderDept.trim(),
-            year: p.year.trim(),
-            email: p.email ? p.email.trim() : null
+            rollNo: (p.rollNo || '').trim()
           }))
         })
       }
@@ -849,7 +845,7 @@ export default function GuestRegister() {
 
                       <div className="guest-sub-team-inputs-container">
                         {Array.from({ length: activeEvent.team_size || 1 }).map((_, idx) => {
-                          const pData = participants[activeEvent.id]?.[idx] || { studentName: '', year: '', email: '', gender: '' }
+                          const pData = participants[activeEvent.id]?.[idx] || { studentName: '', rollNo: '' }
                           const isRequired = isTabFilled(activeEvent.id)
                           const leftColor = borderColors[idx % borderColors.length]
                           
@@ -866,7 +862,7 @@ export default function GuestRegister() {
                                   </span>
                                 )}
                               </div>
-                              <div className="guest-form-row">
+                              <div className="guest-form-row" style={{ margin: 0 }}>
                                 <label className="guest-field">
                                   <span>Full Name {isRequired && '*'}</span>
                                   <input 
@@ -878,40 +874,13 @@ export default function GuestRegister() {
                                   />
                                 </label>
                                 <label className="guest-field">
-                                  <span>Class {isRequired && '*'}</span>
-                                  <select
-                                    value={pData.year}
-                                    required={isRequired}
-                                    onChange={(e) => updateParticipant(activeEvent.id, idx, 'year', e.target.value)}
-                                  >
-                                    <option value="">Select Year…</option>
-                                    <option value="1st">1st</option>
-                                    <option value="2nd">2nd</option>
-                                    <option value="3rd">3rd</option>
-                                  </select>
-                                </label>
-                              </div>
-                              <div className="guest-form-row" style={{ margin: 0 }}>
-                                <label className="guest-field">
-                                  <span>Gender {isRequired && '*'}</span>
-                                  <select
-                                    value={pData.gender || ''}
-                                    required={isRequired}
-                                    onChange={(e) => updateParticipant(activeEvent.id, idx, 'gender', e.target.value)}
-                                  >
-                                    <option value="">Select Gender…</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                    <option value="Other">Other</option>
-                                  </select>
-                                </label>
-                                <label className="guest-field">
-                                  <span>Email Address</span>
+                                  <span>Roll Number {isRequired && '*'}</span>
                                   <input 
-                                    type="email" 
-                                    placeholder="e.g. participant@gmail.com" 
-                                    value={pData.email || ''}
-                                    onChange={(e) => updateParticipant(activeEvent.id, idx, 'email', e.target.value)}
+                                    type="text" 
+                                    placeholder="Enter roll number" 
+                                    value={pData.rollNo || ''}
+                                    required={isRequired}
+                                    onChange={(e) => updateParticipant(activeEvent.id, idx, 'rollNo', e.target.value)}
                                   />
                                 </label>
                               </div>

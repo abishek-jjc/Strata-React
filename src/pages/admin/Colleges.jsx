@@ -33,15 +33,6 @@ async function generateAndAttachQr(formData, rowId) {
     .eq('id', rowId)
 }
 
-function DownloadQrButton({ row }) {
-  if (!row.qr_image_data_url) return null
-  return (
-    <a className="link" href={row.qr_image_data_url} download={`${row.college || row.college_name}_qr.png`}>
-      Download QR
-    </a>
-  )
-}
-
 export default function Colleges() {
   const { data } = useTable(TABLES.COLLEGES)
   const fileInputRef = useRef(null)
@@ -58,6 +49,48 @@ export default function Colleges() {
     const val = e.target.value
     setDomain(val)
     localStorage.setItem('qr_domain_prefix', val)
+  }
+
+  async function getOrGenerateQrDataUrl(row) {
+    if (row.qr_image_data_url) return row.qr_image_data_url
+    
+    // Generate on the fly if not present in the database row
+    const collegeVal = row.college || row.college_name || ''
+    const deptVal = row.department || ''
+    const payload = {
+      college: collegeVal,
+      department: deptVal
+    }
+    const encrypted = encryptCollegePayload(payload)
+    const prefix = domain || window.location.origin
+    const qrUrl = `${prefix}/register?payload=${encodeURIComponent(encrypted)}`
+    return await QRCode.toDataURL(qrUrl, { width: 240 })
+  }
+
+  const handleDownloadQr = async (row) => {
+    try {
+      const qrDataUrl = await getOrGenerateQrDataUrl(row)
+      const link = document.createElement('a')
+      link.href = qrDataUrl
+      link.download = `${row.college || row.college_name || 'college'}_qr.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (err) {
+      console.error('Failed to download QR code:', err)
+    }
+  }
+
+  const handleShowQr = async (row) => {
+    try {
+      const qrDataUrl = await getOrGenerateQrDataUrl(row)
+      setSelectedQrCollege({
+        ...row,
+        qr_image_data_url: qrDataUrl
+      })
+    } catch (err) {
+      console.error('Failed to show QR code:', err)
+    }
   }
   const [alertState, setAlertState] = useState({
     isOpen: false,
@@ -304,16 +337,20 @@ export default function Colleges() {
         onAfterSave={generateAndAttachQr}
         renderExtraActions={(row) => (
           <>
-            <DownloadQrButton row={row} />
-            {row.qr_image_data_url && (
-              <button
-                type="button"
-                className="link"
-                onClick={() => setSelectedQrCollege(row)}
-              >
-                Show QR
-              </button>
-            )}
+            <button
+              type="button"
+              className="link"
+              onClick={() => handleDownloadQr(row)}
+            >
+              Download QR
+            </button>
+            <button
+              type="button"
+              className="link"
+              onClick={() => handleShowQr(row)}
+            >
+              Show QR
+            </button>
           </>
         )}
         renderExtraHeaderActions={() => (
