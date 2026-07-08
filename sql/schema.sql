@@ -162,6 +162,7 @@ ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS status             text NOT
 ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS is_paid            boolean NOT NULL DEFAULT false;
 ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS payment_screenshot text;
 ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS qr_code            text;
+ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS qr_image_data_url   text;
 
 -- Rename legacy column college_name to college if it still exists
 DO $$
