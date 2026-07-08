@@ -542,6 +542,124 @@ EXCEPTION
 END;
 $$;
 
+<<<<<<< Updated upstream
+=======
+-- Trigger to sync profiles when public.admins row is inserted or updated
+CREATE OR REPLACE FUNCTION public.sync_profile_on_admin_change()
+RETURNS trigger AS $$
+BEGIN
+  UPDATE public.profiles
+     SET role = 'admin',
+         ref_id = NEW.id,
+         college_id = NULL
+   WHERE id IN (
+     SELECT id FROM auth.users WHERE lower(trim(email)) = lower(trim(NEW.email))
+   );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_sync_profile_on_admin_change ON public.admins;
+CREATE TRIGGER trg_sync_profile_on_admin_change
+  AFTER INSERT OR UPDATE ON public.admins
+  FOR EACH ROW EXECUTE FUNCTION public.sync_profile_on_admin_change();
+
+-- Trigger to sync profiles when public.student_leaders row is inserted or updated
+CREATE OR REPLACE FUNCTION public.sync_profile_on_leader_change()
+RETURNS trigger AS $$
+BEGIN
+  UPDATE public.profiles
+     SET role = 'leader',
+         ref_id = NEW.id,
+         college_id = NEW.college_id
+   WHERE id IN (
+     SELECT id FROM auth.users WHERE lower(trim(email)) = lower(trim(NEW.email))
+   );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_sync_profile_on_leader_change ON public.student_leaders;
+CREATE TRIGGER trg_sync_profile_on_leader_change
+  AFTER INSERT OR UPDATE ON public.student_leaders
+  FOR EACH ROW EXECUTE FUNCTION public.sync_profile_on_leader_change();
+
+-- SECURITY DEFINER RPC to configure a leader profile securely bypassing RLS
+CREATE OR REPLACE FUNCTION public.configure_leader_profile(
+  p_user_id      uuid,
+  p_leader_name  text,
+  p_leader_phone text,
+  p_leader_dept  text,
+  p_college_name text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_college_id uuid;
+  v_leader_id uuid;
+  v_email text;
+BEGIN
+  SELECT email INTO v_email FROM auth.users WHERE id = p_user_id;
+  IF v_email IS NULL THEN
+    RAISE EXCEPTION 'User not found in authentication catalog.';
+  END IF;
+
+  SELECT id INTO v_college_id
+    FROM public.colleges
+   WHERE lower(trim(college)) = lower(trim(p_college_name))
+   LIMIT 1;
+
+  IF v_college_id IS NULL THEN
+    INSERT INTO public.colleges (college, department, status)
+    VALUES (p_college_name, p_leader_dept, 'active')
+    RETURNING id INTO v_college_id;
+  END IF;
+
+  INSERT INTO public.student_leaders (name, phone, email, department, college_id, status)
+  VALUES (
+    p_leader_name,
+    p_leader_phone,
+    v_email,
+    p_leader_dept,
+    v_college_id,
+    'active'
+  )
+  RETURNING id INTO v_leader_id;
+
+  UPDATE public.profiles
+     SET ref_id = v_leader_id,
+         college_id = v_college_id,
+         name = p_leader_name
+   WHERE id = p_user_id;
+
+  RETURN jsonb_build_object(
+    'college_id', v_college_id,
+    'leader_id', v_leader_id
+  );
+END;
+$$;
+
+-- SECURITY DEFINER RPC to update food counts bypassing registrations RLS
+CREATE OR REPLACE FUNCTION public.update_registration_food_count(
+  p_registration_id uuid,
+  p_veg_count       int,
+  p_nonveg_count    int
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.registrations
+     SET veg_count = p_veg_count,
+         nonveg_count = p_nonveg_count
+   WHERE id = p_registration_id;
+END;
+$$;
+
+>>>>>>> Stashed changes
 -- 3f. register_guest_team RPC function
 DROP FUNCTION IF EXISTS public.register_guest_team(text,text,text,text,text,text,text,text,text,integer,integer,jsonb);
 CREATE OR REPLACE FUNCTION public.register_guest_team(

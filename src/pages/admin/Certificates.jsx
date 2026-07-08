@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../supabase/client'
 import { useTable } from '../../hooks/useTable'
 import { TABLES, REGISTRATION_STATUS } from '../../supabase/tables'
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 
 export default function Certificates() {
   const { data: students, loading: studentsLoading } = useTable(TABLES.STUDENTS)
@@ -16,9 +17,34 @@ export default function Certificates() {
   const [winner1Url, setWinner1Url] = useState('')
   const [winner2Url, setWinner2Url] = useState('')
   
-  const [uploadingParticipation, setUploadingParticipation] = useState(false)
-  const [uploadingWinner1, setUploadingWinner1] = useState(false)
-  const [uploadingWinner2, setUploadingWinner2] = useState(false)
+  const [uploadingTemplate, setUploadingTemplate] = useState(false)
+
+  // Master Layout configurations (in percentages)
+  const [layouts, setLayouts] = useState({
+    participation: {
+      student_name: { x: 35, y: 40, fontSize: 24 },
+      event_name: { x: 35, y: 52, fontSize: 18 },
+      college_name: { x: 35, y: 64, fontSize: 16 }
+    },
+    winner1: {
+      student_name: { x: 35, y: 40, fontSize: 24 },
+      event_name: { x: 35, y: 52, fontSize: 18 },
+      college_name: { x: 35, y: 64, fontSize: 16 },
+      place: { x: 35, y: 28, fontSize: 20 }
+    },
+    winner2: {
+      student_name: { x: 35, y: 40, fontSize: 24 },
+      event_name: { x: 35, y: 52, fontSize: 18 },
+      college_name: { x: 35, y: 64, fontSize: 16 },
+      place: { x: 35, y: 28, fontSize: 20 }
+    }
+  })
+
+  // State for active popup template editor
+  const [editingTemplate, setEditingTemplate] = useState(null) // null, 'participation', 'winner1', 'winner2'
+  const [modalLayout, setModalLayout] = useState(null)
+
+  const [loadingBulk, setLoadingBulk] = useState(false)
 
   // Tab and search state
   const [activeTab, setActiveTab] = useState('participation')
@@ -28,12 +54,15 @@ export default function Certificates() {
   const [winnersPage, setWinnersPage] = useState(1)
   const itemsPerPage = 10
 
+  const canvasRef = useRef(null)
+
   // Reset pages on search or tab changes
   useEffect(() => {
     setParticipationPage(1)
     setWinnersPage(1)
   }, [searchQuery, activeTab])
 
+  // Load Settings and layouts on mount
   useEffect(() => {
     async function loadSettings() {
       const { data } = await supabase.from(TABLES.SETTINGS).select('*')
@@ -42,37 +71,106 @@ export default function Certificates() {
           if (row.key_name === 'participation_cert_url') setParticipationUrl(row.value)
           if (row.key_name === 'winner_cert_1_url') setWinner1Url(row.value)
           if (row.key_name === 'winner_cert_2_url') setWinner2Url(row.value)
+          
+          if (row.key_name === 'participation_cert_layout') {
+            try { setLayouts(prev => ({ ...prev, participation: JSON.parse(row.value) })) } catch (e) {}
+          }
+          if (row.key_name === 'winner_cert_1_layout') {
+            try { setLayouts(prev => ({ ...prev, winner1: JSON.parse(row.value) })) } catch (e) {}
+          }
+          if (row.key_name === 'winner_cert_2_layout') {
+            try { setLayouts(prev => ({ ...prev, winner2: JSON.parse(row.value) })) } catch (e) {}
+          }
         })
       }
     }
     loadSettings()
   }, [])
 
+  // Sync modal layout when editor opens
+  useEffect(() => {
+    if (editingTemplate) {
+      setModalLayout(layouts[editingTemplate])
+    } else {
+      setModalLayout(null)
+    }
+  }, [editingTemplate, layouts])
+
+  // Drag and Drop Logic inside Popup Canvas
+  const handleDragStart = (e, key) => {
+    e.preventDefault()
+    if (!canvasRef.current) return
+    const rect = canvasRef.current.getBoundingClientRect()
+    
+    const onMouseMove = (moveEvent) => {
+      const xPx = moveEvent.clientX - rect.left
+      const yPx = moveEvent.clientY - rect.top
+      
+      const xPct = Math.max(0, Math.min(90, (xPx / rect.width) * 100))
+      const yPct = Math.max(0, Math.min(92, (yPx / rect.height) * 100))
+      
+      setModalLayout(prev => ({
+        ...prev,
+        [key]: { ...prev[key], x: xPct, y: yPct }
+      }))
+    }
+    
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
+    
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  }
+
+  // Save layout config
+  const handleSaveLayout = async () => {
+    if (!editingTemplate) return
+    const keyName = editingTemplate === 'participation' 
+      ? 'participation_cert_layout' 
+      : editingTemplate === 'winner1' 
+        ? 'winner_cert_1_layout' 
+        : 'winner_cert_2_layout'
+
+    try {
+      const { error } = await supabase
+        .from(TABLES.SETTINGS)
+        .upsert([{ key_name: keyName, value: JSON.stringify(modalLayout) }])
+      
+      if (error) throw error
+      
+      setLayouts(prev => ({ ...prev, [editingTemplate]: modalLayout }))
+      alert('Layout configuration saved successfully!')
+      setEditingTemplate(null)
+    } catch (err) {
+      alert('Failed to save layout: ' + err.message)
+    }
+  }
+
+  // File templates Uploader
   async function handleUploadPdf(e, type) {
     const file = e.target.files?.[0]
     if (!file) return
 
-    let setUrl, fileName, keyName, setUploading
+    let setUrl, fileName, keyName
     if (type === 'participation') {
-      setUploading = setUploadingParticipation
       setUrl = setParticipationUrl
       fileName = `participation_cert_template_${Date.now()}.pdf`
       keyName = 'participation_cert_url'
     } else if (type === 'winner1') {
-      setUploading = setUploadingWinner1
       setUrl = setWinner1Url
       fileName = `winner_cert_1_template_${Date.now()}.pdf`
       keyName = 'winner_cert_1_url'
     } else if (type === 'winner2') {
-      setUploading = setUploadingWinner2
       setUrl = setWinner2Url
       fileName = `winner_cert_2_template_${Date.now()}.pdf`
       keyName = 'winner_cert_2_url'
     }
 
-    setUploading(true)
+    setUploadingTemplate(true)
     try {
-      const { data, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('assets')
         .upload(fileName, file, { upsert: true })
 
@@ -88,11 +186,11 @@ export default function Certificates() {
       if (upsertError) throw upsertError
 
       setUrl(publicUrl)
-      alert('Certificate template uploaded successfully!')
+      alert('Template PDF uploaded successfully!')
     } catch (err) {
       alert(err.message || 'Failed to upload PDF template.')
     } finally {
-      setUploading(false)
+      setUploadingTemplate(false)
     }
   }
 
@@ -140,7 +238,6 @@ export default function Certificates() {
   })
 
   // Winners: build from the winners table (first_place / second_place = lot name)
-  // Map lot → college name, then college → students for that event
   const winnerRows = []
   winners.forEach((w) => {
     const eventName = events.find((e) => e.id === w.event_id)?.event_name || ''
@@ -150,8 +247,7 @@ export default function Certificates() {
     ]
     places.forEach(({ place, lotName }) => {
       if (!lotName || lotName === '-') return
-      // Find students of this lot's college who participated in this event
-      const collegeName = lotName // lots store college name in assigned_college
+      const collegeName = lotName
       const college = colleges.find((c) => c.college === collegeName)
       if (!college) return
       const collegeStudents = eligibleStudents.filter(
@@ -195,15 +291,85 @@ export default function Certificates() {
     return filteredWinners.slice((winnersPage - 1) * itemsPerPage, winnersPage * itemsPerPage)
   }, [filteredWinners, winnersPage])
 
+  const getEventName = (id) => events.find((e) => e.id === id)?.event_name || 'Loading…'
+  const getCollegeName = (id) => colleges.find((c) => c.id === id)?.college || 'Loading…'
+
+  // Helper function to download arrayBuffer as PDF file
+  function downloadBlob(bytes, filename) {
+    const blob = new Blob([bytes], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Dynamic Multi-page PDF Builder
+  async function generateBulkPdf(studentsList, pdfTemplateUrl, layout) {
+    if (!pdfTemplateUrl) {
+      throw new Error('Please upload a PDF template first before issuing!')
+    }
+
+    const response = await fetch(pdfTemplateUrl)
+    const templateBytes = await response.arrayBuffer()
+
+    const combinedDoc = await PDFDocument.create()
+
+    for (const student of studentsList) {
+      const tempDoc = await PDFDocument.load(templateBytes)
+      const [copiedPage] = await combinedDoc.copyPages(tempDoc, [0])
+      combinedDoc.addPage(copiedPage)
+      
+      const page = combinedDoc.getPages()[combinedDoc.getPageCount() - 1]
+      const { width, height } = page.getSize()
+      const font = await combinedDoc.embedFont(StandardFonts.HelveticaBold)
+
+      const sName = student.student_name || ''
+      const cName = student.winnerCollegeName || getCollegeName(student.college_id) || ''
+      const eName = student.winnerEventName || getEventName(student.event_id) || ''
+      const placeVal = student.winnerPlace || ''
+
+      if (layout.student_name) {
+        const x = (layout.student_name.x / 100) * width
+        const y = height - (layout.student_name.y / 100) * height
+        page.drawText(sName, { x, y, size: Number(layout.student_name.fontSize) || 24, font, color: rgb(0.1, 0.1, 0.1) })
+      }
+      if (layout.college_name) {
+        const x = (layout.college_name.x / 100) * width
+        const y = height - (layout.college_name.y / 100) * height
+        page.drawText(cName, { x, y, size: Number(layout.college_name.fontSize) || 16, font, color: rgb(0.2, 0.2, 0.2) })
+      }
+      if (layout.event_name) {
+        const x = (layout.event_name.x / 100) * width
+        const y = height - (layout.event_name.y / 100) * height
+        page.drawText(eName, { x, y, size: Number(layout.event_name.fontSize) || 18, font, color: rgb(0.2, 0.2, 0.2) })
+      }
+      if (layout.place && placeVal) {
+        const x = (layout.place.x / 100) * width
+        const y = height - (layout.place.y / 100) * height
+        page.drawText(placeVal, { x, y, size: Number(layout.place.fontSize) || 20, font, color: rgb(0.85, 0.3, 0.1) })
+      }
+    }
+
+    const combinedBytes = await combinedDoc.save()
+    return combinedBytes
+  }
+
   // Issue helpers
   async function issueParticipation(student) {
-    const hasCert = certificates.some(
-      (c) => c.student_id === student.id && c.position === 'Participation'
-    )
-    if (hasCert) return
-
     const certNumber = `CERT-PART-${Date.now()}`
     try {
+      const layout = layouts.participation
+      const sName = student.student_name
+      const cName = getCollegeName(student.college_id)
+      const eName = getEventName(student.event_id)
+      
+      const singleList = [{ ...student, student_name: sName, winnerCollegeName: cName, winnerEventName: eName }]
+      const bytes = await generateBulkPdf(singleList, participationUrl, layout)
+      
+      downloadBlob(bytes, `participation_${sName.replace(/\s+/g, '_')}.pdf`)
+
       const { error: certError } = await supabase.from(TABLES.CERTIFICATES).insert({
         student_id: student.id,
         event_id: student.event_id,
@@ -222,13 +388,16 @@ export default function Certificates() {
   }
 
   async function issueWinner(student) {
-    const hasCert = certificates.some(
-      (c) => c.student_id === student.id && c.position === student.winnerPlace
-    )
-    if (hasCert) return
-
     const certNumber = `CERT-WIN-${Date.now()}`
     try {
+      const templateVal = student.winnerPlace === '1st Place' ? winner1Url : winner2Url
+      const layout = student.winnerPlace === '1st Place' ? layouts.winner1 : layouts.winner2
+      
+      const singleList = [student]
+      const bytes = await generateBulkPdf(singleList, templateVal, layout)
+      
+      downloadBlob(bytes, `winner_${student.winnerPlace.replace(/\s+/g, '_')}_${student.student_name.replace(/\s+/g, '_')}.pdf`)
+
       const { error: certError } = await supabase.from(TABLES.CERTIFICATES).insert({
         student_id: student.id,
         event_id: student.event_id,
@@ -246,96 +415,411 @@ export default function Certificates() {
     }
   }
 
-  const getEventName = (id) => events.find((e) => e.id === id)?.event_name || 'Loading…'
-  const getCollegeName = (id) => colleges.find((c) => c.id === id)?.college || 'Loading…'
+  // Bulk Issue All Participants
+  async function issueAllParticipants() {
+    const unissued = filteredParticipation.filter(s => 
+      !certificates.some(c => c.student_id === s.id && c.position === 'Participation')
+    )
+    
+    if (unissued.length === 0) {
+      alert('All eligible participants have already been issued certificates!')
+      return
+    }
+
+    if (!confirm(`Are you sure you want to issue and download certificates for all ${unissued.length} unissued participants?`)) return
+    
+    setLoadingBulk(true)
+    try {
+      const bytes = await generateBulkPdf(unissued, participationUrl, layouts.participation)
+      downloadBlob(bytes, `strata_participation_certificates.pdf`)
+
+      for (const student of unissued) {
+        const certNumber = `CERT-PART-${Date.now()}`
+        await supabase.from(TABLES.CERTIFICATES).insert({
+          student_id: student.id,
+          event_id: student.event_id,
+          certificate_number: certNumber,
+          position: 'Participation',
+        })
+        await supabase
+          .from(TABLES.STUDENTS)
+          .update({ certificate_status: 'issued' })
+          .eq('id', student.id)
+      }
+      alert('Successfully issued and downloaded bulk certificates!')
+    } catch (err) {
+      alert('Bulk issue failed: ' + err.message)
+    } finally {
+      setLoadingBulk(false)
+    }
+  }
+
+  // Bulk Issue All Winners
+  async function issueAllWinners() {
+    const unissued = filteredWinners.filter(s => 
+      !certificates.some(c => c.student_id === s.id && c.position === s.winnerPlace)
+    )
+
+    if (unissued.length === 0) {
+      alert('All winners have already been issued certificates!')
+      return
+    }
+
+    if (!confirm(`Are you sure you want to issue and download certificates for all ${unissued.length} unissued winners?`)) return
+    
+    setLoadingBulk(true)
+    try {
+      const combinedDoc = await PDFDocument.create()
+
+      const response1 = winner1Url ? await fetch(winner1Url) : null
+      const templateBytes1 = response1 ? await response1.arrayBuffer() : null
+      const response2 = winner2Url ? await fetch(winner2Url) : null
+      const templateBytes2 = response2 ? await response2.arrayBuffer() : null
+
+      for (const student of unissued) {
+        const tBytes = student.winnerPlace === '1st Place' ? templateBytes1 : templateBytes2
+        if (!tBytes) {
+          throw new Error(`Template for ${student.winnerPlace} is missing! Please upload the template first.`)
+        }
+
+        const tempDoc = await PDFDocument.load(tBytes)
+        const [copiedPage] = await combinedDoc.copyPages(tempDoc, [0])
+        combinedDoc.addPage(copiedPage)
+        
+        const page = combinedDoc.getPages()[combinedDoc.getPageCount() - 1]
+        const { width, height } = page.getSize()
+        const font = await combinedDoc.embedFont(StandardFonts.HelveticaBold)
+        
+        const layout = student.winnerPlace === '1st Place' ? layouts.winner1 : layouts.winner2
+
+        const sName = student.student_name || ''
+        const cName = student.winnerCollegeName || ''
+        const eName = student.winnerEventName || ''
+        const placeVal = student.winnerPlace || ''
+
+        if (layout.student_name) {
+          const x = (layout.student_name.x / 100) * width
+          const y = height - (layout.student_name.y / 100) * height
+          page.drawText(sName, { x, y, size: Number(layout.student_name.fontSize) || 24, font, color: rgb(0.1, 0.1, 0.1) })
+        }
+        if (layout.college_name) {
+          const x = (layout.college_name.x / 100) * width
+          const y = height - (layout.college_name.y / 100) * height
+          page.drawText(cName, { x, y, size: Number(layout.college_name.fontSize) || 16, font, color: rgb(0.2, 0.2, 0.2) })
+        }
+        if (layout.event_name) {
+          const x = (layout.event_name.x / 100) * width
+          const y = height - (layout.event_name.y / 100) * height
+          page.drawText(eName, { x, y, size: Number(layout.event_name.fontSize) || 18, font, color: rgb(0.2, 0.2, 0.2) })
+        }
+        if (layout.place && placeVal) {
+          const x = (layout.place.x / 100) * width
+          const y = height - (layout.place.y / 100) * height
+          page.drawText(placeVal, { x, y, size: Number(layout.place.fontSize) || 20, font, color: rgb(0.85, 0.3, 0.1) })
+        }
+      }
+
+      const combinedBytes = await combinedDoc.save()
+      downloadBlob(combinedBytes, `strata_winner_certificates.pdf`)
+
+      for (const student of unissued) {
+        const certNumber = `CERT-WIN-${Date.now()}`
+        await supabase.from(TABLES.CERTIFICATES).insert({
+          student_id: student.id,
+          event_id: student.event_id,
+          certificate_number: certNumber,
+          position: student.winnerPlace,
+        })
+        await supabase
+          .from(TABLES.STUDENTS)
+          .update({ certificate_status: 'issued' })
+          .eq('id', student.id)
+      }
+      alert('Successfully issued and downloaded bulk winner certificates!')
+    } catch (err) {
+      alert('Bulk issue failed: ' + err.message)
+    } finally {
+      setLoadingBulk(false)
+    }
+  }
+
+  // Get current active template URL in popup uploader
+  const getEditingTemplateUrl = () => {
+    if (editingTemplate === 'participation') return participationUrl
+    if (editingTemplate === 'winner1') return winner1Url
+    if (editingTemplate === 'winner2') return winner2Url
+    return ''
+  }
 
   return (
     <div className="certificates-page">
       <h2>Certificate Templates & Issuance</h2>
 
-      {/* Templates Section */}
+      {/* Templates Section Card */}
       <div className="card" style={{ marginBottom: 24, padding: 20 }}>
-        <h3>Upload Certificate Templates (PDF)</h3>
+        <h3>Upload & Configure Templates</h3>
+        <p className="muted" style={{ marginBottom: '15px' }}>
+          Upload PDF templates containing blank lines (e.g. <code>________</code>). Click <strong>"Configure Layout"</strong> to drag and drop text fields to autofill details over the template.
+        </p>
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginTop: 15 }}>
           {/* Participation Certificate */}
-          <div className="stat" style={{ border: '1px solid var(--border)', background: 'var(--bg-muted)', textAlign: 'left', padding: 15 }}>
+          <div className="stat" style={{ border: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)', textAlign: 'left', padding: 20, borderRadius: '12px' }}>
             <h4 style={{ margin: '0 0 10px 0' }}>1. Participation Certificate</h4>
-            {participationUrl ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div>
-                <p className="success">✓ Template Uploaded</p>
-                <div style={{ marginTop: 10, display: 'flex', gap: 10 }}>
-                  <a href={participationUrl} target="_blank" rel="noreferrer" className="btn btn-sm">View Template</a>
-                  <button onClick={() => handleRemovePdf('participation')} className="btn btn-sm btn-danger">Remove</button>
-                </div>
+                {participationUrl ? (
+                  <span className="success" style={{ fontWeight: 'bold' }}>✓ PDF Template Active</span>
+                ) : (
+                  <span className="muted">No PDF template uploaded</span>
+                )}
               </div>
-            ) : (
-              <div>
-                <p className="muted">No template uploaded yet</p>
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  onChange={(e) => handleUploadPdf(e, 'participation')}
-                  disabled={uploadingParticipation}
-                  style={{ marginTop: 10 }}
-                />
-                {uploadingParticipation && <p className="muted">Uploading…</p>}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button 
+                  onClick={() => setEditingTemplate('participation')} 
+                  className="btn btn-sm btn-primary"
+                >
+                  Configure Layout
+                </button>
+                {participationUrl && (
+                  <button onClick={() => handleRemovePdf('participation')} className="btn btn-sm btn-danger">
+                    Delete
+                  </button>
+                )}
               </div>
-            )}
+            </div>
           </div>
 
           {/* Winner Certificate (1st) */}
-          <div className="stat" style={{ border: '1px solid var(--border)', background: 'var(--bg-muted)', textAlign: 'left', padding: 15 }}>
+          <div className="stat" style={{ border: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)', textAlign: 'left', padding: 20, borderRadius: '12px' }}>
             <h4 style={{ margin: '0 0 10px 0' }}>2. Winner Certificate (1st Place)</h4>
-            {winner1Url ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div>
-                <p className="success">✓ Template Uploaded</p>
-                <div style={{ marginTop: 10, display: 'flex', gap: 10 }}>
-                  <a href={winner1Url} target="_blank" rel="noreferrer" className="btn btn-sm">View Template</a>
-                  <button onClick={() => handleRemovePdf('winner1')} className="btn btn-sm btn-danger">Remove</button>
-                </div>
+                {winner1Url ? (
+                  <span className="success" style={{ fontWeight: 'bold' }}>✓ PDF Template Active</span>
+                ) : (
+                  <span className="muted">No PDF template uploaded</span>
+                )}
               </div>
-            ) : (
-              <div>
-                <p className="muted">No template uploaded yet</p>
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  onChange={(e) => handleUploadPdf(e, 'winner1')}
-                  disabled={uploadingWinner1}
-                  style={{ marginTop: 10 }}
-                />
-                {uploadingWinner1 && <p className="muted">Uploading…</p>}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button 
+                  onClick={() => setEditingTemplate('winner1')} 
+                  className="btn btn-sm btn-primary"
+                >
+                  Configure Layout
+                </button>
+                {winner1Url && (
+                  <button onClick={() => handleRemovePdf('winner1')} className="btn btn-sm btn-danger">
+                    Delete
+                  </button>
+                )}
               </div>
-            )}
+            </div>
           </div>
 
           {/* Winner Certificate (2nd) */}
-          <div className="stat" style={{ border: '1px solid var(--border)', background: 'var(--bg-muted)', textAlign: 'left', padding: 15 }}>
+          <div className="stat" style={{ border: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)', textAlign: 'left', padding: 20, borderRadius: '12px' }}>
             <h4 style={{ margin: '0 0 10px 0' }}>3. Winner Certificate (2nd Place)</h4>
-            {winner2Url ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div>
-                <p className="success">✓ Template Uploaded</p>
-                <div style={{ marginTop: 10, display: 'flex', gap: 10 }}>
-                  <a href={winner2Url} target="_blank" rel="noreferrer" className="btn btn-sm">View Template</a>
-                  <button onClick={() => handleRemovePdf('winner2')} className="btn btn-sm btn-danger">Remove</button>
-                </div>
+                {winner2Url ? (
+                  <span className="success" style={{ fontWeight: 'bold' }}>✓ PDF Template Active</span>
+                ) : (
+                  <span className="muted">No PDF template uploaded</span>
+                )}
               </div>
-            ) : (
-              <div>
-                <p className="muted">No template uploaded yet</p>
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  onChange={(e) => handleUploadPdf(e, 'winner2')}
-                  disabled={uploadingWinner2}
-                  style={{ marginTop: 10 }}
-                />
-                {uploadingWinner2 && <p className="muted">Uploading…</p>}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button 
+                  onClick={() => setEditingTemplate('winner2')} 
+                  className="btn btn-sm btn-primary"
+                >
+                  Configure Layout
+                </button>
+                {winner2Url && (
+                  <button onClick={() => handleRemovePdf('winner2')} className="btn btn-sm btn-danger">
+                    Delete
+                  </button>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* 2. Interactive Drag & Drop Configuration Popup Modal */}
+      {editingTemplate && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(5, 8, 12, 0.9)',
+          zIndex: 9999,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '20px',
+          overflowY: 'auto'
+        }}>
+          <div className="card" style={{
+            maxWidth: '1100px',
+            width: '100%',
+            padding: '30px',
+            background: 'var(--bg-glass-card, #0f121d)',
+            border: '1px solid var(--border)',
+            borderRadius: '16px',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.8)'
+          }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', borderBottom: '1px solid var(--border)', paddingBottom: '15px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.4rem', fontFamily: 'Syne, sans-serif' }}>
+                Configure Layout — {editingTemplate === 'participation' ? 'Participation Certificate' : editingTemplate === 'winner1' ? '1st Place Certificate' : '2nd Place Certificate'}
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setEditingTemplate(null)}
+                style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer', opacity: 0.8 }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Modal Content Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '30px', alignItems: 'start' }}>
+              {/* Left Column: Canvas Preview */}
+              <div>
+                {/* 2.1 PDF Upload Panel */}
+                <div style={{ marginBottom: '20px', background: 'rgba(255,255,255,0.02)', padding: '15px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <h4 style={{ marginTop: 0, marginBottom: '10px', fontSize: '0.95rem' }}>1. Upload Template PDF File</h4>
+                  {getEditingTemplateUrl() ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span className="success" style={{ fontSize: '0.9rem' }}>✓ PDF Template Active</span>
+                      <a href={getEditingTemplateUrl()} target="_blank" rel="noreferrer" className="btn btn-sm">View File</a>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="muted" style={{ margin: '0 0 10px 0', fontSize: '0.85rem' }}>Upload certificate base template PDF with blank lines.</p>
+                      <input 
+                        type="file" 
+                        accept="application/pdf"
+                        onChange={(e) => handleUploadPdf(e, editingTemplate)}
+                        disabled={uploadingTemplate}
+                      />
+                      {uploadingTemplate && <p className="muted">Uploading template file...</p>}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2.2 Drag & Drop Workspace */}
+                <div 
+                  ref={canvasRef}
+                  style={{
+                    width: '680px',
+                    height: '480px',
+                    border: '2px dashed #3a3f50',
+                    borderRadius: '12px',
+                    background: 'rgba(255,255,255,0.01)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    boxShadow: 'inset 0 4px 30px rgba(0,0,0,0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto'
+                  }}
+                >
+                  {/* Draggable tags */}
+                  {modalLayout && Object.keys(modalLayout).map((key) => {
+                    const item = modalLayout[key]
+                    if (!item) return null
+                    
+                    let label = key.toUpperCase().replace('_', ' ')
+                    let color = '#f9c20a' // yellow
+                    if (key === 'student_name') color = '#00e5ff' // cyan
+                    if (key === 'place') color = '#ff1744' // red
+
+                    return (
+                      <div
+                        key={key}
+                        onMouseDown={(e) => handleDragStart(e, key)}
+                        style={{
+                          position: 'absolute',
+                          left: `${item.x}%`,
+                          top: `${item.y}%`,
+                          padding: '8px 16px',
+                          background: 'rgba(12, 14, 18, 0.85)',
+                          border: `1.5px solid ${color}`,
+                          color: color,
+                          borderRadius: '6px',
+                          cursor: 'move',
+                          fontSize: '11px',
+                          fontWeight: 'bold',
+                          userSelect: 'none',
+                          boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+                          whiteSpace: 'nowrap',
+                          zIndex: 10
+                        }}
+                      >
+                        {label} ({Math.round(item.x)}%, {Math.round(item.y)}%)
+                      </div>
+                    )
+                  })}
+
+                  <div style={{ color: 'rgba(255,255,255,0.06)', pointerEvents: 'none', fontSize: '1.1rem', fontWeight: 'bold' }}>
+                    Certificate Preview Canvas
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Properties panel */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div className="card" style={{ padding: '20px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '10px' }}>
+                  <h4 style={{ marginTop: 0, marginBottom: '15px' }}>Element Text Sizes</h4>
+                  {modalLayout && Object.keys(modalLayout).map((key) => {
+                    const item = modalLayout[key]
+                    if (!item) return null
+                    return (
+                      <label className="field" key={key} style={{ marginBottom: '15px' }}>
+                        <span style={{ fontSize: '0.82rem' }}>{key.toUpperCase().replace('_', ' ')} Font Size</span>
+                        <input
+                          type="number"
+                          value={item.fontSize || 18}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 18
+                            setModalLayout(prev => ({
+                              ...prev,
+                              [key]: { ...prev[key], fontSize: val }
+                            }))
+                          }}
+                          style={{ padding: '6px', width: '100%' }}
+                        />
+                      </label>
+                    )
+                  })}
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button 
+                    onClick={() => setEditingTemplate(null)} 
+                    className="btn btn-secondary" 
+                    style={{ flex: 1 }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleSaveLayout} 
+                    className="btn btn-primary" 
+                    style={{ flex: 1 }}
+                  >
+                    Save & Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs Container */}
       <div className="crud-header" style={{ marginBottom: 15 }}>
@@ -353,13 +837,27 @@ export default function Certificates() {
             Winners ({winnerRows.length})
           </button>
         </div>
-        <input
-          className="input"
-          placeholder="Search student, event, or college…"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ width: 300 }}
-        />
+
+        {/* Bulk Action Buttons & Search */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {activeTab === 'participation' ? (
+            <button className="btn btn-primary" onClick={issueAllParticipants} disabled={loadingBulk || !participationUrl}>
+              {loadingBulk ? 'Issuing…' : 'Issue All Participants'}
+            </button>
+          ) : (
+            <button className="btn btn-primary" onClick={issueAllWinners} disabled={loadingBulk || !winner1Url || !winner2Url}>
+              {loadingBulk ? 'Issuing…' : 'Issue All Winners'}
+            </button>
+          )}
+          
+          <input
+            className="input"
+            placeholder="Search student, event, or college…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ width: 260 }}
+          />
+        </div>
       </div>
 
       {studentsLoading ? (
@@ -389,13 +887,13 @@ export default function Certificates() {
                       <td>{getEventName(s.event_id)}</td>
                       <td>
                         <span className={isIssued ? 'success' : 'muted'}>
-                          {isIssued ? 'Issued' : 'Not Issued'}
+                          {isIssued ? '✓ Issued' : 'Not Issued'}
                         </span>
                       </td>
                       <td>
                         <button
                           className="link"
-                          disabled={isIssued}
+                          disabled={isIssued || !participationUrl}
                           onClick={() => issueParticipation(s)}
                         >
                           {isIssued ? 'Issued' : 'Issue Certificate'}
@@ -478,6 +976,7 @@ export default function Certificates() {
                   const isIssued = certificates.some(
                     (c) => c.student_id === s.id && c.position === s.winnerPlace
                   )
+                  const hasTemplates = winner1Url && winner2Url
                   return (
                     <tr key={`${s.id}-${s.winnerPlace}-${idx}`}>
                       <td><strong>{s.student_name}</strong></td>
@@ -496,7 +995,7 @@ export default function Certificates() {
                       <td>
                         <button
                           className="link"
-                          disabled={isIssued}
+                          disabled={isIssued || !hasTemplates}
                           onClick={() => issueWinner(s)}
                         >
                           {isIssued ? 'Issued' : 'Issue Certificate'}

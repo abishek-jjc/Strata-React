@@ -360,6 +360,7 @@ export default function GuestRegister() {
 
     setSubmitting(true)
     try {
+<<<<<<< Updated upstream
       let colId = ''
       const { data: existingCol } = await supabase
         .from(TABLES.COLLEGES)
@@ -404,6 +405,20 @@ export default function GuestRegister() {
         })
         .eq('id', sessionUser.id)
       if (profileError) throw profileError
+=======
+      const { data: rpcResult, error: configureError } = await supabase.rpc('configure_leader_profile', {
+        p_user_id: sessionUser.id,
+        p_leader_name: leaderName,
+        p_leader_phone: leaderPhone.trim(),
+        p_leader_dept: leaderDept.trim(),
+        p_college_name: collegeName.trim()
+      })
+      if (configureError) throw configureError
+
+      const { college_id, leader_id } = rpcResult
+      setCollegeId(college_id)
+      setLeaderId(leader_id)
+>>>>>>> Stashed changes
 
       setStep(2)
     } catch (err) {
@@ -477,10 +492,18 @@ export default function GuestRegister() {
         if (regError) throw regError
         
         // Update lunch count choices
+<<<<<<< Updated upstream
         const { error: countError } = await supabase
           .from(TABLES.REGISTRATIONS)
           .update({ veg_count: vegCount, nonveg_count: nonVegCount })
           .eq('id', regId)
+=======
+        const { error: countError } = await supabase.rpc('update_registration_food_count', {
+          p_registration_id: regId,
+          p_veg_count: vegCount,
+          p_nonveg_count: nonVegCount
+        })
+>>>>>>> Stashed changes
         if (countError) throw countError
       }
 
