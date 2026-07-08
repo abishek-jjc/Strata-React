@@ -28,6 +28,7 @@ const NAV = {
     ['/leader/certificates', 'Certificates'],
     ['/leader/profile', 'Profile / Password'],
     ['/leader/payment', 'Payment'],
+    ['/leader/whatsapp', 'WhatsApp Group'],
   ],
   accountant: [
     ['/accountant', 'Dashboard'],

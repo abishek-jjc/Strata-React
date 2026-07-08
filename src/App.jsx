@@ -44,6 +44,7 @@ import StudentList from './pages/leader/StudentList'
 import CertificateDownload from './pages/leader/CertificateDownload'
 import LeaderProfile from './pages/leader/Profile'
 import LeaderPayment from './pages/leader/Payment'
+import LeaderWhatsApp from './pages/leader/WhatsApp'
 
 // Accountant Portal
 import AccountantDashboard from './pages/accountant/Dashboard'
@@ -98,6 +99,7 @@ export default function App() {
           <Route path="/leader/certificates" element={<ProtectedRoute allow={['leader']}>{withShell(<CertificateDownload />)}</ProtectedRoute>} />
           <Route path="/leader/profile" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderProfile />)}</ProtectedRoute>} />
           <Route path="/leader/payment" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderPayment />)}</ProtectedRoute>} />
+          <Route path="/leader/whatsapp" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderWhatsApp />)}</ProtectedRoute>} />
 
           {/* Incharge */}
           <Route path="/incharge" element={<ProtectedRoute allow={['incharge']}>{withShell(<InchargeDashboard />)}</ProtectedRoute>} />

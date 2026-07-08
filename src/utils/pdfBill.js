@@ -8,6 +8,7 @@ export function generateBillPdf({
   leaderName,
   amount,
   paymentMode,
+  collectedBy,
   date,
 }) {
   const doc = new jsPDF({ unit: 'pt', format: 'a5' })
@@ -30,6 +31,7 @@ export function generateBillPdf({
       ['Student leader', leaderName],
       ['Payment mode', paymentMode],
       ['Amount', `Rs. ${amount}`],
+      ['Collected by', collectedBy || 'Accountant Desk'],
     ],
     theme: 'grid',
     styles: { fontSize: 10 },

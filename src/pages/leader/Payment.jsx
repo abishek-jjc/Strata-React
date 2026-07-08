@@ -92,10 +92,13 @@ export default function Payment() {
               <span style={{ fontSize: '1.8rem', color: '#ef4444' }}>⚠️</span>
               <div>
                 <strong style={{ color: '#ef4444', display: 'block', fontSize: '1.05rem', marginBottom: '4px' }}>
-                  Payment Pending
+                  {totalPaid > 0 ? 'Additional Payment Required' : 'Payment Pending'}
                 </strong>
                 <span className="muted" style={{ fontSize: '0.9rem' }}>
-                  Remaining balance of <strong>Rs. {remainingPayable}</strong> is payable. Please scan the QR Code below to pay.
+                  {totalPaid > 0 
+                    ? `You added more members after your previous payment. Remaining balance of Rs. ${remainingPayable} is payable. Please scan the QR Code below to pay.`
+                    : `Remaining balance of Rs. ${remainingPayable} is payable. Please scan the QR Code below to pay.`
+                  }
                 </span>
               </div>
             </div>
@@ -149,6 +152,27 @@ export default function Payment() {
               </div>
             </div>
           </div>
+
+          {/* Payment History List */}
+          {payments.length > 0 && (
+            <div className="card" style={{ padding: '24px' }}>
+              <h3 style={{ marginTop: 0, marginBottom: '16px', color: 'var(--accent)', fontSize: '1.15rem' }}>Previous Payments</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {payments.map(p => (
+                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div>
+                      <strong style={{ display: 'block', color: '#10b981' }}>Rs. {p.amount}</strong>
+                      <span className="muted" style={{ fontSize: '0.85rem' }}>{new Date(p.paid_at || p.created_at).toLocaleDateString()} via {p.payment_mode}</span>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span className="muted" style={{ fontSize: '0.85rem', display: 'block' }}>Receipt: {p.receipt_no}</span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Collected by: {p.collected_by || 'Accountant Desk'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* QR Code Card if not paid */}
           {!myCollege?.is_paid && (

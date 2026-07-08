@@ -9,6 +9,7 @@ export default function Certificates() {
   const { data: registrations } = useTable(TABLES.REGISTRATIONS)
   const { data: events } = useTable(TABLES.EVENTS)
   const { data: colleges } = useTable(TABLES.COLLEGES)
+  const { data: lots } = useTable(TABLES.LOTS)
   const { data: certificates } = useTable(TABLES.CERTIFICATES)
   const { data: winners } = useTable(TABLES.WINNERS)
 
@@ -309,13 +310,8 @@ export default function Certificates() {
     }
   }
 
-  // Filter approved registration IDs
-  const approvedRegIds = new Set(
-    registrations.filter((r) => r.status === REGISTRATION_STATUS.APPROVED).map((r) => r.id)
-  )
-
-  // Participants: all students who belong to an approved registration
-  const eligibleStudents = students.filter((s) => approvedRegIds.has(s.registration_id))
+  // Fetch all participants (as requested: "that are showing in participants")
+  const eligibleStudents = students
 
   const filteredParticipation = eligibleStudents.filter((s) => {
     const nameMatch = s.student_name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -336,12 +332,18 @@ export default function Certificates() {
     ]
     places.forEach(({ place, lotName }) => {
       if (!lotName || lotName === '-') return
-      const collegeName = lotName
+      
+      const lot = lots?.find(l => l.lot_name === lotName)
+      if (!lot || !lot.assigned_college) return
+
+      const collegeName = lot.assigned_college
       const college = colleges.find((c) => c.college === collegeName)
       if (!college) return
+      
       const collegeStudents = eligibleStudents.filter(
         (s) => s.college_id === college.id && s.event_id === w.event_id
       )
+      
       collegeStudents.forEach((s) => {
         winnerRows.push({ ...s, winnerPlace: place, winnerEventName: eventName, winnerCollegeName: collegeName })
       })

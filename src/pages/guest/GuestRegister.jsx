@@ -532,38 +532,42 @@ export default function GuestRegister() {
             <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: '2.2rem', marginBottom: '15px', color: '#fff' }}>Registration Successful!</h2>
             <p style={{ color: 'var(--g-text-muted)', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '25px' }}>{successMessage}</p>
             
+            {whatsappLink && (
+              <div style={{ marginBottom: '25px', textAlign: 'center' }}>
+                <p style={{ color: 'var(--g-text-muted)', fontSize: '0.95rem', marginBottom: '15px' }}>
+                  <strong>Note:</strong> Join the WhatsApp group for more information.
+                </p>
+                <a 
+                  href={whatsappLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="guest-btn" 
+                  style={{ 
+                    display: 'inline-flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '10px', 
+                    padding: '14px 28px', 
+                    borderRadius: '12px', 
+                    textDecoration: 'none', 
+                    fontWeight: 'bold',
+                    background: 'linear-gradient(135deg, #25D366, #128C7E)',
+                    border: 'none',
+                    boxShadow: '0 4px 15px rgba(37,211,102,0.3)',
+                    color: '#fff'
+                  }}
+                >
+                  Join Official WhatsApp Group
+                </a>
+              </div>
+            )}
+
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--g-glass-border)', borderRadius: '16px', padding: '20px', marginBottom: '25px', textAlign: 'left' }}>
               <h4 style={{ margin: '0 0 12px 0', fontSize: '1.1rem', color: 'var(--g-secondary)', fontFamily: 'Syne, sans-serif' }}>Google Login Verified</h4>
               <p style={{ fontSize: '0.92rem', color: 'rgba(255,255,255,0.85)', margin: 0 }}>
                 You have successfully signed up and logged in via your verified Google account: <strong>{sessionUser?.email}</strong>. No passwords are required.
               </p>
             </div>
-
-            {whatsappLink && (
-              <a 
-                href={whatsappLink} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="guest-btn" 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  gap: '10px', 
-                  padding: '14px 28px', 
-                  borderRadius: '12px', 
-                  textDecoration: 'none', 
-                  marginBottom: '25px', 
-                  fontWeight: 'bold',
-                  background: 'linear-gradient(135deg, #25D366, #128C7E)',
-                  border: 'none',
-                  boxShadow: '0 4px 15px rgba(37,211,102,0.3)',
-                  color: '#fff'
-                }}
-              >
-                Join Official WhatsApp Group
-              </a>
-            )}
 
             <button 
               type="button" 
@@ -822,105 +826,96 @@ export default function GuestRegister() {
 
               {events.length > 0 ? (
                 <>
-                  {/* Mobile Event Selector Dropdown */}
-                  <div className="guest-mobile-event-selector" style={{ marginBottom: '20px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: 'var(--g-secondary)', fontSize: '0.95rem' }}>
-                      Select Contest Event
-                    </label>
-                    <select
-                      value={activeEventId}
-                      onChange={(e) => setActiveEventId(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '12px 16px',
-                        borderRadius: '10px',
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '1px solid var(--g-glass-border)',
-                        color: 'var(--g-text)',
-                        fontSize: '0.95rem',
-                        outline: 'none'
-                      }}
-                    >
-                      {events.map((event) => (
-                        <option 
-                          key={event.id} 
-                          value={event.id}
-                          style={{ background: 'var(--g-bg)', color: 'var(--g-text)' }}
-                        >
-                          {event.event_name} {isTabFilled(event.id) ? '✓ (Registered)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <div className="guest-events-accordion">
+                    {events.map((event) => {
+                      const isExpanded = activeEventId === event.id
+                      const isFilled = isTabFilled(event.id)
+                      const borderColors = ['#00e5ff', '#b388ff', '#f48fb1', '#ffb74d']
+                      
+                      return (
+                        <div key={event.id} style={{ marginBottom: '15px', border: '1px solid var(--g-glass-border)', borderRadius: '12px', overflow: 'hidden' }}>
+                          <button
+                            type="button"
+                            onClick={() => setActiveEventId(isExpanded ? '' : event.id)}
+                            style={{
+                              width: '100%',
+                              padding: '16px 20px',
+                              background: isFilled ? 'rgba(0, 229, 255, 0.05)' : 'rgba(255,255,255,0.03)',
+                              border: 'none',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              cursor: 'pointer',
+                              color: 'var(--g-text)',
+                              fontSize: '1.05rem',
+                              fontWeight: '600'
+                            }}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                              {event.event_name} 
+                              <span style={{ fontSize: '0.85rem', color: 'var(--g-text-muted)', fontWeight: 'normal', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '20px' }}>
+                                Max {event.team_size} members
+                              </span>
+                            </span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              {isFilled && <span style={{ color: '#00e5ff', fontSize: '0.9rem' }}>✓ Registered</span>}
+                              <span style={{ transition: 'transform 0.3s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>
+                            </span>
+                          </button>
 
-                  {/* Desktop Event pill tabs */}
-                  <div className="guest-event-tabs-navbar guest-desktop-only">
-                    {events.map((event) => (
-                      <button
-                        type="button"
-                        key={event.id}
-                        className={`guest-tab-btn ${event.id === activeEventId ? 'active' : ''} ${isTabFilled(event.id) ? 'filled' : ''}`}
-                        onClick={() => setActiveEventId(event.id)}
-                      >
-                        {event.event_name}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Active event inputs panel */}
-                  {activeEvent && (
-                    <div className="guest-event-panel-wrapper">
-                      <div style={{ marginBottom: '12px', fontSize: '0.95rem', color: 'var(--g-secondary)', fontWeight: '600' }}>
-                        Event: <span style={{ color: 'var(--g-text)' }}>{activeEvent.event_name}</span> (Allowed size: {activeEvent.team_size} members)
-                      </div>
-
-                      <div className="guest-sub-team-inputs-container">
-                        {Array.from({ length: activeEvent.team_size || 1 }).map((_, idx) => {
-                          const pData = participants[activeEvent.id]?.[idx] || { studentName: '', rollNo: '' }
-                          const isRequired = isTabFilled(activeEvent.id)
-                          const leftColor = borderColors[idx % borderColors.length]
-                          
-                          return (
-                            <div 
-                              className="guest-participant-card-styled" 
-                              style={{ borderLeft: `3px solid ${leftColor}` }}
-                              key={idx}
-                            >
-                              <div className="guest-participant-card-title-styled">
-                                Participant #{idx + 1} {idx === 0 && (
-                                  <span style={{ fontSize: '0.75rem', color: 'var(--g-text-muted)', fontWeight: 'normal' }}>
-                                    (Filling Participant 1 registers the team for this event)
-                                  </span>
-                                )}
-                              </div>
-                              <div className="guest-form-row" style={{ margin: 0 }}>
-                                <label className="guest-field">
-                                  <span>Full Name {isRequired && '*'}</span>
-                                  <input 
-                                    type="text" 
-                                    placeholder="Enter full name" 
-                                    value={pData.studentName}
-                                    required={isRequired}
-                                    onChange={(e) => updateParticipant(activeEvent.id, idx, 'studentName', e.target.value)}
-                                  />
-                                </label>
-                                <label className="guest-field">
-                                  <span>Roll Number {isRequired && '*'}</span>
-                                  <input 
-                                    type="text" 
-                                    placeholder="Enter roll number" 
-                                    value={pData.rollNo || ''}
-                                    required={isRequired}
-                                    onChange={(e) => updateParticipant(activeEvent.id, idx, 'rollNo', e.target.value)}
-                                  />
-                                </label>
+                          {isExpanded && (
+                            <div style={{ padding: '20px', background: 'rgba(0,0,0,0.15)', borderTop: '1px solid var(--g-glass-border)' }}>
+                              <div className="guest-sub-team-inputs-container">
+                                {Array.from({ length: event.team_size || 1 }).map((_, idx) => {
+                                  const pData = participants[event.id]?.[idx] || { studentName: '', rollNo: '' }
+                                  const isRequired = isTabFilled(event.id)
+                                  const leftColor = borderColors[idx % borderColors.length]
+                                  
+                                  return (
+                                    <div 
+                                      className="guest-participant-card-styled" 
+                                      style={{ borderLeft: `3px solid ${leftColor}` }}
+                                      key={idx}
+                                    >
+                                      <div className="guest-participant-card-title-styled">
+                                        Participant #{idx + 1} {idx === 0 && (
+                                          <span style={{ fontSize: '0.75rem', color: 'var(--g-text-muted)', fontWeight: 'normal', display: 'block', marginTop: '4px' }}>
+                                            (Filling Participant 1 registers the team for this event)
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="guest-form-row" style={{ margin: 0 }}>
+                                        <label className="guest-field">
+                                          <span>Full Name {isRequired && '*'}</span>
+                                          <input 
+                                            type="text" 
+                                            placeholder="Enter full name" 
+                                            value={pData.studentName}
+                                            required={isRequired}
+                                            onChange={(e) => updateParticipant(event.id, idx, 'studentName', e.target.value)}
+                                          />
+                                        </label>
+                                        <label className="guest-field">
+                                          <span>Roll Number {isRequired && '*'}</span>
+                                          <input 
+                                            type="text" 
+                                            placeholder="Enter roll number" 
+                                            value={pData.rollNo || ''}
+                                            required={isRequired}
+                                            onChange={(e) => updateParticipant(event.id, idx, 'rollNo', e.target.value)}
+                                          />
+                                        </label>
+                                      </div>
+                                    </div>
+                                  )
+                                })}
                               </div>
                             </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </>
               ) : (
                 <div style={{ textAlign: 'center', color: 'var(--g-text-muted)', padding: '30px' }}>

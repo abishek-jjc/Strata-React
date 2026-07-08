@@ -3,8 +3,10 @@ import { supabase } from '../../supabase/client'
 import { useTable } from '../../hooks/useTable'
 import { TABLES, REGISTRATION_STATUS } from '../../supabase/tables'
 import { generateBillPdf } from '../../utils/pdfBill'
+import { useAuth } from '../../auth/AuthContext'
 
 export default function PaymentCollection() {
+  const { profile } = useAuth()
   const { data: registrations } = useTable(TABLES.REGISTRATIONS, [
     ['status', 'eq', REGISTRATION_STATUS.LOT_ASSIGNED],
   ])
@@ -12,6 +14,7 @@ export default function PaymentCollection() {
   const { data: events } = useTable(TABLES.EVENTS)
   const { data: leaders } = useTable(TABLES.STUDENT_LEADERS)
   const [mode, setMode] = useState({})
+  const [amounts, setAmounts] = useState({})
   const [busy, setBusy] = useState(null)
 
   const collegeName = (id) => colleges.find((c) => c.id === id)?.college || id
@@ -21,14 +24,19 @@ export default function PaymentCollection() {
   async function collect(reg) {
     const event = eventInfo(reg.event_id)
     const paymentMode = mode[reg.id] || 'Cash'
+    const amountCollected = Number(amounts[reg.id]) || 0
     const receiptNo = `RCPT-${Date.now()}`
+    const deskName = profile?.name || profile?.role || 'Accountant Desk'
+    
     setBusy(reg.id)
     try {
       await supabase.from(TABLES.PAYMENTS).insert({
         registration_id: reg.id,
-        amount: 0,
+        college_id: reg.college_id,
+        amount: amountCollected,
         payment_mode: paymentMode,
         receipt_no: receiptNo,
+        collected_by: deskName
       })
       await supabase
         .from(TABLES.REGISTRATIONS)
@@ -40,8 +48,9 @@ export default function PaymentCollection() {
         collegeName: collegeName(reg.college_id),
         eventName: event.event_name,
         leaderName: leaderName(reg.leader_id),
-        amount: 0,
+        amount: amountCollected,
         paymentMode,
+        collectedBy: deskName,
         date: new Date().toLocaleDateString(),
       })
     } finally {
@@ -54,16 +63,25 @@ export default function PaymentCollection() {
       <h2>Payment collection</h2>
       <table className="data-table">
         <thead>
-          <tr><th>College</th><th>Event</th><th>Fee</th><th>Mode</th><th>Actions</th></tr>
+          <tr><th>College</th><th>Event</th><th>Amount (Rs.)</th><th>Mode</th><th>Actions</th></tr>
         </thead>
         <tbody>
           {registrations.map((reg) => (
             <tr key={reg.id}>
               <td>{collegeName(reg.college_id)}</td>
               <td>{eventInfo(reg.event_id)?.event_name}</td>
-              <td>Free</td>
               <td>
-                <select value={mode[reg.id] || 'Cash'} onChange={(e) => setMode({ ...mode, [reg.id]: e.target.value })}>
+                <input 
+                  type="number" 
+                  className="input" 
+                  style={{ width: '100px', padding: '4px 8px' }}
+                  placeholder="0"
+                  value={amounts[reg.id] || ''} 
+                  onChange={(e) => setAmounts({ ...amounts, [reg.id]: e.target.value })} 
+                />
+              </td>
+              <td>
+                <select className="input" style={{ padding: '4px 8px' }} value={mode[reg.id] || 'Cash'} onChange={(e) => setMode({ ...mode, [reg.id]: e.target.value })}>
                   <option>Cash</option>
                   <option>UPI</option>
                   <option>Bank transfer</option>

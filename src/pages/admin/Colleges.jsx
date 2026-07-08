@@ -253,21 +253,11 @@ export default function Colleges() {
 
         if (!collegeStr || !deptStr) continue
 
-        // 1. Generate QR Code payload and URL
-        const payload = {
-          college: collegeStr,
-          department: deptStr
-        }
-        const encrypted = encryptCollegePayload(payload)
-        const qrUrl = `${domainPrefix}/register?payload=${encodeURIComponent(encrypted)}`
-        const qrImageDataUrl = await QRCode.toDataURL(qrUrl, { width: 240 })
-
-        // 2. Add to bulk insert list
+        // 2. Add to bulk insert list (QR code will be generated on the fly when needed)
         collegeRows.push({
           college: collegeStr,
           department: deptStr,
-          status: 'active',
-          qr_image_data_url: qrImageDataUrl
+          status: 'active'
         })
       }
 
