@@ -215,57 +215,53 @@ export default function Colleges() {
   const handleImportExcel = async (e) => {
     const file = e.target.files[0]
     if (!file) return
-
+    e.target.value = '' // Reset so same file can be re-imported
     setIsImportModalOpen(false) // Close the import layout
 
-    const reader = new FileReader()
-    reader.onload = async (evt) => {
-      try {
-        const fileData = evt.target.result
-        const workbook = XLSX.read(fileData, { type: 'binary' })
-        const sheetName = workbook.SheetNames[0]
-        const worksheet = workbook.Sheets[sheetName]
-        const json = XLSX.utils.sheet_to_json(worksheet)
+    try {
+      const buffer = await file.arrayBuffer()
+      const workbook = XLSX.read(buffer)
+      const sheetName = workbook.SheetNames[0]
+      const worksheet = workbook.Sheets[sheetName]
+      const json = XLSX.utils.sheet_to_json(worksheet)
 
-        let successCount = 0
-        for (const row of json) {
-          const collegeName = row.College || row.college || row['College Name'] || row['college_name']
-          const department = row.Department || row.department || row['Department Name'] || row['department_name']
+      let successCount = 0
+      for (const row of json) {
+        const collegeName = row.College || row.college || row['College Name'] || row['college_name']
+        const department = row.Department || row.department || row['Department Name'] || row['department_name']
 
-          if (!collegeName || !department) continue
+        if (!collegeName || !department) continue
 
-          // Insert college (inserting both college and college_name fields to support old/new schemas)
-          const { data: inserted, error } = await supabase
-            .from(TABLES.COLLEGES)
-            .insert({
-              college: collegeName.trim(),
-              college_name: collegeName.trim(),
-              department: department.trim(),
-              status: 'active'
-            })
-            .select()
-            .single()
+        // Insert college (inserting both college and college_name fields to support old/new schemas)
+        const { data: inserted, error } = await supabase
+          .from(TABLES.COLLEGES)
+          .insert({
+            college: collegeName.trim(),
+            college_name: collegeName.trim(),
+            department: department.trim(),
+            status: 'active'
+          })
+          .select()
+          .single()
 
-          if (error) {
-            console.error('Error inserting college:', error.message)
-            continue
-          }
-
-          // Generate QR code for the inserted row
-          await generateAndAttachQr(inserted, inserted.id)
-          successCount++
+        if (error) {
+          console.error('Error inserting college:', error.message)
+          continue
         }
 
-        showAlert(
-          'Import Successful',
-          `Successfully imported and generated QRs for ${successCount} colleges!`,
-          'info'
-        )
-      } catch (err) {
-        showAlert('Import Failed', 'Failed to parse Excel file: ' + err.message, 'info')
+        // Generate QR code for the inserted row
+        await generateAndAttachQr(inserted, inserted.id)
+        successCount++
       }
+
+      showAlert(
+        'Import Successful',
+        `Successfully imported and generated QRs for ${successCount} colleges!`,
+        'info'
+      )
+    } catch (err) {
+      showAlert('Import Failed', 'Failed to parse Excel file: ' + err.message, 'info')
     }
-    reader.readAsBinaryString(file)
   }
 
   const handleRegenerateAllQrs = async () => {
