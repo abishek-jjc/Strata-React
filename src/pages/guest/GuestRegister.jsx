@@ -360,52 +360,6 @@ export default function GuestRegister() {
 
     setSubmitting(true)
     try {
-<<<<<<< Updated upstream
-      let colId = ''
-      const { data: existingCol } = await supabase
-        .from(TABLES.COLLEGES)
-        .select('id')
-        .eq('college', collegeName.trim())
-        .maybeSingle()
-
-      if (existingCol) {
-        colId = existingCol.id
-      } else {
-        const { data: newCol, error: colError } = await supabase
-          .from(TABLES.COLLEGES)
-          .insert({ college: collegeName.trim(), department: leaderDept.trim(), status: 'active' })
-          .select()
-          .single()
-        if (colError) throw colError
-        colId = newCol.id
-      }
-      setCollegeId(colId)
-
-      const { data: newLeader, error: leaderError } = await supabase
-        .from(TABLES.STUDENT_LEADERS)
-        .insert({
-          name: leaderName,
-          phone: leaderPhone.trim(),
-          email: sessionUser.email,
-          department: leaderDept.trim(),
-          college_id: colId,
-          status: 'active'
-        })
-        .select()
-        .single()
-      if (leaderError) throw leaderError
-      setLeaderId(newLeader.id)
-
-      const { error: profileError } = await supabase
-        .from(TABLES.PROFILES)
-        .update({
-          ref_id: newLeader.id,
-          college_id: colId,
-          name: leaderName
-        })
-        .eq('id', sessionUser.id)
-      if (profileError) throw profileError
-=======
       const { data: rpcResult, error: configureError } = await supabase.rpc('configure_leader_profile', {
         p_user_id: sessionUser.id,
         p_leader_name: leaderName,
@@ -418,7 +372,6 @@ export default function GuestRegister() {
       const { college_id, leader_id } = rpcResult
       setCollegeId(college_id)
       setLeaderId(leader_id)
->>>>>>> Stashed changes
 
       setStep(2)
     } catch (err) {
@@ -492,18 +445,11 @@ export default function GuestRegister() {
         if (regError) throw regError
         
         // Update lunch count choices
-<<<<<<< Updated upstream
-        const { error: countError } = await supabase
-          .from(TABLES.REGISTRATIONS)
-          .update({ veg_count: vegCount, nonveg_count: nonVegCount })
-          .eq('id', regId)
-=======
         const { error: countError } = await supabase.rpc('update_registration_food_count', {
           p_registration_id: regId,
           p_veg_count: vegCount,
           p_nonveg_count: nonVegCount
         })
->>>>>>> Stashed changes
         if (countError) throw countError
       }
 

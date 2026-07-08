@@ -542,8 +542,6 @@ EXCEPTION
 END;
 $$;
 
-<<<<<<< Updated upstream
-=======
 -- Trigger to sync profiles when public.admins row is inserted or updated
 CREATE OR REPLACE FUNCTION public.sync_profile_on_admin_change()
 RETURNS trigger AS $$
@@ -659,7 +657,6 @@ BEGIN
 END;
 $$;
 
->>>>>>> Stashed changes
 -- 3f. register_guest_team RPC function
 DROP FUNCTION IF EXISTS public.register_guest_team(text,text,text,text,text,text,text,text,text,integer,integer,jsonb);
 CREATE OR REPLACE FUNCTION public.register_guest_team(

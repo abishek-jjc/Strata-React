@@ -1,35 +1,56 @@
 -- ============================================================================
--- STRATA 2K26 — Master Schema Script
--- Run this in Supabase SQL Editor: https://supabase.com
---
--- Behaviour:
---   • Fresh DB  — creates all tables, functions, triggers and seeds defaults
---   • Existing DB — safely ALTERs, adds columns, recreates functions/triggers
---   • Always clears: students, registrations, student_leaders, colleges,
---     payment_polls, payment_logs, winners, lots, auth users (non-admin)
---   • Preserves:  events, settings, leaders, rules, venues, admins, profiles (admin)
+-- STRATA 2K26 — Unified Database Schema, Migration & Seed Script
+-- Run this in your Supabase SQL Editor: https://supabase.com
 -- ============================================================================
 
 -- ============================================================================
--- SECTION 0 — Extensions
+-- PHASE 0: Clean existing transactional data if tables exist
+-- ============================================================================
+DO $$
+BEGIN
+  -- Disable FK checks temporarily for clean cascaded truncation
+  SET session_replication_role = 'replica';
+
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'certificates') THEN
+    TRUNCATE TABLE public.certificates CASCADE;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'payments') THEN
+    TRUNCATE TABLE public.payments CASCADE;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'students') THEN
+    TRUNCATE TABLE public.students CASCADE;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'registrations') THEN
+    TRUNCATE TABLE public.registrations CASCADE;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'student_leaders') THEN
+    TRUNCATE TABLE public.student_leaders CASCADE;
+  END IF;
+
+  -- Restore normal trigger behaviour
+  SET session_replication_role = 'origin';
+END $$;
+
+
+-- ============================================================================
+-- PHASE 1: Extensions & Basic Configurations
 -- ============================================================================
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 
 -- ============================================================================
--- SECTION 1 — Core lookup / config tables
---             (created idempotently; never truncated)
+-- PHASE 2: Create Tables (If Not Exists)
 -- ============================================================================
 
--- 1a. settings
+-- 2a. settings
 CREATE TABLE IF NOT EXISTS public.settings (
   key_name text PRIMARY KEY,
   value    text NOT NULL DEFAULT ''
 );
 ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 
--- 1b. leaders  (Principal / HOD messages)
+-- 2b. leaders
 CREATE TABLE IF NOT EXISTS public.leaders (
   id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   name        text        NOT NULL,
@@ -39,7 +60,7 @@ CREATE TABLE IF NOT EXISTS public.leaders (
 );
 ALTER TABLE public.leaders ENABLE ROW LEVEL SECURITY;
 
--- 1c. rules
+-- 2c. rules
 CREATE TABLE IF NOT EXISTS public.rules (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   title      text        NOT NULL,
@@ -48,7 +69,7 @@ CREATE TABLE IF NOT EXISTS public.rules (
 );
 ALTER TABLE public.rules ENABLE ROW LEVEL SECURITY;
 
--- 1d. venues
+-- 2d. venues
 CREATE TABLE IF NOT EXISTS public.venues (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   venue_name text        NOT NULL UNIQUE,
@@ -56,12 +77,7 @@ CREATE TABLE IF NOT EXISTS public.venues (
 );
 ALTER TABLE public.venues ENABLE ROW LEVEL SECURITY;
 
-
--- ============================================================================
--- SECTION 2 — Role/auth tables
--- ============================================================================
-
--- 2a. profiles
+-- 2e. profiles
 CREATE TABLE IF NOT EXISTS public.profiles (
   id         uuid  PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   role       text  NOT NULL CHECK (role IN ('admin','leader','accountant','incharge')),
@@ -70,12 +86,11 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   college_id uuid
 );
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
--- Drop and recreate role constraint so re-runs are safe
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
-ALTER TABLE public.profiles ADD  CONSTRAINT profiles_role_check
+ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check
   CHECK (role IN ('admin','leader','accountant','incharge'));
 
--- 2b. admins
+-- 2f. admins
 CREATE TABLE IF NOT EXISTS public.admins (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   name       text        NOT NULL,
@@ -84,7 +99,7 @@ CREATE TABLE IF NOT EXISTS public.admins (
 );
 ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
 
--- 2c. accountants
+-- 2g. accountants
 CREATE TABLE IF NOT EXISTS public.accountants (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   name       text        NOT NULL,
@@ -93,102 +108,56 @@ CREATE TABLE IF NOT EXISTS public.accountants (
 );
 ALTER TABLE public.accountants ENABLE ROW LEVEL SECURITY;
 
--- 2d. incharges
+-- 2h. incharges
 CREATE TABLE IF NOT EXISTS public.incharges (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   name       text        NOT NULL,
-  email      text,
-  event_id   uuid,
   created_at timestamptz DEFAULT now()
 );
 ALTER TABLE public.incharges ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.incharges ADD COLUMN IF NOT EXISTS email    text;
+ALTER TABLE public.incharges ADD COLUMN IF NOT EXISTS email text;
 
-
--- ============================================================================
--- SECTION 3 — Events table
--- ============================================================================
-
+-- 2i. events
 CREATE TABLE IF NOT EXISTS public.events (
-  id                   uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_name           text        NOT NULL,
-  category             text,
-  description          text,
-  rules                text,
-  staff_incharge       text,
-  team_size            int         NOT NULL DEFAULT 1,
-  minimum_participants int         NOT NULL DEFAULT 1,
-  maximum_participants int         NOT NULL DEFAULT 1,
-  prelims_venue        uuid,
-  mains_venue          uuid,
-  preliminary          time,
-  mains                time,
-  status               text        NOT NULL DEFAULT 'active',
-  created_at           timestamptz DEFAULT now()
+  id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_name text        NOT NULL,
+  created_at timestamptz DEFAULT now()
 );
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 
--- Safe column additions for existing DBs
+-- Safe additions of columns for existing events table
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS category             text;
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS description          text;
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS rules                text;
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS staff_incharge       text;
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS team_size            int  NOT NULL DEFAULT 1;
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS minimum_participants int  NOT NULL DEFAULT 1;
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS maximum_participants int  NOT NULL DEFAULT 1;
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS prelims_venue        uuid REFERENCES public.venues(id) ON DELETE SET NULL;
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS mains_venue          uuid REFERENCES public.venues(id) ON DELETE SET NULL;
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS preliminary          time;
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS mains                time;
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS status               text NOT NULL DEFAULT 'active';
 
--- Drop legacy columns that were replaced
-DO $$
-BEGIN
-  ALTER TABLE public.events DROP COLUMN IF EXISTS prelims_date;
-  ALTER TABLE public.events DROP COLUMN IF EXISTS mains_date;
-  ALTER TABLE public.events DROP COLUMN IF EXISTS registration_fee;
-  ALTER TABLE public.events DROP COLUMN IF EXISTS details;
-  ALTER TABLE public.events DROP COLUMN IF EXISTS venue;
-  ALTER TABLE public.events DROP COLUMN IF EXISTS winner_count;
-  -- Recreate team_size as int if it was text
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = 'events'
-      AND column_name = 'team_size' AND data_type = 'text'
-  ) THEN
-    ALTER TABLE public.events DROP COLUMN team_size;
-    ALTER TABLE public.events ADD  COLUMN team_size int NOT NULL DEFAULT 1;
-  END IF;
-END $$;
-
--- Add venue FK columns after venues table is guaranteed to exist
-ALTER TABLE public.events ADD COLUMN IF NOT EXISTS prelims_venue uuid REFERENCES public.venues(id) ON DELETE SET NULL;
-ALTER TABLE public.events ADD COLUMN IF NOT EXISTS mains_venue   uuid REFERENCES public.venues(id) ON DELETE SET NULL;
-
--- Add FK to incharges.event_id after events table is guaranteed to exist
+-- Safe additions of columns for existing incharges table
 ALTER TABLE public.incharges ADD COLUMN IF NOT EXISTS event_id uuid REFERENCES public.events(id) ON DELETE SET NULL;
 
-
--- ============================================================================
--- SECTION 4 — College, Leader, Registration, Student tables
--- ============================================================================
-
--- 4a. colleges
+-- 2j. colleges
 CREATE TABLE IF NOT EXISTS public.colleges (
-  id                 uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  college            text        NOT NULL,
-  department         text,
-  phone              text,
-  email              text,
-  address            text,
-  status             text        NOT NULL DEFAULT 'active',
-  is_paid            boolean     NOT NULL DEFAULT false,
-  payment_screenshot text,
-  qr_code            text,
-  created_at         timestamptz DEFAULT now()
+  id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  college    text        NOT NULL,
+  created_at timestamptz DEFAULT now()
 );
 ALTER TABLE public.colleges ENABLE ROW LEVEL SECURITY;
--- Safe additions for existing DBs
+ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS department         text;
+ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS phone              text;
+ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS email              text;
+ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS address            text;
+ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS status             text NOT NULL DEFAULT 'active';
 ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS is_paid            boolean NOT NULL DEFAULT false;
 ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS payment_screenshot text;
 ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS qr_code            text;
+
 -- Rename legacy column college_name to college if it still exists
 DO $$
 BEGIN
@@ -201,19 +170,20 @@ BEGIN
   END IF;
 END $$;
 
--- 4b. student_leaders
+-- 2k. student_leaders
 CREATE TABLE IF NOT EXISTS public.student_leaders (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   name       text        NOT NULL,
-  phone      text,
-  email      text,
-  department text,
-  college_id uuid        REFERENCES public.colleges(id) ON DELETE CASCADE,
-  status     text        NOT NULL DEFAULT 'active',
   created_at timestamptz DEFAULT now()
 );
 ALTER TABLE public.student_leaders ENABLE ROW LEVEL SECURITY;
--- Enforce max 1 leader per college (idempotent)
+ALTER TABLE public.student_leaders ADD COLUMN IF NOT EXISTS phone      text;
+ALTER TABLE public.student_leaders ADD COLUMN IF NOT EXISTS email      text;
+ALTER TABLE public.student_leaders ADD COLUMN IF NOT EXISTS department text;
+ALTER TABLE public.student_leaders ADD COLUMN IF NOT EXISTS college_id uuid REFERENCES public.colleges(id) ON DELETE CASCADE;
+ALTER TABLE public.student_leaders ADD COLUMN IF NOT EXISTS status     text NOT NULL DEFAULT 'active';
+
+-- Enforce max 1 leader per college
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -226,7 +196,7 @@ BEGIN
   END IF;
 END $$;
 
--- 4c. lots
+-- 2l. lots
 CREATE TABLE IF NOT EXISTS public.lots (
   id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   lot_name         text        NOT NULL,
@@ -236,47 +206,42 @@ CREATE TABLE IF NOT EXISTS public.lots (
 );
 ALTER TABLE public.lots ENABLE ROW LEVEL SECURITY;
 
--- 4d. registrations
+-- 2m. registrations
 CREATE TABLE IF NOT EXISTS public.registrations (
   id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  college_id   uuid        REFERENCES public.colleges(id) ON DELETE CASCADE,
-  leader_id    uuid        REFERENCES public.student_leaders(id) ON DELETE SET NULL,
-  event_id     uuid        REFERENCES public.events(id) ON DELETE CASCADE,
-  status       text        NOT NULL DEFAULT 'pending'
-               CHECK (status IN ('pending','lot_assigned','paid','approved','rejected')),
-  veg_count    int         NOT NULL DEFAULT 0,
-  nonveg_count int         NOT NULL DEFAULT 0,
   created_at   timestamptz DEFAULT now(),
   UNIQUE (college_id, event_id)
 );
 ALTER TABLE public.registrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.registrations ADD COLUMN IF NOT EXISTS college_id   uuid REFERENCES public.colleges(id) ON DELETE CASCADE;
+ALTER TABLE public.registrations ADD COLUMN IF NOT EXISTS leader_id    uuid REFERENCES public.student_leaders(id) ON DELETE SET NULL;
+ALTER TABLE public.registrations ADD COLUMN IF NOT EXISTS event_id     uuid REFERENCES public.events(id) ON DELETE CASCADE;
+ALTER TABLE public.registrations ADD COLUMN IF NOT EXISTS lot_id       uuid REFERENCES public.lots(id) ON DELETE SET NULL;
+ALTER TABLE public.registrations ADD COLUMN IF NOT EXISTS status       text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','lot_assigned','paid','approved','rejected'));
 ALTER TABLE public.registrations ADD COLUMN IF NOT EXISTS veg_count    int NOT NULL DEFAULT 0;
 ALTER TABLE public.registrations ADD COLUMN IF NOT EXISTS nonveg_count int NOT NULL DEFAULT 0;
 
--- 4e. students
+-- 2n. students
 CREATE TABLE IF NOT EXISTS public.students (
-  id                      uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_name            text        NOT NULL,
-  student_name_normalized text,
-  gender                  text,
-  department              text,
-  year                    text,
-  email                   text,
-  registration_id         uuid        REFERENCES public.registrations(id) ON DELETE CASCADE,
-  leader_id               uuid        REFERENCES public.student_leaders(id) ON DELETE SET NULL,
-  college_id              uuid        REFERENCES public.colleges(id) ON DELETE CASCADE,
-  event_id                uuid        REFERENCES public.events(id) ON DELETE CASCADE,
-  certificate_status      text        NOT NULL DEFAULT 'not issued',
-  winner_place            text,
-  winning_prize           text,
-  created_at              timestamptz DEFAULT now()
+  id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_name text        NOT NULL,
+  created_at   timestamptz DEFAULT now()
 );
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.students ADD COLUMN IF NOT EXISTS email         text;
-ALTER TABLE public.students ADD COLUMN IF NOT EXISTS winner_place  text;
-ALTER TABLE public.students ADD COLUMN IF NOT EXISTS winning_prize text;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS student_name_normalized text;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS gender                  text;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS department              text;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS year                    text;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS email                   text;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS registration_id         uuid REFERENCES public.registrations(id) ON DELETE CASCADE;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS leader_id               uuid REFERENCES public.student_leaders(id) ON DELETE SET NULL;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS college_id              uuid REFERENCES public.colleges(id) ON DELETE CASCADE;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS event_id                uuid REFERENCES public.events(id) ON DELETE CASCADE;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS certificate_status      text NOT NULL DEFAULT 'not issued';
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS winner_place            text;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS winning_prize           text;
 
--- 4f. certificates
+-- 2o. certificates
 CREATE TABLE IF NOT EXISTS public.certificates (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id uuid        REFERENCES public.students(id) ON DELETE CASCADE,
@@ -285,7 +250,7 @@ CREATE TABLE IF NOT EXISTS public.certificates (
 );
 ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
 
--- 4g. payments (legacy — kept for compatibility)
+-- 2p. payments
 CREATE TABLE IF NOT EXISTS public.payments (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   college_id uuid        REFERENCES public.colleges(id) ON DELETE CASCADE,
@@ -294,12 +259,7 @@ CREATE TABLE IF NOT EXISTS public.payments (
 );
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 
-
--- ============================================================================
--- SECTION 5 — Payment poll & winner tables
--- ============================================================================
-
--- 5a. payment_polls
+-- 2q. payment_polls
 CREATE TABLE IF NOT EXISTS public.payment_polls (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   poll_name  text        NOT NULL,
@@ -308,7 +268,7 @@ CREATE TABLE IF NOT EXISTS public.payment_polls (
 );
 ALTER TABLE public.payment_polls ENABLE ROW LEVEL SECURITY;
 
--- 5b. payment_logs
+-- 2r. payment_logs
 CREATE TABLE IF NOT EXISTS public.payment_logs (
   id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   poll_id      uuid        REFERENCES public.payment_polls(id) ON DELETE SET NULL,
@@ -318,7 +278,7 @@ CREATE TABLE IF NOT EXISTS public.payment_logs (
 );
 ALTER TABLE public.payment_logs ENABLE ROW LEVEL SECURITY;
 
--- 5c. winners
+-- 2s. winners
 CREATE TABLE IF NOT EXISTS public.winners (
   id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   event_id     uuid        REFERENCES public.events(id) ON DELETE CASCADE UNIQUE,
@@ -330,157 +290,16 @@ ALTER TABLE public.winners ENABLE ROW LEVEL SECURITY;
 
 
 -- ============================================================================
--- SECTION 6 — RLS Policies  (DROP IF EXISTS + CREATE for idempotency)
+-- PHASE 3: Database Helper Functions & Trigger Definitions
 -- ============================================================================
 
--- settings
-DROP POLICY IF EXISTS "settings: public read"  ON public.settings;
-DROP POLICY IF EXISTS "settings: admin write"  ON public.settings;
-CREATE POLICY "settings: public read"  ON public.settings FOR SELECT USING (true);
-CREATE POLICY "settings: admin write"  ON public.settings FOR ALL    USING (current_role_name() = 'admin');
-
--- leaders
-DROP POLICY IF EXISTS "leaders: public read"   ON public.leaders;
-DROP POLICY IF EXISTS "leaders: admin write"   ON public.leaders;
-CREATE POLICY "leaders: public read"   ON public.leaders FOR SELECT USING (true);
-CREATE POLICY "leaders: admin write"   ON public.leaders FOR ALL    USING (current_role_name() = 'admin');
-
--- rules
-DROP POLICY IF EXISTS "rules: public read"     ON public.rules;
-DROP POLICY IF EXISTS "rules: admin write"     ON public.rules;
-CREATE POLICY "rules: public read"     ON public.rules FOR SELECT USING (true);
-CREATE POLICY "rules: admin write"     ON public.rules FOR ALL    USING (current_role_name() = 'admin');
-
--- venues
-DROP POLICY IF EXISTS "venues: public read"    ON public.venues;
-DROP POLICY IF EXISTS "venues: admin write"    ON public.venues;
-CREATE POLICY "venues: public read"    ON public.venues FOR SELECT USING (true);
-CREATE POLICY "venues: admin write"    ON public.venues FOR ALL    USING (current_role_name() = 'admin');
-
--- events
-DROP POLICY IF EXISTS "events: public read"    ON public.events;
-DROP POLICY IF EXISTS "events: admin write"    ON public.events;
-CREATE POLICY "events: public read"    ON public.events FOR SELECT USING (true);
-CREATE POLICY "events: admin write"    ON public.events FOR ALL    USING (current_role_name() = 'admin');
-
--- profiles
-DROP POLICY IF EXISTS "profiles: own read"     ON public.profiles;
-DROP POLICY IF EXISTS "profiles: admin write"  ON public.profiles;
-CREATE POLICY "profiles: own read"     ON public.profiles FOR SELECT USING (auth.uid() = id OR current_role_name() = 'admin');
-CREATE POLICY "profiles: admin write"  ON public.profiles FOR ALL    USING (current_role_name() = 'admin');
-
--- admins
-DROP POLICY IF EXISTS "admins: admin read"     ON public.admins;
-CREATE POLICY "admins: admin read"     ON public.admins FOR SELECT USING (current_role_name() = 'admin');
-
--- accountants
-DROP POLICY IF EXISTS "accountants: signed-in read" ON public.accountants;
-DROP POLICY IF EXISTS "accountants: admin write"    ON public.accountants;
-CREATE POLICY "accountants: signed-in read" ON public.accountants FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "accountants: admin write"    ON public.accountants FOR ALL    USING (current_role_name() = 'admin');
-
--- incharges
-DROP POLICY IF EXISTS "incharges: signed-in read"  ON public.incharges;
-DROP POLICY IF EXISTS "incharges: admin write"     ON public.incharges;
-CREATE POLICY "incharges: signed-in read"  ON public.incharges FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "incharges: admin write"     ON public.incharges FOR ALL    USING (current_role_name() = 'admin');
-
--- colleges
-DROP POLICY IF EXISTS "colleges: public read"      ON public.colleges;
-DROP POLICY IF EXISTS "colleges: admin write"      ON public.colleges;
-DROP POLICY IF EXISTS "colleges: payment update"   ON public.colleges;
-CREATE POLICY "colleges: public read"      ON public.colleges FOR SELECT USING (true);
-CREATE POLICY "colleges: admin write"      ON public.colleges FOR ALL    USING (current_role_name() = 'admin');
-CREATE POLICY "colleges: payment update"   ON public.colleges FOR UPDATE USING (true) WITH CHECK (true);
-
--- student_leaders
-DROP POLICY IF EXISTS "student_leaders: signed-in read" ON public.student_leaders;
-DROP POLICY IF EXISTS "student_leaders: admin write"    ON public.student_leaders;
-CREATE POLICY "student_leaders: signed-in read" ON public.student_leaders FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "student_leaders: admin write"    ON public.student_leaders FOR ALL    USING (current_role_name() = 'admin');
-
--- lots
-DROP POLICY IF EXISTS "lots: signed-in read"  ON public.lots;
-DROP POLICY IF EXISTS "lots: admin write"     ON public.lots;
-DROP POLICY IF EXISTS "lots: public read"     ON public.lots;
-CREATE POLICY "lots: public read"     ON public.lots FOR SELECT USING (true);
-CREATE POLICY "lots: admin write"     ON public.lots FOR ALL    USING (current_role_name() = 'admin');
-
--- registrations
-DROP POLICY IF EXISTS "registrations: public read"   ON public.registrations;
-DROP POLICY IF EXISTS "registrations: admin write"   ON public.registrations;
-CREATE POLICY "registrations: public read"   ON public.registrations FOR SELECT USING (true);
-CREATE POLICY "registrations: admin write"   ON public.registrations FOR ALL    USING (current_role_name() = 'admin');
-
--- students
-DROP POLICY IF EXISTS "students: public read"                   ON public.students;
-DROP POLICY IF EXISTS "students: admin write"                   ON public.students;
-DROP POLICY IF EXISTS "students: incharge update winner_place"  ON public.students;
-CREATE POLICY "students: public read"   ON public.students FOR SELECT USING (true);
-CREATE POLICY "students: admin write"   ON public.students FOR ALL    USING (current_role_name() = 'admin');
-CREATE POLICY "students: incharge update winner_place" ON public.students FOR UPDATE
-  USING (
-    current_role_name() = 'incharge' AND
-    event_id IN (
-      SELECT event_id FROM public.incharges WHERE id = (
-        SELECT ref_id FROM public.profiles WHERE id = auth.uid()
-      )
-    )
-  );
-
--- certificates
-DROP POLICY IF EXISTS "certificates: admin read"  ON public.certificates;
-DROP POLICY IF EXISTS "certificates: admin write" ON public.certificates;
-CREATE POLICY "certificates: admin read"  ON public.certificates FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "certificates: admin write" ON public.certificates FOR ALL    USING (current_role_name() = 'admin');
-
--- payments (legacy)
-DROP POLICY IF EXISTS "payments: admin read"  ON public.payments;
-DROP POLICY IF EXISTS "payments: admin write" ON public.payments;
-CREATE POLICY "payments: admin read"  ON public.payments FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "payments: admin write" ON public.payments FOR ALL    USING (current_role_name() = 'admin');
-
--- payment_polls
-DROP POLICY IF EXISTS "payment_polls: public read"  ON public.payment_polls;
-DROP POLICY IF EXISTS "payment_polls: admin write"  ON public.payment_polls;
-CREATE POLICY "payment_polls: public read"  ON public.payment_polls FOR SELECT USING (true);
-CREATE POLICY "payment_polls: admin write"  ON public.payment_polls FOR ALL    USING (current_role_name() = 'admin');
-
--- payment_logs
-DROP POLICY IF EXISTS "payment_logs: public insert" ON public.payment_logs;
-DROP POLICY IF EXISTS "payment_logs: admin read"    ON public.payment_logs;
-CREATE POLICY "payment_logs: public insert" ON public.payment_logs FOR INSERT WITH CHECK (true);
-CREATE POLICY "payment_logs: admin read"    ON public.payment_logs FOR SELECT USING (true);
-
--- winners
-DROP POLICY IF EXISTS "winners: public read"  ON public.winners;
-DROP POLICY IF EXISTS "winners: admin write"  ON public.winners;
-CREATE POLICY "winners: public read"  ON public.winners FOR SELECT USING (true);
-CREATE POLICY "winners: admin write"  ON public.winners FOR ALL    USING (current_role_name() = 'admin');
-
-
--- ============================================================================
--- SECTION 7 — Functions and Triggers
--- ============================================================================
-
--- 7a. Auto-confirm email for new auth users
-CREATE OR REPLACE FUNCTION public.auto_confirm_email()
-RETURNS trigger
-SECURITY DEFINER
-SET search_path = public, pg_temp
-LANGUAGE plpgsql AS $$
-BEGIN
-  NEW.email_confirmed_at := now();
-  RETURN NEW;
-END;
+-- Helper to check user role
+CREATE OR REPLACE FUNCTION public.current_role_name()
+RETURNS text LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid();
 $$;
 
-DROP TRIGGER IF EXISTS tr_auto_confirm_email ON auth.users;
-CREATE TRIGGER tr_auto_confirm_email
-  BEFORE INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.auto_confirm_email();
-
--- 7b. Normalize student name on INSERT/UPDATE
+-- 3a. Normalize student names (trigger helper)
 CREATE OR REPLACE FUNCTION public.normalize_student_name_trigger()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
@@ -494,7 +313,7 @@ CREATE TRIGGER trg_normalize_student_name
   BEFORE INSERT OR UPDATE ON public.students
   FOR EACH ROW EXECUTE FUNCTION public.normalize_student_name_trigger();
 
--- 7c. Sync winning prizes when winners row is inserted/updated
+-- 3b. Sync winning prizes (trigger helper)
 CREATE OR REPLACE FUNCTION public.sync_winning_prizes()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
@@ -503,10 +322,8 @@ DECLARE
   v_second_college    text;
   v_second_college_id uuid;
 BEGIN
-  -- Reset all prizes for the event
   UPDATE public.students SET winning_prize = NULL WHERE event_id = NEW.event_id;
 
-  -- First place
   IF NEW.first_place IS NOT NULL AND NEW.first_place <> '-' THEN
     SELECT assigned_college INTO v_first_college
       FROM public.lots WHERE lot_name = NEW.first_place LIMIT 1;
@@ -520,7 +337,6 @@ BEGIN
     END IF;
   END IF;
 
-  -- Second place
   IF NEW.second_place IS NOT NULL AND NEW.second_place <> '-' THEN
     SELECT assigned_college INTO v_second_college
       FROM public.lots WHERE lot_name = NEW.second_place LIMIT 1;
@@ -543,7 +359,7 @@ CREATE TRIGGER tr_sync_winning_prizes
   AFTER INSERT OR UPDATE ON public.winners
   FOR EACH ROW EXECUTE FUNCTION public.sync_winning_prizes();
 
--- 7d. Clear winning prizes when a winner row is deleted
+-- 3c. Clean winning prizes on deletion
 CREATE OR REPLACE FUNCTION public.clean_deleted_winning_prizes()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
@@ -557,7 +373,109 @@ CREATE TRIGGER tr_clean_deleted_winning_prizes
   AFTER DELETE ON public.winners
   FOR EACH ROW EXECUTE FUNCTION public.clean_deleted_winning_prizes();
 
--- 7e. register_team — core team registration with min/max size validation
+-- 3d. Automated Lot assignment trigger (Run BEFORE INSERT to set lot_id & status)
+CREATE OR REPLACE FUNCTION assign_lot_automatically()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_college_name text;
+  v_lot_id uuid;
+BEGIN
+  SELECT college INTO v_college_name FROM colleges WHERE id = NEW.college_id;
+  
+  IF v_college_name IS NOT NULL THEN
+    SELECT id INTO v_lot_id FROM lots 
+     WHERE lower(trim(assigned_college)) = lower(trim(v_college_name)) 
+     LIMIT 1;
+    
+    IF v_lot_id IS NULL THEN
+      SELECT id INTO v_lot_id FROM lots 
+       WHERE is_assigned = false 
+       ORDER BY lot_name ASC 
+       LIMIT 1;
+      
+      IF v_lot_id IS NOT NULL THEN
+        UPDATE lots 
+           SET is_assigned = true, 
+               assigned_college = v_college_name 
+         WHERE id = v_lot_id;
+      END IF;
+    END IF;
+    
+    IF v_lot_id IS NOT NULL THEN
+      NEW.lot_id := v_lot_id;
+      IF NEW.status = 'pending' THEN
+        NEW.status := 'lot_assigned';
+      END IF;
+    END IF;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_assign_lot_automatically ON registrations;
+CREATE TRIGGER trg_assign_lot_automatically
+  BEFORE INSERT ON registrations
+  FOR EACH ROW EXECUTE FUNCTION assign_lot_automatically();
+
+-- Trigger for Google OAuth profile role sync
+CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
+RETURNS trigger AS $$
+DECLARE
+  v_role text := 'leader';
+  v_name text;
+  v_ref_id uuid;
+  v_college_id uuid;
+BEGIN
+  SELECT 'admin', name, id INTO v_role, v_name, v_ref_id
+    FROM public.admins
+   WHERE lower(trim(email)) = lower(trim(NEW.email))
+   LIMIT 1;
+
+  IF v_ref_id IS NULL THEN
+    SELECT 'leader', name, id, college_id INTO v_role, v_name, v_ref_id, v_college_id
+      FROM public.student_leaders
+     WHERE lower(trim(email)) = lower(trim(NEW.email))
+     LIMIT 1;
+  END IF;
+
+  IF v_ref_id IS NULL THEN
+    SELECT 'incharge', name, id INTO v_role, v_name, v_ref_id
+      FROM public.incharges
+     WHERE lower(trim(email)) = lower(trim(NEW.email))
+     LIMIT 1;
+  END IF;
+
+  IF v_ref_id IS NULL THEN
+    SELECT 'accountant', name, id INTO v_role, v_name, v_ref_id
+      FROM public.accountants
+     WHERE lower(trim(email)) = lower(trim(NEW.email))
+     LIMIT 1;
+  END IF;
+
+  IF v_ref_id IS NULL THEN
+    v_role := 'leader';
+    v_name := COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email);
+  END IF;
+
+  INSERT INTO public.profiles (id, role, name, ref_id, college_id)
+  VALUES (NEW.id, v_role, v_name, v_ref_id, v_college_id)
+  ON CONFLICT (id) DO UPDATE
+  SET role = EXCLUDED.role,
+      name = EXCLUDED.name,
+      ref_id = EXCLUDED.ref_id,
+      college_id = EXCLUDED.college_id;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_handle_new_auth_user ON auth.users;
+CREATE TRIGGER trg_handle_new_auth_user
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
+
+-- 3e. register_team RPC function
 CREATE OR REPLACE FUNCTION public.register_team(
   p_college_id   uuid,
   p_leader_id    uuid,
@@ -589,7 +507,6 @@ BEGIN
     RAISE EXCEPTION 'Maximum % participants allowed — currently %.', v_max, v_count;
   END IF;
 
-  -- Duplicate name guard within the team
   SELECT array_agg(lower(trim(elem->>'studentName')))
     INTO v_names
     FROM jsonb_array_elements(p_participants) elem;
@@ -621,11 +538,126 @@ BEGIN
 
 EXCEPTION
   WHEN unique_violation THEN
-    RAISE EXCEPTION 'This college has already registered for this event, or a participant name is already registered elsewhere.';
+    RAISE EXCEPTION 'This college has already registered for this event.';
 END;
 $$;
 
--- 7f. register_guest_team — public-facing registration with lot auto-assignment
+-- Trigger to sync profiles when public.admins row is inserted or updated
+CREATE OR REPLACE FUNCTION public.sync_profile_on_admin_change()
+RETURNS trigger AS $$
+BEGIN
+  UPDATE public.profiles
+     SET role = 'admin',
+         ref_id = NEW.id,
+         college_id = NULL
+   WHERE id IN (
+     SELECT id FROM auth.users WHERE lower(trim(email)) = lower(trim(NEW.email))
+   );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_sync_profile_on_admin_change ON public.admins;
+CREATE TRIGGER trg_sync_profile_on_admin_change
+  AFTER INSERT OR UPDATE ON public.admins
+  FOR EACH ROW EXECUTE FUNCTION public.sync_profile_on_admin_change();
+
+-- Trigger to sync profiles when public.student_leaders row is inserted or updated
+CREATE OR REPLACE FUNCTION public.sync_profile_on_leader_change()
+RETURNS trigger AS $$
+BEGIN
+  UPDATE public.profiles
+     SET role = 'leader',
+         ref_id = NEW.id,
+         college_id = NEW.college_id
+   WHERE id IN (
+     SELECT id FROM auth.users WHERE lower(trim(email)) = lower(trim(NEW.email))
+   );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_sync_profile_on_leader_change ON public.student_leaders;
+CREATE TRIGGER trg_sync_profile_on_leader_change
+  AFTER INSERT OR UPDATE ON public.student_leaders
+  FOR EACH ROW EXECUTE FUNCTION public.sync_profile_on_leader_change();
+
+-- SECURITY DEFINER RPC to configure a leader profile securely bypassing RLS
+CREATE OR REPLACE FUNCTION public.configure_leader_profile(
+  p_user_id      uuid,
+  p_leader_name  text,
+  p_leader_phone text,
+  p_leader_dept  text,
+  p_college_name text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_college_id uuid;
+  v_leader_id uuid;
+  v_email text;
+BEGIN
+  SELECT email INTO v_email FROM auth.users WHERE id = p_user_id;
+  IF v_email IS NULL THEN
+    RAISE EXCEPTION 'User not found in authentication catalog.';
+  END IF;
+
+  SELECT id INTO v_college_id
+    FROM public.colleges
+   WHERE lower(trim(college)) = lower(trim(p_college_name))
+   LIMIT 1;
+
+  IF v_college_id IS NULL THEN
+    INSERT INTO public.colleges (college, department, status)
+    VALUES (p_college_name, p_leader_dept, 'active')
+    RETURNING id INTO v_college_id;
+  END IF;
+
+  INSERT INTO public.student_leaders (name, phone, email, department, college_id, status)
+  VALUES (
+    p_leader_name,
+    p_leader_phone,
+    v_email,
+    p_leader_dept,
+    v_college_id,
+    'active'
+  )
+  RETURNING id INTO v_leader_id;
+
+  UPDATE public.profiles
+     SET ref_id = v_leader_id,
+         college_id = v_college_id,
+         name = p_leader_name
+   WHERE id = p_user_id;
+
+  RETURN jsonb_build_object(
+    'college_id', v_college_id,
+    'leader_id', v_leader_id
+  );
+END;
+$$;
+
+-- SECURITY DEFINER RPC to update food counts bypassing registrations RLS
+CREATE OR REPLACE FUNCTION public.update_registration_food_count(
+  p_registration_id uuid,
+  p_veg_count       int,
+  p_nonveg_count    int
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.registrations
+     SET veg_count = p_veg_count,
+         nonveg_count = p_nonveg_count
+   WHERE id = p_registration_id;
+END;
+$$;
+
+-- 3f. register_guest_team RPC function
 DROP FUNCTION IF EXISTS public.register_guest_team(text,text,text,text,text,text,text,text,text,integer,integer,jsonb);
 CREATE OR REPLACE FUNCTION public.register_guest_team(
   p_leader_name     text,
@@ -649,10 +681,7 @@ DECLARE
   v_event_id     uuid;
   v_participants jsonb;
   v_reg_id       uuid;
-  v_lot_id       uuid;
-  v_lot_name     text;
 BEGIN
-  -- Find or create college
   SELECT id INTO v_college_id FROM public.colleges
    WHERE lower(trim(college)) = lower(trim(p_college_name)) LIMIT 1;
 
@@ -662,7 +691,6 @@ BEGIN
     RETURNING id INTO v_college_id;
   END IF;
 
-  -- Find or create student leader (one per college enforced by unique constraint)
   SELECT id INTO v_leader_id FROM public.student_leaders
    WHERE lower(trim(email)) = lower(trim(p_email)) AND college_id = v_college_id LIMIT 1;
 
@@ -672,22 +700,6 @@ BEGIN
     RETURNING id INTO v_leader_id;
   END IF;
 
-  -- Lot assignment: reuse if already assigned to this college, else claim next free lot
-  SELECT id, lot_name INTO v_lot_id, v_lot_name FROM public.lots
-   WHERE lower(trim(assigned_college)) = lower(trim(p_college_name)) LIMIT 1;
-
-  IF v_lot_id IS NULL THEN
-    SELECT id, lot_name INTO v_lot_id, v_lot_name FROM public.lots
-     WHERE is_assigned = false ORDER BY lot_name ASC LIMIT 1;
-
-    IF v_lot_id IS NOT NULL THEN
-      UPDATE public.lots
-         SET is_assigned = true, assigned_college = p_college_name
-       WHERE id = v_lot_id;
-    END IF;
-  END IF;
-
-  -- Register each event in the payload
   FOR v_reg_item IN SELECT * FROM jsonb_array_elements(p_registrations) LOOP
     v_event_id     := (v_reg_item->>'eventId')::uuid;
     v_participants := v_reg_item->'participants';
@@ -695,8 +707,7 @@ BEGIN
 
     UPDATE public.registrations
        SET veg_count    = p_veg_count,
-           nonveg_count = p_nonveg_count,
-           status       = CASE WHEN v_lot_id IS NOT NULL THEN 'lot_assigned' ELSE 'pending' END
+           nonveg_count = p_nonveg_count
      WHERE id = v_reg_id;
   END LOOP;
 
@@ -706,7 +717,7 @@ BEGIN
 END;
 $$;
 
--- 7g. create_leader_profile — Security-definer helper used on leader signup
+-- 3g. create_leader_profile helper
 CREATE OR REPLACE FUNCTION public.create_leader_profile(
   p_user_id    uuid,
   p_ref_id     uuid,
@@ -723,9 +734,118 @@ $$;
 
 
 -- ============================================================================
--- SECTION 8 — Realtime publication (safe idempotent adds)
+-- PHASE 4: Row Level Security Policies
 -- ============================================================================
 
+DROP POLICY IF EXISTS "settings: public read"  ON public.settings;
+DROP POLICY IF EXISTS "settings: admin write"  ON public.settings;
+CREATE POLICY "settings: public read"  ON public.settings FOR SELECT USING (true);
+CREATE POLICY "settings: admin write"  ON public.settings FOR ALL    USING (current_role_name() = 'admin');
+
+DROP POLICY IF EXISTS "leaders: public read"   ON public.leaders;
+DROP POLICY IF EXISTS "leaders: admin write"   ON public.leaders;
+CREATE POLICY "leaders: public read"   ON public.leaders FOR SELECT USING (true);
+CREATE POLICY "leaders: admin write"   ON public.leaders FOR ALL    USING (current_role_name() = 'admin');
+
+DROP POLICY IF EXISTS "rules: public read"     ON public.rules;
+DROP POLICY IF EXISTS "rules: admin write"     ON public.rules;
+CREATE POLICY "rules: public read"     ON public.rules FOR SELECT USING (true);
+CREATE POLICY "rules: admin write"     ON public.rules FOR ALL    USING (current_role_name() = 'admin');
+
+DROP POLICY IF EXISTS "venues: public read"    ON public.venues;
+DROP POLICY IF EXISTS "venues: admin write"    ON public.venues;
+CREATE POLICY "venues: public read"    ON public.venues FOR SELECT USING (true);
+CREATE POLICY "venues: admin write"    ON public.venues FOR ALL    USING (current_role_name() = 'admin');
+
+DROP POLICY IF EXISTS "events: public read"    ON public.events;
+DROP POLICY IF EXISTS "events: admin write"    ON public.events;
+CREATE POLICY "events: public read"    ON public.events FOR SELECT USING (true);
+CREATE POLICY "events: admin write"    ON public.events FOR ALL    USING (current_role_name() = 'admin');
+
+DROP POLICY IF EXISTS "profiles: own read"     ON public.profiles;
+DROP POLICY IF EXISTS "profiles: admin write"  ON public.profiles;
+CREATE POLICY "profiles: own read"     ON public.profiles FOR SELECT USING (auth.uid() = id OR current_role_name() = 'admin');
+CREATE POLICY "profiles: admin write"  ON public.profiles FOR ALL    USING (current_role_name() = 'admin');
+
+DROP POLICY IF EXISTS "admins: admin read"     ON public.admins;
+CREATE POLICY "admins: admin read"     ON public.admins FOR SELECT USING (current_role_name() = 'admin');
+
+DROP POLICY IF EXISTS "accountants: signed-in read" ON public.accountants;
+DROP POLICY IF EXISTS "accountants: admin write"    ON public.accountants;
+CREATE POLICY "accountants: signed-in read" ON public.accountants FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "accountants: admin write"    ON public.accountants FOR ALL    USING (current_role_name() = 'admin');
+
+DROP POLICY IF EXISTS "incharges: signed-in read"  ON public.incharges;
+DROP POLICY IF EXISTS "incharges: admin write"     ON public.incharges;
+CREATE POLICY "incharges: signed-in read"  ON public.incharges FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "incharges: admin write"     ON public.incharges FOR ALL    USING (current_role_name() = 'admin');
+
+DROP POLICY IF EXISTS "colleges: public read"      ON public.colleges;
+DROP POLICY IF EXISTS "colleges: admin write"      ON public.colleges;
+DROP POLICY IF EXISTS "colleges: payment update"   ON public.colleges;
+CREATE POLICY "colleges: public read"      ON public.colleges FOR SELECT USING (true);
+CREATE POLICY "colleges: admin write"      ON public.colleges FOR ALL    USING (current_role_name() = 'admin');
+CREATE POLICY "colleges: payment update"   ON public.colleges FOR UPDATE USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "student_leaders: signed-in read" ON public.student_leaders;
+DROP POLICY IF EXISTS "student_leaders: admin write"    ON public.student_leaders;
+CREATE POLICY "student_leaders: signed-in read" ON public.student_leaders FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "student_leaders: admin write"    ON public.student_leaders FOR ALL    USING (current_role_name() = 'admin');
+
+DROP POLICY IF EXISTS "lots: public read"     ON public.lots;
+DROP POLICY IF EXISTS "lots: admin write"     ON public.lots;
+CREATE POLICY "lots: public read"     ON public.lots FOR SELECT USING (true);
+CREATE POLICY "lots: admin write"     ON public.lots FOR ALL    USING (current_role_name() = 'admin');
+
+DROP POLICY IF EXISTS "registrations: public read"   ON public.registrations;
+DROP POLICY IF EXISTS "registrations: admin write"   ON public.registrations;
+CREATE POLICY "registrations: public read"   ON public.registrations FOR SELECT USING (true);
+CREATE POLICY "registrations: admin write"   ON public.registrations FOR ALL    USING (current_role_name() = 'admin');
+
+DROP POLICY IF EXISTS "students: public read"                   ON public.students;
+DROP POLICY IF EXISTS "students: admin write"                   ON public.students;
+DROP POLICY IF EXISTS "students: incharge update winner_place"  ON public.students;
+CREATE POLICY "students: public read"   ON public.students FOR SELECT USING (true);
+CREATE POLICY "students: admin write"   ON public.students FOR ALL    USING (current_role_name() = 'admin');
+CREATE POLICY "students: incharge update winner_place" ON public.students FOR UPDATE
+  USING (
+    current_role_name() = 'incharge' AND
+    event_id IN (
+      SELECT event_id FROM public.incharges WHERE id = (
+        SELECT ref_id FROM public.profiles WHERE id = auth.uid()
+      )
+    )
+  );
+
+DROP POLICY IF EXISTS "certificates: admin read"  ON public.certificates;
+DROP POLICY IF EXISTS "certificates: admin write" ON public.certificates;
+CREATE POLICY "certificates: admin read"  ON public.certificates FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "certificates: admin write" ON public.certificates FOR ALL    USING (current_role_name() = 'admin');
+
+DROP POLICY IF EXISTS "payments: admin read"  ON public.payments;
+DROP POLICY IF EXISTS "payments: admin write" ON public.payments;
+CREATE POLICY "payments: admin read"  ON public.payments FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "payments: admin write" ON public.payments FOR ALL    USING (current_role_name() = 'admin');
+
+DROP POLICY IF EXISTS "payment_polls: public read"  ON public.payment_polls;
+DROP POLICY IF EXISTS "payment_polls: admin write"  ON public.payment_polls;
+CREATE POLICY "payment_polls: public read"  ON public.payment_polls FOR SELECT USING (true);
+CREATE POLICY "payment_polls: admin write"  ON public.payment_polls FOR ALL    USING (current_role_name() = 'admin');
+
+DROP POLICY IF EXISTS "payment_logs: public insert" ON public.payment_logs;
+DROP POLICY IF EXISTS "payment_logs: admin read"    ON public.payment_logs;
+CREATE POLICY "payment_logs: public insert" ON public.payment_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY "payment_logs: admin read"    ON public.payment_logs FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "winners: public read"  ON public.winners;
+DROP POLICY IF EXISTS "winners: admin write"  ON public.winners;
+CREATE POLICY "winners: public read"  ON public.winners FOR SELECT USING (true);
+CREATE POLICY "winners: admin write"  ON public.winners FOR ALL    USING (current_role_name() = 'admin');
+
+
+-- ============================================================================
+-- PHASE 5: Enable Realtime Broadcasting
+-- ============================================================================
 DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.settings;        EXCEPTION WHEN others THEN NULL; END $$;
 DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.leaders;         EXCEPTION WHEN others THEN NULL; END $$;
 DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.rules;           EXCEPTION WHEN others THEN NULL; END $$;
@@ -744,53 +864,10 @@ DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.incharges;     
 
 
 -- ============================================================================
--- SECTION 9 — Storage bucket for assets (invitation PDF, QR images)
+-- PHASE 6: Default Seed Data
 -- ============================================================================
 
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('assets', 'assets', true)
-ON CONFLICT (id) DO NOTHING;
-
-DROP POLICY IF EXISTS "Public Access" ON storage.objects;
-DROP POLICY IF EXISTS "Admin Upload"  ON storage.objects;
-CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'assets');
-CREATE POLICY "Admin Upload"  ON storage.objects FOR ALL
-  USING (bucket_id = 'assets' AND current_role_name() = 'admin');
-
-
--- ============================================================================
--- SECTION 10 — CLEAR transactional/registration data
---              (runs every time — clears colleges, students, registrations, etc.)
---              Preserved: events, settings, leaders, rules, venues, admin auth
--- ============================================================================
-
--- Disable FK checks temporarily for clean cascaded truncation
-SET session_replication_role = 'replica';
-
-TRUNCATE TABLE public.payment_logs    CASCADE;
-TRUNCATE TABLE public.payment_polls   CASCADE;
-TRUNCATE TABLE public.winners         CASCADE;
-TRUNCATE TABLE public.certificates    CASCADE;
-TRUNCATE TABLE public.payments        CASCADE;
-TRUNCATE TABLE public.students        CASCADE;
-TRUNCATE TABLE public.registrations   CASCADE;
-TRUNCATE TABLE public.lots            CASCADE;
-TRUNCATE TABLE public.student_leaders CASCADE;
-TRUNCATE TABLE public.colleges        CASCADE;
-
--- Remove non-admin auth accounts and their profiles
-DELETE FROM auth.users   WHERE id NOT IN (SELECT id FROM public.profiles WHERE role = 'admin');
-DELETE FROM public.profiles WHERE role <> 'admin';
-
-SET session_replication_role = 'origin';
-
-
--- ============================================================================
--- SECTION 11 — Default seed data
---              (settings use ON CONFLICT DO UPDATE so values are refreshed)
--- ============================================================================
-
--- 11a. Default venues
+-- 6a. Default venues
 INSERT INTO public.venues (venue_name) VALUES
   ('CS Lab I'),
   ('CS Lab II'),
@@ -803,7 +880,7 @@ INSERT INTO public.venues (venue_name) VALUES
   ('Conference Hall')
 ON CONFLICT (venue_name) DO NOTHING;
 
--- 11b. Default page settings (ON CONFLICT DO UPDATE so fresh values always apply)
+-- 6b. Default page settings
 INSERT INTO public.settings (key_name, value) VALUES
   ('event_date',              '2026-09-25 09:00:00'),
   ('invitation_title',        'You Are Cordially Invited'),
@@ -831,7 +908,7 @@ We warmly look forward to welcoming you and your participants to our campus.'),
   ('winner_cert_2_url',       '')
 ON CONFLICT (key_name) DO UPDATE SET value = EXCLUDED.value;
 
--- 11c. Default leaders (Principal + HOD)
+-- 6c. Default leaders (Principal + HOD messages)
 DELETE FROM public.leaders;
 INSERT INTO public.leaders (name, position, description) VALUES
   (
@@ -845,7 +922,7 @@ INSERT INTO public.leaders (name, position, description) VALUES
     'Technology changes rapidly, and students must possess critical adaptability. STRATA is curated to test that very agility. From complex debugging routines to dynamic design paradigms, we aim to prepare the next generation of IT leaders. Best of luck!'
   );
 
--- 11d. Default rules
+-- 6d. Default rules
 DELETE FROM public.rules;
 INSERT INTO public.rules (title, points) VALUES
   (
@@ -867,7 +944,7 @@ Disciplined behavior must be maintained in the seminar halls, laboratories, and 
 Misbehavior or violation of rules will lead to the immediate disqualification of the entire college team.'
   );
 
--- 11e. Default events (6 contests, fixed UUIDs for idempotent updates)
+-- 6e. Default events
 INSERT INTO public.events (
   id, event_name, category, description, rules, staff_incharge,
   minimum_participants, maximum_participants, team_size,
@@ -937,7 +1014,7 @@ ON CONFLICT (id) DO UPDATE SET
   mains                = EXCLUDED.mains,
   status               = EXCLUDED.status;
 
--- 11f. Default lots (10 pre-created, all unassigned)
+-- 6f. Default lots (10 pre-created, all unassigned)
 INSERT INTO public.lots (lot_name, is_assigned, assigned_college) VALUES
   ('Lot 1',  false, '-'),
   ('Lot 2',  false, '-'),
@@ -948,8 +1025,9 @@ INSERT INTO public.lots (lot_name, is_assigned, assigned_college) VALUES
   ('Lot 7',  false, '-'),
   ('Lot 8',  false, '-'),
   ('Lot 9',  false, '-'),
-  ('Lot 10', false, '-');
+  ('Lot 10', false, '-')
+ON CONFLICT DO NOTHING;
 
 -- ============================================================================
--- END OF SCHEMA
+-- END OF SCRIPT
 -- ============================================================================
