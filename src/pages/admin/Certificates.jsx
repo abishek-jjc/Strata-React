@@ -96,6 +96,95 @@ export default function Certificates() {
     }
   }, [editingTemplate, layouts])
 
+  const [pageDimensions, setPageDimensions] = useState({ width: 680, height: 480 })
+  const [renderingPdf, setRenderingPdf] = useState(false)
+
+  // Load PDF.js dynamically
+  useEffect(() => {
+    if (window.pdfjsLib) return
+    const script = document.createElement('script')
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js'
+    script.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js'
+    }
+    document.body.appendChild(script)
+  }, [])
+
+  const pdfUrl = useMemo(() => {
+    if (!editingTemplate) return ''
+    return editingTemplate === 'participation'
+      ? participationUrl
+      : editingTemplate === 'winner1'
+        ? winner1Url
+        : winner2Url
+  }, [editingTemplate, participationUrl, winner1Url, winner2Url])
+
+  useEffect(() => {
+    if (!editingTemplate) return
+    if (!pdfUrl) {
+      setPageDimensions({ width: 680, height: 480 })
+      return
+    }
+    
+    let active = true
+    
+    async function renderPdfBackground() {
+      // Wait for pdfjs to load if not ready
+      for (let i = 0; i < 25; i++) {
+        if (window.pdfjsLib) break
+        await new Promise(r => setTimeout(r, 200))
+      }
+      if (!window.pdfjsLib || !active) return
+      
+      setRenderingPdf(true)
+      try {
+        const loadingTask = window.pdfjsLib.getDocument(pdfUrl)
+        const pdf = await loadingTask.promise
+        if (!active) return
+        
+        const page = await pdf.getPage(1)
+        if (!active) return
+        
+        const canvas = document.getElementById('pdf-render-canvas')
+        if (!canvas) return
+        
+        const context = canvas.getContext('2d')
+        
+        // We want to scale the page to fit 680px width or 480px height
+        const viewport = page.getViewport({ scale: 1.0 })
+        const scaleX = 680 / viewport.width
+        const scaleY = 480 / viewport.height
+        const scale = Math.min(scaleX, scaleY)
+        
+        const scaledViewport = page.getViewport({ scale })
+        
+        canvas.width = scaledViewport.width
+        canvas.height = scaledViewport.height
+        setPageDimensions({ width: scaledViewport.width, height: scaledViewport.height })
+        
+        const renderContext = {
+          canvasContext: context,
+          viewport: scaledViewport
+        }
+        await page.render(renderContext).promise
+      } catch (err) {
+        console.error('Failed to render background PDF page:', err)
+      } finally {
+        if (active) setRenderingPdf(false)
+      }
+    }
+    
+    // Tiny delay to ensure the canvas DOM element is mounted
+    const timer = setTimeout(() => {
+      renderPdfBackground()
+    }, 150)
+    
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [editingTemplate, pdfUrl])
+
   // Drag and Drop Logic inside Popup Canvas
   const handleDragStart = (e, key) => {
     e.preventDefault()
@@ -713,7 +802,6 @@ export default function Certificates() {
 
                 {/* 2.2 Drag & Drop Workspace */}
                 <div 
-                  ref={canvasRef}
                   style={{
                     width: '680px',
                     height: '480px',
@@ -729,45 +817,94 @@ export default function Certificates() {
                     margin: '0 auto'
                   }}
                 >
-                  {/* Draggable tags */}
-                  {modalLayout && Object.keys(modalLayout).map((key) => {
-                    const item = modalLayout[key]
-                    if (!item) return null
-                    
-                    let label = key.toUpperCase().replace('_', ' ')
-                    let color = '#f9c20a' // yellow
-                    if (key === 'student_name') color = '#00e5ff' // cyan
-                    if (key === 'place') color = '#ff1744' // red
-
-                    return (
-                      <div
-                        key={key}
-                        onMouseDown={(e) => handleDragStart(e, key)}
+                  <div
+                    ref={canvasRef}
+                    style={{
+                      width: `${pageDimensions.width}px`,
+                      height: `${pageDimensions.height}px`,
+                      position: 'relative',
+                      background: pdfUrl ? '#ffffff' : 'rgba(255,255,255,0.02)',
+                      borderRadius: '8px',
+                      boxShadow: pdfUrl ? '0 4px 30px rgba(0,0,0,0.5)' : 'none',
+                      transition: 'width 0.3s ease, height 0.3s ease'
+                    }}
+                  >
+                    {/* Background Canvas where PDF page is drawn */}
+                    {pdfUrl && (
+                      <canvas
+                        id="pdf-render-canvas"
                         style={{
                           position: 'absolute',
-                          left: `${item.x}%`,
-                          top: `${item.y}%`,
-                          padding: '8px 16px',
-                          background: 'rgba(12, 14, 18, 0.85)',
-                          border: `1.5px solid ${color}`,
-                          color: color,
-                          borderRadius: '6px',
-                          cursor: 'move',
-                          fontSize: '11px',
-                          fontWeight: 'bold',
-                          userSelect: 'none',
-                          boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
-                          whiteSpace: 'nowrap',
-                          zIndex: 10
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          zIndex: 1,
+                          pointerEvents: 'none',
+                          borderRadius: '8px'
                         }}
-                      >
-                        {label} ({Math.round(item.x)}%, {Math.round(item.y)}%)
-                      </div>
-                    )
-                  })}
+                      />
+                    )}
 
-                  <div style={{ color: 'rgba(255,255,255,0.06)', pointerEvents: 'none', fontSize: '1.1rem', fontWeight: 'bold' }}>
-                    Certificate Preview Canvas
+                    {/* Draggable tags overlay */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        zIndex: 2
+                      }}
+                    >
+                      {modalLayout && Object.keys(modalLayout).map((key) => {
+                        const item = modalLayout[key]
+                        if (!item) return null
+                        
+                        let label = key.toUpperCase().replace('_', ' ')
+                        let color = '#f9c20a' // yellow
+                        if (key === 'student_name') color = '#00e5ff' // cyan
+                        if (key === 'place') color = '#ff1744' // red
+
+                        return (
+                          <div
+                            key={key}
+                            onMouseDown={(e) => handleDragStart(e, key)}
+                            style={{
+                              position: 'absolute',
+                              left: `${item.x}%`,
+                              top: `${item.y}%`,
+                              padding: '8px 16px',
+                              background: 'rgba(12, 14, 18, 0.85)',
+                              border: `1.5px solid ${color}`,
+                              color: color,
+                              borderRadius: '6px',
+                              cursor: 'move',
+                              fontSize: '11px',
+                              fontWeight: 'bold',
+                              userSelect: 'none',
+                              boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+                              whiteSpace: 'nowrap',
+                              zIndex: 10
+                            }}
+                          >
+                            {label} ({Math.round(item.x)}%, {Math.round(item.y)}%)
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {!pdfUrl && (
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'rgba(255,255,255,0.06)', pointerEvents: 'none', fontSize: '1.1rem', fontWeight: 'bold', width: '100%', textAlign: 'center' }}>
+                        Certificate Preview Canvas
+                      </div>
+                    )}
+
+                    {renderingPdf && (
+                      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(12, 14, 18, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 5, borderRadius: '8px' }}>
+                        <p style={{ color: '#fff', fontSize: '0.9rem', fontWeight: '500' }}>Rendering template preview...</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
