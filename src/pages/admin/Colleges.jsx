@@ -218,6 +218,17 @@ export default function Colleges() {
     e.target.value = '' // Reset so same file can be re-imported
     setIsImportModalOpen(false) // Close the import layout
 
+    function getRowValue(row, keyNames) {
+      const keys = Object.keys(row)
+      for (const k of keys) {
+        const cleanKey = k.toLowerCase().replace(/[\s_\-]/g, '')
+        if (keyNames.some(kn => kn.toLowerCase().replace(/[\s_\-]/g, '') === cleanKey)) {
+          return row[k]
+        }
+      }
+      return null
+    }
+
     try {
       const buffer = await file.arrayBuffer()
       const workbook = XLSX.read(buffer)
@@ -227,18 +238,21 @@ export default function Colleges() {
 
       let successCount = 0
       for (const row of json) {
-        const collegeName = row.College || row.college || row['College Name'] || row['college_name']
-        const department = row.Department || row.department || row['Department Name'] || row['department_name']
+        const collegeName = getRowValue(row, ['college', 'college_name', 'college name'])
+        const department = getRowValue(row, ['department', 'department_name', 'department name', 'dept'])
 
-        if (!collegeName || !department) continue
+        const collegeStr = String(collegeName || '').trim()
+        const deptStr = String(department || '').trim()
+
+        if (!collegeStr || !deptStr) continue
 
         // Insert college (inserting both college and college_name fields to support old/new schemas)
         const { data: inserted, error } = await supabase
           .from(TABLES.COLLEGES)
           .insert({
-            college: collegeName.trim(),
-            college_name: collegeName.trim(),
-            department: department.trim(),
+            college: collegeStr,
+            college_name: collegeStr,
+            department: deptStr,
             status: 'active'
           })
           .select()
