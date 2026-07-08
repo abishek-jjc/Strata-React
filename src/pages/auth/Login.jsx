@@ -11,14 +11,23 @@ export default function Login() {
   const navigate = useNavigate()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { user, role } = useAuth()
+  const { user, role, profile } = useAuth()
 
-  // Redirect users who are already logged in
+  // Redirect users who are already logged in or reject unauthorized logins
   useEffect(() => {
-    if (user && role) {
-      navigate(REDIRECT[role] || '/login')
+    async function checkDirectLogin() {
+      if (user && role && profile) {
+        if (!profile.ref_id) {
+          setError(`Google Account (${user.email}) is not recognized. If you are a Student Leader, please register first using your invitation QR code.`)
+          await supabase.auth.signOut()
+          setLoading(false)
+          return
+        }
+        navigate(REDIRECT[role] || '/login')
+      }
     }
-  }, [user, role, navigate])
+    checkDirectLogin()
+  }, [user, role, profile, navigate])
 
   async function handleGoogleLogin() {
     setError('')
