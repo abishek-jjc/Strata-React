@@ -962,9 +962,16 @@ body.light-theme .guest-inv-body {
 
 .guest-form-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 20px;
   margin-bottom: 20px;
+}
+
+@media (max-width: 600px) {
+  .guest-form-row {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
 }
 
 .guest-form-title {

@@ -7,6 +7,8 @@ export default function PaymentPolls() {
   const { data: polls, loading: pollsLoading } = useTable(TABLES.PAYMENT_POLLS)
   const { data: logs, loading: logsLoading } = useTable(TABLES.PAYMENT_LOGS)
   const { data: settings, loading: settingsLoading } = useTable(TABLES.SETTINGS)
+  const { data: colleges, loading: collegesLoading } = useTable(TABLES.COLLEGES)
+  const { data: students, loading: studentsLoading } = useTable(TABLES.STUDENTS)
 
   const [pollName, setPollName] = useState('')
   const [pollKey, setPollKey] = useState('')
@@ -18,22 +20,56 @@ export default function PaymentPolls() {
   const [savingFee, setSavingFee] = useState(false)
   const [feeSuccess, setFeeSuccess] = useState(false)
 
-  const loading = pollsLoading || logsLoading || settingsLoading
-
+  // Logs Search & Totals State
+  const [logSearch, setLogSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
-  const totalPages = Math.ceil(logs.length / itemsPerPage)
+  const loading = pollsLoading || logsLoading || settingsLoading || collegesLoading || studentsLoading
+
+  // Calculate amount cleared for a college
+  const getAmountCleared = (collegeName) => {
+    if (!colleges || !students) return 0
+    const col = colleges.find((c) => c.college.toLowerCase() === collegeName.toLowerCase())
+    if (!col) return 0
+    const studentCount = students.filter((s) => s.college_id === col.id).length
+    return studentCount * Number(feePerStudent)
+  }
+
+  // All time total
+  const totalAmountClearedAllTime = useMemo(() => {
+    if (!logs) return 0
+    return logs.reduce((sum, log) => sum + getAmountCleared(log.college_name), 0)
+  }, [logs, colleges, students, feePerStudent])
+
+  // Filtered logs
+  const filteredLogs = useMemo(() => {
+    const list = logs || []
+    if (!logSearch.trim()) return list
+    const q = logSearch.toLowerCase()
+    return list.filter(
+      (log) =>
+        log.college_name.toLowerCase().includes(q) ||
+        (log.poll_name || '').toLowerCase().includes(q)
+    )
+  }, [logs, logSearch])
+
+  // Filtered total
+  const filteredTotal = useMemo(() => {
+    return filteredLogs.reduce((sum, log) => sum + getAmountCleared(log.college_name), 0)
+  }, [filteredLogs, colleges, students, feePerStudent])
+
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage)
 
   useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(totalPages)
     }
-  }, [logs, totalPages, currentPage])
+  }, [filteredLogs, totalPages, currentPage])
 
   const paginatedLogs = useMemo(() => {
-    return logs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-  }, [logs, currentPage])
+    return filteredLogs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+  }, [filteredLogs, currentPage])
 
   // Initialize fee from settings
   useEffect(() => {
@@ -234,31 +270,77 @@ export default function PaymentPolls() {
           Realtime audit of colleges marked paid, showing which operator desk issued the clearance.
         </p>
 
+        {/* Totals Summary Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '25px' }}>
+          <div className="card" style={{ padding: '20px', borderTop: '4px solid var(--accent)' }}>
+            <h3 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Full Payment Received</h3>
+            <p style={{ margin: '8px 0 0 0', fontSize: '2rem', fontWeight: 'bold', color: 'var(--accent)' }}>
+              Rs. {totalAmountClearedAllTime.toLocaleString()}
+            </p>
+            <p className="muted" style={{ margin: '5px 0 0 0', fontSize: '0.8rem' }}>
+              Across all {logs.length} logged clearance(s)
+            </p>
+          </div>
+
+          {logSearch.trim() && (
+            <div className="card" style={{ padding: '20px', borderTop: '4px solid var(--g-primary)' }}>
+              <h3 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Filtered Calculation</h3>
+              <p style={{ margin: '8px 0 0 0', fontSize: '2rem', fontWeight: 'bold', color: 'var(--g-primary)' }}>
+                Rs. {filteredTotal.toLocaleString()}
+              </p>
+              <p className="muted" style={{ margin: '5px 0 0 0', fontSize: '0.8rem' }}>
+                For {filteredLogs.length} matching clearance(s)
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Filter Input */}
+        <div style={{ marginBottom: '20px', maxWidth: '360px' }}>
+          <input
+            className="input"
+            placeholder="Search by college or desk name…"
+            value={logSearch}
+            onChange={(e) => {
+              setLogSearch(e.target.value)
+              setCurrentPage(1)
+            }}
+            style={{ width: '100%' }}
+          />
+        </div>
+
         <div style={{ overflowX: 'auto', marginBottom: '15px' }}>
           <table className="data-table">
             <thead>
               <tr>
                 <th>Operator Desk</th>
                 <th>College Cleared</th>
+                <th>Amount Cleared</th>
                 <th>Clearing Desk Name</th>
                 <th>Timestamp</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedLogs.map((log) => (
-                <tr key={log.id}>
-                  <td><strong>{log.poll_name}</strong></td>
-                  <td>
-                    <span className="badge badge-approved" style={{ fontSize: '0.85rem' }}>✓ {log.college_name}</span>
-                  </td>
-                  <td className="muted">{log.poll_name || 'Desk deleted'}</td>
-                  <td>{new Date(log.created_at).toLocaleString()}</td>
-                </tr>
-              ))}
+              {paginatedLogs.map((log) => {
+                const amt = getAmountCleared(log.college_name)
+                return (
+                  <tr key={log.id}>
+                    <td><strong>{log.poll_name}</strong></td>
+                    <td>
+                      <span className="badge badge-approved" style={{ fontSize: '0.85rem' }}>✓ {log.college_name}</span>
+                    </td>
+                    <td>
+                      <strong>Rs. {amt.toLocaleString()}</strong>
+                    </td>
+                    <td className="muted">{log.poll_name || 'Desk deleted'}</td>
+                    <td>{new Date(log.created_at).toLocaleString()}</td>
+                  </tr>
+                )
+              })}
               {paginatedLogs.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
-                    No payment clearance logs recorded.
+                  <td colSpan={5} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
+                    No payment clearance logs found.
                   </td>
                 </tr>
               )}
@@ -287,7 +369,7 @@ export default function PaymentPolls() {
               Prev
             </button>
             <span className="muted" style={{ fontSize: '0.85rem', margin: '0 8px' }}>
-              Page <strong>{currentPage}</strong> of {totalPages} ({logs.length} items)
+              Page <strong>{currentPage}</strong> of {totalPages} ({filteredLogs.length} items)
             </span>
             <button
               type="button"

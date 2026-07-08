@@ -22,6 +22,7 @@ import StudentLeaders from './pages/admin/StudentLeaders'
 import Admins from './pages/admin/Admins'
 import Registrations from './pages/admin/Registrations'
 import Lots from './pages/admin/Lots'
+import Food from './pages/admin/Food'
 import Incharges from './pages/admin/Incharges'
 import Certificates from './pages/admin/Certificates'
 import Reports from './pages/admin/Reports'
@@ -85,6 +86,7 @@ export default function App() {
           <Route path="/admin/participants" element={<ProtectedRoute allow={['admin']}>{withShell(<Participants />)}</ProtectedRoute>} />
           <Route path="/admin/registrations" element={<ProtectedRoute allow={['admin']}>{withShell(<Registrations />)}</ProtectedRoute>} />
           <Route path="/admin/lots" element={<ProtectedRoute allow={['admin']}>{withShell(<Lots />)}</ProtectedRoute>} />
+          <Route path="/admin/food" element={<ProtectedRoute allow={['admin']}>{withShell(<Food />)}</ProtectedRoute>} />
           <Route path="/admin/incharges" element={<ProtectedRoute allow={['admin']}>{withShell(<Incharges />)}</ProtectedRoute>} />
           <Route path="/admin/certificates" element={<ProtectedRoute allow={['admin']}>{withShell(<Certificates />)}</ProtectedRoute>} />
           <Route path="/admin/reports" element={<ProtectedRoute allow={['admin']}>{withShell(<Reports />)}</ProtectedRoute>} />

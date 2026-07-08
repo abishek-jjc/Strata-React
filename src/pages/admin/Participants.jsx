@@ -5,12 +5,9 @@ import { useTable } from '../../hooks/useTable'
 
 const baseFields = [
   { name: 'student_name', label: 'Name', type: 'text', required: true },
-  { name: 'year', label: 'Class (Year)', type: 'select', options: ['1st', '2nd', '3rd'], required: true },
-  { name: 'email', label: 'Email', type: 'text' },
+  { name: 'roll_no', label: 'Roll Number', type: 'text' },
   { name: 'event_id', label: 'Event', type: 'select', options: [] },
-  { name: 'winner_place', label: 'Winner Place', type: 'select', options: ['', '1st Place', '2nd Place', '3rd Place'] },
-  { name: 'department', label: 'Department', type: 'text' },
-  { name: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female', 'Other'] },
+  { name: 'college_id', label: 'College', type: 'select', options: [] },
 ]
 
 export default function Participants() {
@@ -24,12 +21,12 @@ export default function Participants() {
   const [selectedCollegeId, setSelectedCollegeId] = useState('')
 
   const fields = useMemo(() => {
-    return baseFields.map((f) =>
-      f.name === 'event_id'
-        ? { ...f, options: events.map((e) => ({ value: e.id, label: e.event_name })) }
-        : f
-    )
-  }, [events])
+    return baseFields.map((f) => {
+      if (f.name === 'event_id') return { ...f, options: events.map((e) => ({ value: e.id, label: e.event_name })) }
+      if (f.name === 'college_id') return { ...f, options: colleges.map((c) => ({ value: c.id, label: c.college })) }
+      return f
+    })
+  }, [events, colleges])
 
   const filteredStudents = useMemo(() => {
     return students.filter((s) => {
@@ -44,7 +41,7 @@ export default function Participants() {
       title="Participants"
       table={TABLES.STUDENTS}
       fields={fields}
-      columns={['student_name', 'year', 'email', 'event_id', 'winner_place']}
+      columns={['student_name', 'roll_no', 'event_id', 'college_id']}
       disableAdd={true}
       customData={filteredStudents}
       renderExtraHeaderActions={() => (

@@ -13,6 +13,7 @@ const NAV = {
     ['/admin/participants', 'Participants'],
     ['/admin/registrations', 'Registrations'],
     ['/admin/lots', 'Lots'],
+    ['/admin/food', 'Food'],
     ['/admin/incharges', 'Incharges'],
     ['/admin/certificates', 'Certificates'],
     ['/admin/reports', 'Reports'],

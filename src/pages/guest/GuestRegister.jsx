@@ -393,6 +393,9 @@ export default function GuestRegister() {
     const activeRegs = []
     let activeEventsCount = 0
     let validationError = ''
+    
+    // To check for duplicate roll numbers globally across all events
+    const allRollNos = new Set()
 
     events.forEach(event => {
       if (isTabFilled(event.id)) {
@@ -409,6 +412,19 @@ export default function GuestRegister() {
           validationError = `Participant names in event "${event.event_name}" must be at least 3 characters long.`
           return
         }
+
+        filled.forEach(p => {
+          const roll = (p.rollNo || '').trim().toLowerCase()
+          if (!roll) {
+             validationError = `Roll Number is missing for participant ${p.studentName.trim()} in event "${event.event_name}".`
+          } else if (allRollNos.has(roll)) {
+             validationError = `Duplicate Roll Number found: "${roll}". A student can only have one unique roll number, and cannot be registered twice with the same roll number.`
+          } else {
+             allRollNos.add(roll)
+          }
+        })
+
+        if (validationError) return
 
         activeRegs.push({
           eventId: event.id,

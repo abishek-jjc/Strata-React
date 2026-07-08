@@ -50,11 +50,11 @@ export default function Login() {
 
   return (
     <GuestLayout>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 180px)', padding: '40px 20px', position: 'relative', zIndex: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', padding: '40px 20px', position: 'relative', zIndex: 10 }}>
         {/* Login card */}
         <div
           className="login-glass-card"
-          style={{ position: 'relative', zIndex: 10, padding: '40px', display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', maxWidth: '440px' }}
+          style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column' }}
         >
           {/* Top accent line */}
           <div className="login-card-accent" />

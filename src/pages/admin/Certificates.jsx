@@ -1011,7 +1011,6 @@ export default function Certificates() {
                   <th>College</th>
                   <th>Event</th>
                   <th>Status</th>
-                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -1029,21 +1028,12 @@ export default function Certificates() {
                           {isIssued ? '✓ Issued' : 'Not Issued'}
                         </span>
                       </td>
-                      <td>
-                        <button
-                          className="link"
-                          disabled={isIssued || !participationUrl}
-                          onClick={() => issueParticipation(s)}
-                        >
-                          {isIssued ? 'Issued' : 'Issue Certificate'}
-                        </button>
-                      </td>
                     </tr>
                   )
                 })}
                 {paginatedParticipation.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="muted" style={{ textAlign: 'center' }}>
+                    <td colSpan={4} className="muted" style={{ textAlign: 'center' }}>
                       No eligible students found.
                     </td>
                   </tr>
@@ -1107,7 +1097,6 @@ export default function Certificates() {
                   <th>Event</th>
                   <th>Winner Place</th>
                   <th>Cert Status</th>
-                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -1131,21 +1120,12 @@ export default function Certificates() {
                           {isIssued ? '✓ Issued' : 'Not Issued'}
                         </span>
                       </td>
-                      <td>
-                        <button
-                          className="link"
-                          disabled={isIssued || !hasTemplates}
-                          onClick={() => issueWinner(s)}
-                        >
-                          {isIssued ? 'Issued' : 'Issue Certificate'}
-                        </button>
-                      </td>
                     </tr>
                   )
                 })}
                 {paginatedWinners.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="muted" style={{ textAlign: 'center' }}>
+                    <td colSpan={5} className="muted" style={{ textAlign: 'center' }}>
                       No winners assigned yet. Assign winners in the Winners page first.
                     </td>
                   </tr>
