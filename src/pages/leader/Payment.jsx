@@ -16,19 +16,32 @@ export default function Payment() {
   const { data: registrations, loading: regLoading } = useTable(TABLES.REGISTRATIONS, [
     ['leader_id', 'eq', profile?.ref_id]
   ])
+  const { data: payments, loading: payLoading } = useTable(TABLES.PAYMENTS, [
+    ['college_id', 'eq', profile?.college_id]
+  ])
   const { data: settings, loading: setLoading } = useTable(TABLES.SETTINGS)
 
-  const loading = colLoading || stdLoading || regLoading || setLoading
+  const loading = colLoading || stdLoading || regLoading || setLoading || payLoading
   const myCollege = colleges[0]
 
   if (loading) return <p className="muted">Loading payment details...</p>
 
-  const feePerStudent = Number(settings.find(s => s.key_name === 'fee_per_student')?.value || '100')
   const paymentQrUrl = settings.find(s => s.key_name === 'payment_qr_url')?.value || ''
   const whatsappLink = settings.find(s => s.key_name === 'whatsapp_group_link')?.value || ''
-  const totalAmount = students.length * feePerStudent
+  
+  // Per person: 200 + 18% GST (Rs. 36) = Rs. 236
+  const feeBase = 200
+  const gstRate = 0.18
+  const feePerStudent = feeBase * (1 + gstRate) // 236
+  
+  const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
+  const currentTotal = students.length * feePerStudent
+  const remainingPayable = Math.max(0, currentTotal - totalPaid)
+  const extraPaid = Math.max(0, totalPaid - currentTotal)
+  const extraStudentsCount = Math.floor(extraPaid / feePerStudent)
 
   const hasRegistrations = registrations.length > 0
+  const isFullyPaid = remainingPayable === 0
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto' }}>
@@ -46,7 +59,7 @@ export default function Payment() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
           {/* Status banner */}
-          {myCollege?.is_paid ? (
+          {isFullyPaid ? (
             <div style={{
               background: 'rgba(16,185,129,0.08)',
               border: '1px solid rgba(16,185,129,0.3)',
@@ -62,7 +75,7 @@ export default function Payment() {
                   Payment Confirmed!
                 </strong>
                 <span className="muted" style={{ fontSize: '0.9rem' }}>
-                  Your college registration has been marked as fully paid and approved. Thank you!
+                  Your college registration fee of <strong>Rs. {currentTotal}</strong> has been fully paid. Thank you!
                 </span>
               </div>
             </div>
@@ -82,9 +95,27 @@ export default function Payment() {
                   Payment Pending
                 </strong>
                 <span className="muted" style={{ fontSize: '0.9rem' }}>
-                  Your payment has not been received yet. Please scan the QR Code below to make payment of <strong>Rs. {totalAmount}</strong>.
+                  Remaining balance of <strong>Rs. {remainingPayable}</strong> is payable. Please scan the QR Code below to pay.
                 </span>
               </div>
+            </div>
+          )}
+
+          {/* Reduced participants warning */}
+          {extraPaid >= feePerStudent && (
+            <div style={{
+              background: 'rgba(245,158,11,0.08)',
+              border: '1px solid rgba(245,158,11,0.3)',
+              borderRadius: '12px',
+              padding: '16px 20px',
+              color: 'var(--warning, #f59e0b)',
+              fontSize: '0.92rem',
+              lineHeight: '1.5'
+            }}>
+              <strong>⚠️ Excess Payment Registered (Non-refundable)</strong>
+              <p style={{ margin: '6px 0 0 0', color: 'var(--text-secondary)' }}>
+                You have already paid for {Math.floor(totalPaid / feePerStudent)} student(s), but currently have only {students.length} registered. As fees are non-refundable, you need to register <strong>{extraStudentsCount}</strong> more participant(s) to utilize your paid balance.
+              </p>
             </div>
           )}
 
@@ -101,12 +132,20 @@ export default function Payment() {
                 <strong>{students.length} student(s)</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
-                <span className="muted">Fee Per Student:</span>
+                <span className="muted">Fee Per Student (200 + 18% GST):</span>
                 <span>Rs. {feePerStudent}</span>
               </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                <span className="muted">Total Registered Cost:</span>
+                <strong>Rs. {currentTotal}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                <span className="muted">Total Amount Already Paid:</span>
+                <strong style={{ color: '#10b981' }}>Rs. {totalPaid}</strong>
+              </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '4px', fontSize: '1.1rem' }}>
-                <span className="muted">Total Payable Amount:</span>
-                <strong style={{ color: 'var(--accent)' }}>Rs. {totalAmount}</strong>
+                <span className="muted">Remaining Payable Amount:</span>
+                <strong style={{ color: remainingPayable > 0 ? '#ef4444' : '#10b981' }}>Rs. {remainingPayable}</strong>
               </div>
             </div>
           </div>

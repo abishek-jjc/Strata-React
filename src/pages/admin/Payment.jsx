@@ -63,7 +63,9 @@ export default function Payment() {
     loadData()
   }, [activePoll])
 
-  const feePerStudent = Number(settings.find((s) => s.key_name === 'fee_per_student')?.value || '100')
+  const feeBase = 200
+  const gstRate = 0.18
+  const feePerStudent = feeBase * (1 + gstRate) // 236
 
   // Login handler
   async function handleLogin(e) {

@@ -76,14 +76,26 @@ export default function Registrations() {
       }
     }
 
-    // Update status to lot_assigned
+    // Update lot_id for all registrations of this college
     const { error: regErr } = await supabase
       .from(TABLES.REGISTRATIONS)
-      .update({ status: REGISTRATION_STATUS.LOT_ASSIGNED })
-      .eq('id', reg.id)
+      .update({ lot_id: lot.id })
+      .eq('college_id', reg.college_id)
 
     if (regErr) {
-      showAlert('Error', 'Failed to update registration status: ' + regErr.message, 'info')
+      showAlert('Error', 'Failed to associate lot with registrations: ' + regErr.message, 'info')
+      return
+    }
+
+    // Update status to lot_assigned for all pending registrations of this college
+    const { error: statusErr } = await supabase
+      .from(TABLES.REGISTRATIONS)
+      .update({ status: REGISTRATION_STATUS.LOT_ASSIGNED })
+      .eq('college_id', reg.college_id)
+      .eq('status', 'pending')
+
+    if (statusErr) {
+      showAlert('Error', 'Failed to update registration status: ' + statusErr.message, 'info')
     }
   }
 

@@ -69,9 +69,6 @@ export default function TeamRegistration() {
     if (names.some((n) => n.length < 3)) {
       return setError('Every participant name must contain at least 3 characters.')
     }
-    if (participants.some((p) => !p.email.trim())) {
-      return setError('Every participant needs an email address.')
-    }
     if (participants.some((p) => !p.gender)) {
       return setError('Every participant needs a gender.')
     }
@@ -95,7 +92,7 @@ export default function TeamRegistration() {
         p_event_id: eventId,
         p_participants: participants.map((p) => ({
           studentName: p.studentName.trim(),
-          email: p.email.trim(),
+          email: p.email ? p.email.trim() : null,
           gender: p.gender,
           department: '',
           year: p.year,
@@ -175,7 +172,7 @@ export default function TeamRegistration() {
                 <tr>
                   <th style={{ width: 36 }}>#</th>
                   <th>Name <span style={{ color: '#ef4444' }}>*</span></th>
-                  <th>Email <span style={{ color: '#ef4444' }}>*</span></th>
+                  <th>Email</th>
                   <th>Gender <span style={{ color: '#ef4444' }}>*</span></th>
                   <th>Class <span style={{ color: '#ef4444' }}>*</span></th>
                 </tr>
@@ -214,7 +211,6 @@ export default function TeamRegistration() {
                         value={p.email || ''}
                         onChange={(e) => updateParticipant(i, 'email', e.target.value)}
                         placeholder="name@email.com"
-                        required
                       />
                     </td>
                     <td>

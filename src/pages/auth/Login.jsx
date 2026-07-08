@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../auth/AuthContext'
@@ -8,31 +8,31 @@ import '../../styles/guest.css'
 const REDIRECT = { admin: '/admin', leader: '/leader', accountant: '/accountant', incharge: '/incharge' }
 
 export default function Login() {
-  const { login } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const { user, role } = useAuth()
 
-  async function handleSubmit(e) {
-    e.preventDefault()
+  // Redirect users who are already logged in
+  useEffect(() => {
+    if (user && role) {
+      navigate(REDIRECT[role] || '/login')
+    }
+  }, [user, role, navigate])
+
+  async function handleGoogleLogin() {
     setError('')
     setLoading(true)
     try {
-      const { data, error: signInError } = await login(email, password)
-      if (signInError) throw signInError
-
-      const { data: profile } = await supabase
-        .from(TABLES.PROFILES)
-        .select('role')
-        .eq('id', data.user.id)
-        .single()
-
-      navigate(REDIRECT[profile?.role] || '/login')
+      const { error: oAuthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/login'
+        }
+      })
+      if (oAuthError) throw oAuthError
     } catch (err) {
-      setError(err?.message || 'Incorrect email or password.')
-    } finally {
+      setError(err?.message || 'Failed to initialize Google login.')
       setLoading(false)
     }
   }
@@ -48,10 +48,9 @@ export default function Login() {
       <div className="guest-mesh-grid" />
 
       {/* Login card */}
-      <form
+      <div
         className="login-glass-card"
-        onSubmit={handleSubmit}
-        style={{ position: 'relative', zIndex: 10 }}
+        style={{ position: 'relative', zIndex: 10, padding: '40px', display: 'flex', flexDirection: 'column', gap: '20px' }}
       >
         {/* Top accent line */}
         <div className="login-card-accent" />
@@ -64,39 +63,49 @@ export default function Login() {
         <p className="login-subtitle">State Level Intercollegiate Technical Meet</p>
 
         {/* Hint */}
-        <div className="login-hint-box">
+        <div className="login-hint-box" style={{ marginBottom: '10px' }}>
           <span>🎓</span>
           <span>
-            <strong>Student Leaders:</strong> Use your registered Email ID and Mobile Number as password.
+            <strong>Authenticating:</strong> Please sign in with your Google Account to proceed.
           </span>
         </div>
 
-        <label className="field">
-          <span>Email</span>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@college.edu" />
-        </label>
-
-        <label className="field">
-          <span>Password</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            placeholder="••••••••"
-          />
-        </label>
+        <button
+          type="button"
+          className="login-cta-btn"
+          onClick={handleGoogleLogin}
+          disabled={loading}
+          style={{
+            background: 'linear-gradient(135deg, #4285F4, #357AE8)',
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px',
+            boxShadow: '0 4px 15px rgba(66,133,244,0.3)',
+            border: 'none',
+            padding: '14px',
+            fontSize: '1rem',
+            fontWeight: 'bold',
+            borderRadius: '10px',
+            cursor: 'pointer'
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18">
+            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+            <path d="M9 18c2.43 0 4.47-.806 5.96-2.184l-2.908-2.258c-.806.54-1.837.86-3.052.86-2.35 0-4.337-1.587-5.048-3.719H.924v2.332C2.404 15.96 5.438 18 9 18z" fill="#34A853"/>
+            <path d="M3.952 10.699c-.18-.54-.282-1.117-.282-1.699s.102-1.159.282-1.699V4.969H.924C.335 6.147 0 7.481 0 9s.335 2.853.924 4.031l3.028-2.332z" fill="#FBBC05"/>
+            <path d="M9 3.58c1.32 0 2.5.454 3.436 1.348l2.578-2.578C13.468 1.096 11.43 0 9 0 5.438 0 2.404 2.04 10.924 4.969l3.028 2.332c.711-2.132 2.698-3.721 5.048-3.721z" fill="#EA4335"/>
+          </svg>
+          {loading ? 'Redirecting to Google...' : 'Sign in with Google'}
+        </button>
 
         {error && <p className="error" style={{ margin: 0, textAlign: 'center' }}>{error}</p>}
 
-        <button className="login-cta-btn" type="submit" disabled={loading}>
-          {loading ? 'Signing in…' : 'Sign in'}
-        </button>
-
-        <p style={{ textAlign: 'center', margin: 0, fontSize: '12px', color: 'var(--g-text-muted)' }}>
+        <p style={{ textAlign: 'center', margin: '10px 0 0 0', fontSize: '12px', color: 'var(--g-text-muted)' }}>
           ANJAC Sivakasi · Dept. of Computer Science
         </p>
-      </form>
+      </div>
     </div>
   )
 }

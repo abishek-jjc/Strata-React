@@ -106,7 +106,30 @@ export default function Winners() {
     .sort((a, b) => b.points - a.points || a.college.localeCompare(b.college))
 
   function handleDownloadPdf() {
-    generateLeaderboardPdf(leaderboard)
+    const eventWinners = events.map((ev) => {
+      const sel = selections[ev.id] || { first_place: '-', second_place: '-' }
+
+      const firstLotName = sel.first_place
+      const firstCollege = firstLotName !== '-'
+        ? lots.find((l) => l.lot_name === firstLotName)?.assigned_college || '—'
+        : '—'
+
+      const secondLotName = sel.second_place
+      const secondCollege = secondLotName !== '-'
+        ? lots.find((l) => l.lot_name === secondLotName)?.assigned_college || '—'
+        : '—'
+
+      return {
+        event_name: ev.event_name,
+        first_place: firstLotName !== '-' ? `${firstLotName} (${firstCollege})` : '—',
+        second_place: secondLotName !== '-' ? `${secondLotName} (${secondCollege})` : '—',
+      }
+    })
+
+    // Take top 5 for the championship leaderboard
+    const topColleges = leaderboard.slice(0, 5)
+
+    generateLeaderboardPdf(eventWinners, topColleges)
   }
 
   if (loading) return <p className="muted">Loading winners manager...</p>

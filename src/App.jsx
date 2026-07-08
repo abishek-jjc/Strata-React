@@ -19,10 +19,10 @@ import AdminDashboard from './pages/admin/Dashboard'
 import Events from './pages/admin/Events'
 import Colleges from './pages/admin/Colleges'
 import StudentLeaders from './pages/admin/StudentLeaders'
+import Admins from './pages/admin/Admins'
 import Registrations from './pages/admin/Registrations'
 import Lots from './pages/admin/Lots'
 import Incharges from './pages/admin/Incharges'
-import Accountants from './pages/admin/Accountants'
 import Certificates from './pages/admin/Certificates'
 import Reports from './pages/admin/Reports'
 import AdminRules from './pages/admin/Rules'
@@ -80,11 +80,11 @@ export default function App() {
           <Route path="/admin/colleges" element={<ProtectedRoute allow={['admin']}>{withShell(<Colleges />)}</ProtectedRoute>} />
           <Route path="/admin/payment-polls" element={<ProtectedRoute allow={['admin']}>{withShell(<PaymentPolls />)}</ProtectedRoute>} />
           <Route path="/admin/leaders" element={<ProtectedRoute allow={['admin']}>{withShell(<StudentLeaders />)}</ProtectedRoute>} />
+          <Route path="/admin/admins" element={<ProtectedRoute allow={['admin']}>{withShell(<Admins />)}</ProtectedRoute>} />
           <Route path="/admin/participants" element={<ProtectedRoute allow={['admin']}>{withShell(<Participants />)}</ProtectedRoute>} />
           <Route path="/admin/registrations" element={<ProtectedRoute allow={['admin']}>{withShell(<Registrations />)}</ProtectedRoute>} />
           <Route path="/admin/lots" element={<ProtectedRoute allow={['admin']}>{withShell(<Lots />)}</ProtectedRoute>} />
           <Route path="/admin/incharges" element={<ProtectedRoute allow={['admin']}>{withShell(<Incharges />)}</ProtectedRoute>} />
-          <Route path="/admin/accountants" element={<ProtectedRoute allow={['admin']}>{withShell(<Accountants />)}</ProtectedRoute>} />
           <Route path="/admin/certificates" element={<ProtectedRoute allow={['admin']}>{withShell(<Certificates />)}</ProtectedRoute>} />
           <Route path="/admin/reports" element={<ProtectedRoute allow={['admin']}>{withShell(<Reports />)}</ProtectedRoute>} />
           <Route path="/admin/rules" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminRules />)}</ProtectedRoute>} />

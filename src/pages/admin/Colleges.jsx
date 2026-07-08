@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
 import CrudManager from '../../components/common/CrudManager'
 import { TABLES } from '../../supabase/tables'
 import { supabase } from '../../supabase/client'
@@ -50,6 +51,9 @@ export default function Colleges() {
     return localStorage.getItem('qr_domain_prefix') || window.location.origin
   })
 
+  const [isExportQrModalOpen, setIsExportQrModalOpen] = useState(false)
+  const [qrsPerPage, setQrsPerPage] = useState('4')
+
   const handleDomainChange = (e) => {
     const val = e.target.value
     setDomain(val)
@@ -71,6 +75,108 @@ export default function Colleges() {
       type,
       onConfirm,
     })
+  }
+
+  const handleExportQrsPdf = async () => {
+    setIsExportQrModalOpen(false)
+    
+    if (!data || !data.length) {
+      showAlert('No Colleges', 'There are no colleges to export.', 'info')
+      return
+    }
+
+    const N = parseInt(qrsPerPage, 10) || 4
+    let cols = 2
+    let rows = 2
+    if (N <= 1) { cols = 1; rows = 1; }
+    else if (N === 2) { cols = 1; rows = 2; }
+    else if (N <= 4) { cols = 2; rows = 2; }
+    else if (N <= 6) { cols = 2; rows = 3; }
+    else if (N <= 9) { cols = 3; rows = 3; }
+    else if (N <= 12) { cols = 3; rows = 4; }
+    else { cols = 4; rows = Math.ceil(N / 4); }
+
+    const itemsPerPage = cols * rows
+
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+    
+    // Page dimensions
+    const pageW = 595
+    const pageH = 842
+    const marginX = 30
+    const marginY = 40
+    const gapX = 15
+    const gapY = 20
+    const usableW = pageW - marginX * 2
+    const usableH = pageH - marginY * 2
+    const cellW = (usableW - gapX * (cols - 1)) / cols
+    const cellH = (usableH - gapY * (rows - 1)) / rows
+
+    for (let index = 0; index < data.length; index++) {
+      const college = data[index]
+      const itemIdxOnPage = index % itemsPerPage
+      
+      // New page trigger
+      if (itemIdxOnPage === 0 && index > 0) {
+        doc.addPage()
+      }
+
+      // Calculate position
+      const colIdx = itemIdxOnPage % cols
+      const rowIdx = Math.floor(itemIdxOnPage / cols)
+      const startX = marginX + colIdx * (cellW + gapX)
+      const startY = marginY + rowIdx * (cellH + gapY)
+
+      // Fetch or generate QR code data URL
+      let qrUrl = college.qr_image_data_url
+      if (!qrUrl) {
+        try {
+          const collegeVal = college.college || college.college_name || ''
+          const deptVal = college.department || ''
+          const payload = { college: collegeVal, department: deptVal }
+          const encrypted = encryptCollegePayload(payload)
+          const prefix = domain || window.location.origin
+          const fullUrl = `${prefix}/register?payload=${encodeURIComponent(encrypted)}`
+          qrUrl = await QRCode.toDataURL(fullUrl, { width: 240 })
+        } catch (err) {
+          console.error('Failed to generate QR on the fly:', err)
+          continue
+        }
+      }
+
+      // Draw subtle dotted card outline
+      doc.setDrawColor(220, 224, 230)
+      doc.setLineDash([3, 3])
+      doc.rect(startX, startY, cellW, cellH)
+      doc.setLineDash([])
+
+      // Draw QR image
+      const qrSize = Math.min(cellW * 0.7, cellH * 0.6, 130)
+      const qrX = startX + (cellW - qrSize) / 2
+      const qrY = startY + 12
+      doc.addImage(qrUrl, 'PNG', qrX, qrY, qrSize, qrSize)
+
+      // Text placements with bounds check
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8.5)
+      doc.setTextColor(30, 35, 45)
+      const textX = startX + cellW / 2
+      const textY = qrY + qrSize + 16
+
+      const cName = college.college || college.college_name || ''
+      const displayCollege = cName.length > 32 ? cName.slice(0, 30) + '..' : cName
+      doc.text(displayCollege, textX, textY, { align: 'center' })
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7.5)
+      doc.setTextColor(100, 110, 120)
+      const displayDept = (college.department || '').length > 32 
+        ? (college.department || '').slice(0, 30) + '..' 
+        : (college.department || '')
+      doc.text(displayDept + ' Department', textX, textY + 11, { align: 'center' })
+    }
+
+    doc.save('colleges_qr_sheets.pdf')
   }
 
   const handleImportExcel = async (e) => {
@@ -153,6 +259,17 @@ export default function Colleges() {
     )
   }
 
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      { 'College': 'ANJAC Sivakasi', 'Department': 'Computer Science' },
+      { 'College': 'SFR College', 'Department': 'BCA' }
+    ]
+    const worksheet = XLSX.utils.json_to_sheet(templateData)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Colleges')
+    XLSX.writeFile(workbook, 'colleges_import_template.xlsx')
+  }
+
   return (
     <div>
       <input
@@ -201,8 +318,14 @@ export default function Colleges() {
         )}
         renderExtraHeaderActions={() => (
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="btn" onClick={() => setIsImportModalOpen(true)}>
+            <button className="btn" onClick={handleDownloadTemplate}>
+              Template
+            </button>
+            <button className="btn btn-primary" onClick={() => setIsImportModalOpen(true)}>
               Import Excel
+            </button>
+            <button className="btn" onClick={() => setIsExportQrModalOpen(true)}>
+              Export QRs
             </button>
             <button className="btn" onClick={handleRegenerateAllQrs}>
               Regenerate All QRs
@@ -216,8 +339,24 @@ export default function Colleges() {
         <div className="modal-backdrop" onClick={() => setIsImportModalOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: '450px' }}>
             <h3>Import Colleges from Excel</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '10px 0' }}>
-              Upload an Excel file (.xlsx or .xls) matching the layout/format below:
+            <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '10px 0', lineHeight: '1.4' }}>
+              Upload an Excel file (.xlsx or .xls) matching the format below. You can also{' '}
+              <button
+                type="button"
+                onClick={handleDownloadTemplate}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--accent, #f9c20a)',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  padding: 0,
+                  font: 'inherit'
+                }}
+              >
+                download the template here
+              </button>{' '}
+              to fill out.
             </p>
             
             {/* Format preview */}
@@ -287,6 +426,45 @@ export default function Colleges() {
                   OK
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export QRs Sheet Modal */}
+      {isExportQrModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsExportQrModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: '400px' }}>
+            <h3>Export QR Print Sheets</h3>
+            <p className="muted" style={{ fontSize: '0.85rem', marginBottom: '16px' }}>
+              Generate a printable A4 PDF containing college QR codes formatted as a grid.
+            </p>
+            
+            <label className="field">
+              <span>How many QRs per A4 page?</span>
+              <select 
+                value={qrsPerPage} 
+                onChange={(e) => setQrsPerPage(e.target.value)}
+                style={{ padding: '8px', borderRadius: '6px', width: '100%', fontSize: '0.9rem' }}
+              >
+                <option value="1">1 QR per page (Large)</option>
+                <option value="2">2 QRs per page (1x2)</option>
+                <option value="4">4 QRs per page (2x2 Grid)</option>
+                <option value="6">6 QRs per page (2x3 Grid)</option>
+                <option value="8">8 QRs per page (2x4 Grid)</option>
+                <option value="9">9 QRs per page (3x3 Grid)</option>
+                <option value="12">12 QRs per page (3x4 Grid)</option>
+                <option value="16">16 QRs per page (4x4 Grid)</option>
+              </select>
+            </label>
+
+            <div className="modal-actions" style={{ marginTop: '20px' }}>
+              <button type="button" className="btn" onClick={() => setIsExportQrModalOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleExportQrsPdf}>
+                Generate PDF Sheet
+              </button>
             </div>
           </div>
         </div>
