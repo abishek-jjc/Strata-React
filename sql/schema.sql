@@ -209,8 +209,7 @@ ALTER TABLE public.lots ENABLE ROW LEVEL SECURITY;
 -- 2m. registrations
 CREATE TABLE IF NOT EXISTS public.registrations (
   id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at   timestamptz DEFAULT now(),
-  UNIQUE (college_id, event_id)
+  created_at   timestamptz DEFAULT now()
 );
 ALTER TABLE public.registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.registrations ADD COLUMN IF NOT EXISTS college_id   uuid REFERENCES public.colleges(id) ON DELETE CASCADE;
@@ -220,6 +219,19 @@ ALTER TABLE public.registrations ADD COLUMN IF NOT EXISTS lot_id       uuid REFE
 ALTER TABLE public.registrations ADD COLUMN IF NOT EXISTS status       text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','lot_assigned','paid','approved','rejected'));
 ALTER TABLE public.registrations ADD COLUMN IF NOT EXISTS veg_count    int NOT NULL DEFAULT 0;
 ALTER TABLE public.registrations ADD COLUMN IF NOT EXISTS nonveg_count int NOT NULL DEFAULT 0;
+
+-- Enforce unique college_id and event_id registration pair
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'registrations_college_id_event_id_key'
+      AND table_name = 'registrations'
+  ) THEN
+    ALTER TABLE public.registrations
+      ADD CONSTRAINT registrations_college_id_event_id_key UNIQUE (college_id, event_id);
+  END IF;
+END $$;
 
 -- 2n. students
 CREATE TABLE IF NOT EXISTS public.students (
