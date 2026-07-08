@@ -265,7 +265,6 @@ export default function Colleges() {
         // 2. Add to bulk insert list
         collegeRows.push({
           college: collegeStr,
-          college_name: collegeStr,
           department: deptStr,
           status: 'active',
           qr_image_data_url: qrImageDataUrl
