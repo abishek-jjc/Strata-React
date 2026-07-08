@@ -33,10 +33,13 @@ export default function CrudManager({
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
-  // Reset page when search term or customData changes
+  const [selectedIds, setSelectedIds] = useState([])
+
+  // Reset page and selection when search term or customData/table changes
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, customData])
+    setSelectedIds([])
+  }, [search, customData, table])
 
   const [alertState, setAlertState] = useState({
     isOpen: false,
@@ -83,6 +86,43 @@ export default function CrudManager({
     setEditing(row)
     setError('')
     setModalOpen(true)
+  }
+
+  function toggleSelectRow(id) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }
+
+  function toggleSelectAll() {
+    const pageIds = paginatedData.map((item) => item.id)
+    const allSelectedOnPage = pageIds.every((id) => selectedIds.includes(id))
+
+    if (allSelectedOnPage) {
+      setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)))
+    } else {
+      setSelectedIds((prev) => {
+        const next = [...prev]
+        pageIds.forEach((id) => {
+          if (!next.includes(id)) next.push(id)
+        })
+        return next
+      })
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected items?`)) return
+    try {
+      const { error: err } = await supabase
+        .from(table)
+        .delete()
+        .in('id', selectedIds)
+      if (err) throw err
+      setSelectedIds([])
+    } catch (err) {
+      alert('Failed to delete selected items: ' + err.message)
+    }
   }
 
   async function handleDelete(row) {
@@ -148,6 +188,16 @@ export default function CrudManager({
       <div className="crud-header">
         <h2>{title}</h2>
         <div className="crud-actions">
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              className="btn"
+              onClick={handleBulkDelete}
+              style={{ borderColor: 'var(--danger)', color: 'var(--danger)', fontWeight: '600' }}
+            >
+              Delete Selected ({selectedIds.length})
+            </button>
+          )}
           <input
             className="input"
             placeholder="Search…"
@@ -174,6 +224,13 @@ export default function CrudManager({
             <table className="data-table">
               <thead>
                 <tr>
+                  <th style={{ width: '40px', textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={paginatedData.length > 0 && paginatedData.every((item) => selectedIds.includes(item.id))}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
                   {visibleColumns.map((c) => (
                     <th key={c}>{fields.find((f) => f.name === c)?.label || c}</th>
                   ))}
@@ -183,6 +240,13 @@ export default function CrudManager({
               <tbody>
                 {paginatedData.map((row) => (
                   <tr key={row.id}>
+                    <td style={{ textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(row.id)}
+                        onChange={() => toggleSelectRow(row.id)}
+                      />
+                    </td>
                     {visibleColumns.map((c) => {
                       const field = fields.find((f) => f.name === c)
                       let val = row[c]
@@ -207,7 +271,7 @@ export default function CrudManager({
                 ))}
                 {paginatedData.length === 0 && (
                   <tr>
-                    <td colSpan={visibleColumns.length + 1} className="muted">
+                    <td colSpan={visibleColumns.length + 2} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
                       No records yet.
                     </td>
                   </tr>

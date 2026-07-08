@@ -822,8 +822,39 @@ export default function GuestRegister() {
 
               {events.length > 0 ? (
                 <>
-                  {/* Event pill tabs */}
-                  <div className="guest-event-tabs-navbar">
+                  {/* Mobile Event Selector Dropdown */}
+                  <div className="guest-mobile-event-selector" style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: 'var(--g-secondary)', fontSize: '0.95rem' }}>
+                      Select Contest Event
+                    </label>
+                    <select
+                      value={activeEventId}
+                      onChange={(e) => setActiveEventId(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        borderRadius: '10px',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid var(--g-glass-border)',
+                        color: 'var(--g-text)',
+                        fontSize: '0.95rem',
+                        outline: 'none'
+                      }}
+                    >
+                      {events.map((event) => (
+                        <option 
+                          key={event.id} 
+                          value={event.id}
+                          style={{ background: 'var(--g-bg)', color: 'var(--g-text)' }}
+                        >
+                          {event.event_name} {isTabFilled(event.id) ? '✓ (Registered)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Desktop Event pill tabs */}
+                  <div className="guest-event-tabs-navbar guest-desktop-only">
                     {events.map((event) => (
                       <button
                         type="button"

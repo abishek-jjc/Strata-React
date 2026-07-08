@@ -1418,3 +1418,58 @@ body.light-theme .guest-modal-rules-list li {
   font-weight: bold;
 }
 
+/* =========================================================
+   GUEST REGISTRATION EVENT SELECTOR STYLING
+   ========================================================= */
+
+.guest-event-tabs-navbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+.guest-tab-btn {
+  padding: 10px 22px;
+  border-radius: 20px;
+  background: var(--g-glass-bg);
+  border: 1px solid var(--g-glass-border);
+  color: var(--g-text-muted);
+  font-family: 'Syne', sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.guest-tab-btn:hover {
+  border-color: var(--g-glass-border-hover);
+  color: var(--g-text);
+  transform: translateY(-1px);
+}
+
+.guest-tab-btn.active {
+  background: linear-gradient(135deg, var(--g-primary) 0%, var(--g-secondary) 100%);
+  border-color: transparent;
+  color: #ffffff;
+  box-shadow: 0 4px 15px rgba(var(--g-primary-rgb), 0.35);
+}
+
+.guest-tab-btn.filled {
+  border-color: var(--g-secondary);
+  color: var(--g-secondary);
+}
+
+/* Responsive show/hide rules */
+@media (min-width: 769px) {
+  .guest-mobile-event-selector {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .guest-desktop-only {
+    display: none !important;
+  }
+}
+
