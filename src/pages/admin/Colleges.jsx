@@ -236,7 +236,14 @@ export default function Colleges() {
       const worksheet = workbook.Sheets[sheetName]
       const json = XLSX.utils.sheet_to_json(worksheet)
 
-      let successCount = 0
+      if (!json.length) {
+        showAlert('Import Failed', 'The uploaded file is empty.', 'info')
+        return
+      }
+
+      const collegeRows = []
+      const domainPrefix = localStorage.getItem('qr_domain_prefix') || window.location.origin
+
       for (const row of json) {
         const collegeName = getRowValue(row, ['college', 'college_name', 'college name'])
         const department = getRowValue(row, ['department', 'department_name', 'department name', 'dept'])
@@ -246,31 +253,40 @@ export default function Colleges() {
 
         if (!collegeStr || !deptStr) continue
 
-        // Insert college (inserting both college and college_name fields to support old/new schemas)
-        const { data: inserted, error } = await supabase
-          .from(TABLES.COLLEGES)
-          .insert({
-            college: collegeStr,
-            college_name: collegeStr,
-            department: deptStr,
-            status: 'active'
-          })
-          .select()
-          .single()
-
-        if (error) {
-          console.error('Error inserting college:', error.message)
-          continue
+        // 1. Generate QR Code payload and URL
+        const payload = {
+          college: collegeStr,
+          department: deptStr
         }
+        const encrypted = encryptCollegePayload(payload)
+        const qrUrl = `${domainPrefix}/register?payload=${encodeURIComponent(encrypted)}`
+        const qrImageDataUrl = await QRCode.toDataURL(qrUrl, { width: 240 })
 
-        // Generate QR code for the inserted row
-        await generateAndAttachQr(inserted, inserted.id)
-        successCount++
+        // 2. Add to bulk insert list
+        collegeRows.push({
+          college: collegeStr,
+          college_name: collegeStr,
+          department: deptStr,
+          status: 'active',
+          qr_image_data_url: qrImageDataUrl
+        })
       }
+
+      if (!collegeRows.length) {
+        showAlert('Import Failed', 'No valid rows found. Make sure headers are "College" and "Department".', 'info')
+        return
+      }
+
+      // 3. Perform bulk insert in a single call (exactly like Lots.jsx)
+      const { error } = await supabase
+        .from(TABLES.COLLEGES)
+        .insert(collegeRows)
+
+      if (error) throw error
 
       showAlert(
         'Import Successful',
-        `Successfully imported and generated QRs for ${successCount} colleges!`,
+        `Successfully imported and generated QRs for ${collegeRows.length} colleges!`,
         'info'
       )
     } catch (err) {
