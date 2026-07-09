@@ -68,10 +68,18 @@ export default function AboutUs() {
             {leaders.map((leader) => (
               <div className="guest-leader-card guest-glass-panel" key={leader.id}>
                 <div className="guest-leader-header">
-                  <div className="guest-leader-avatar">
-                    {leader.name.split(' ')
-                      .filter(w => !['dr.', 'mr.', 'ms.'].includes(w.toLowerCase()))
-                      .map(w => w[0]).join('').substring(0, 2).toUpperCase()}
+                  <div className="guest-leader-avatar" style={{ padding: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {leader.image_url ? (
+                      <img 
+                        src={leader.image_url} 
+                        alt={leader.name} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      />
+                    ) : (
+                      leader.name.split(' ')
+                        .filter(w => !['dr.', 'mr.', 'ms.'].includes(w.toLowerCase()))
+                        .map(w => w[0]).join('').substring(0, 2).toUpperCase()
+                    )}
                   </div>
                   <div className="guest-leader-meta">
                     <h3>{leader.name}</h3>

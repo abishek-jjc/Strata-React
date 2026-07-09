@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useAuth } from '../../auth/AuthContext'
 import { useTable } from '../../hooks/useTable'
 import { TABLES } from '../../supabase/tables'
@@ -10,6 +10,10 @@ export default function StudentList() {
     ['leader_id', 'eq', profile?.ref_id],
   ])
   const { data: events, loading: eventsLoading } = useTable(TABLES.EVENTS)
+  
+  const sortedStudents = useMemo(() => {
+    return [...students].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+  }, [students])
   
   const [editingStudent, setEditingStudent] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -34,6 +38,15 @@ export default function StudentList() {
     if (!editingStudent.student_name || editingStudent.student_name.trim().length < 3) {
       return setError('Student name must contain at least 3 characters.')
     }
+    if (!editingStudent.gender) {
+      return setError('Please select a gender.')
+    }
+    if (!editingStudent.department || !editingStudent.department.trim()) {
+      return setError('Please enter a department.')
+    }
+    if (!editingStudent.year) {
+      return setError('Please select a year.')
+    }
 
     setSaving(true)
 
@@ -42,7 +55,10 @@ export default function StudentList() {
       .update({
         student_name: editingStudent.student_name,
         roll_no: editingStudent.roll_no || '',
-        food_type: editingStudent.food_type || 'Veg'
+        food_type: editingStudent.food_type || 'Veg',
+        gender: editingStudent.gender,
+        department: editingStudent.department.trim(),
+        year: editingStudent.year
       })
       .eq('id', editingStudent.id)
 
@@ -60,47 +76,91 @@ export default function StudentList() {
   return (
     <div>
       <h2>Your Participants</h2>
-      <div className="table-responsive">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Roll Number</th>
-              <th>Event</th>
-              <th>Food Choice</th>
-              <th>Certificate Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {students.map((s) => (
-              <tr key={s.id}>
-                <td>{s.student_name}</td>
-                <td>{s.roll_no || '—'}</td>
-                <td>{getEventName(s.event_id)}</td>
-                <td>
-                  <span className={`badge badge-${s.food_type === 'Non-Veg' ? 'pending' : 'approved'}`} style={{ textTransform: 'capitalize' }}>
-                    {s.food_type || 'Veg'}
-                  </span>
-                </td>
-                <td>
+      {sortedStudents.length === 0 ? (
+        <div style={{
+          textAlign: 'center',
+          padding: '40px 20px',
+          color: 'var(--text-secondary)',
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px dashed rgba(255,255,255,0.08)',
+          borderRadius: '12px',
+          marginTop: '20px'
+        }}>
+          No participants registered yet.
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+          gap: '20px',
+          marginTop: '20px'
+        }}>
+          {sortedStudents.map((s) => (
+            <div 
+              key={s.id}
+              className="card"
+              style={{
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                borderRadius: '16px',
+                gap: '16px'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                  <h4 style={{ margin: 0, fontSize: '1.2rem', color: '#fff', fontWeight: 700 }}>
+                    {s.student_name}
+                  </h4>
                   <span className={`badge badge-${s.certificate_status === 'Issued' ? 'approved' : 'pending'}`}>
                     {s.certificate_status || 'Pending'}
                   </span>
-                </td>
-                <td>
-                  <button className="link" onClick={() => openEdit(s)}>
-                    Edit
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {students.length === 0 && (
-              <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: '20px' }}>No participants registered yet.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                </div>
+ 
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.9rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Roll Number:</span>{' '}
+                    <strong style={{ color: '#fff' }}>{s.roll_no || '—'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Event:</span>{' '}
+                    <strong style={{ color: '#fff' }}>{getEventName(s.event_id)}</strong>
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px', marginTop: '4px' }}>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>Gender</span>
+                      <strong style={{ color: '#fff', fontSize: '0.85rem' }}>{s.gender || '—'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>Department</span>
+                      <strong style={{ color: '#fff', fontSize: '0.85rem' }}>{s.department || '—'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>Year</span>
+                      <strong style={{ color: '#fff', fontSize: '0.85rem' }}>{s.year || '—'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>Food Choice</span>
+                      <span className={`badge badge-${s.food_type === 'Non-Veg' ? 'pending' : 'approved'}`} style={{ textTransform: 'capitalize', fontSize: '0.75rem', padding: '1px 8px', marginTop: '2px', display: 'inline-block' }}>
+                        {s.food_type || 'Veg'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+ 
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="btn" onClick={() => openEdit(s)} style={{ padding: '6px 16px', fontSize: '0.85rem' }}>
+                  ✏️ Edit Profile
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Edit Student Modal */}
       {editingStudent && (
@@ -128,7 +188,6 @@ export default function StudentList() {
               />
             </label>
 
-            <label className="field">
               <span>Food Choice</span>
               <select
                 value={editingStudent.food_type || 'Veg'}
@@ -137,6 +196,45 @@ export default function StudentList() {
               >
                 <option value="Veg">Veg</option>
                 <option value="Non-Veg">Non-Veg</option>
+              </select>
+            </label>
+
+            <label className="field">
+              <span>Gender</span>
+              <select
+                required
+                value={editingStudent.gender || ''}
+                onChange={(e) => setEditingStudent({ ...editingStudent, gender: e.target.value })}
+              >
+                <option value="">Select gender…</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </label>
+
+            <label className="field">
+              <span>Department</span>
+              <input
+                type="text"
+                required
+                value={editingStudent.department || ''}
+                onChange={(e) => setEditingStudent({ ...editingStudent, department: e.target.value })}
+              />
+            </label>
+
+            <label className="field">
+              <span>Year</span>
+              <select
+                required
+                value={editingStudent.year || ''}
+                onChange={(e) => setEditingStudent({ ...editingStudent, year: e.target.value })}
+              >
+                <option value="">Select year…</option>
+                <option value="I Year">I Year</option>
+                <option value="II Year">II Year</option>
+                <option value="III Year">III Year</option>
+                <option value="I PG">I PG</option>
+                <option value="II PG">II PG</option>
               </select>
             </label>
 

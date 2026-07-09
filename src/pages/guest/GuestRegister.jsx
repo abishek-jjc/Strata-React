@@ -52,15 +52,15 @@ export default function GuestRegister() {
   const [agreeRules, setAgreeRules] = useState(false)
   const [showRulesModal, setShowRulesModal] = useState(false)
 
-  // Helper to query if a college + department has already registered a student leader
-  async function checkCollegeRegistration(name, dept) {
-    if (!name || !dept) return false
+  // Helper to query if a college has already registered a student leader
+  async function checkCollegeRegistration(name, department) {
+    if (!name || !department) return false
     try {
       const { data: collegeRow } = await supabase
         .from(TABLES.COLLEGES)
         .select('id')
         .eq('college', name.trim())
-        .eq('department', dept.trim())
+        .eq('department', department.trim())
         .maybeSingle()
 
       if (collegeRow) {
@@ -255,7 +255,10 @@ export default function GuestRegister() {
           
           initialParts[e.id] = Array.from({ length: cap }, () => ({
             studentName: '',
-            rollNo: ''
+            rollNo: '',
+            gender: '',
+            department: '',
+            year: ''
           }))
         })
         
@@ -427,11 +430,27 @@ export default function GuestRegister() {
 
         if (validationError) return
 
+        if (filled.some(p => !p.gender)) {
+          validationError = `Gender selection is missing for one or more participants in event "${event.event_name}".`
+          return
+        }
+        if (filled.some(p => !p.department || p.department.trim().length === 0)) {
+          validationError = `Department name is missing for one or more participants in event "${event.event_name}".`
+          return
+        }
+        if (filled.some(p => !p.year)) {
+          validationError = `Year selection is missing for one or more participants in event "${event.event_name}".`
+          return
+        }
+
         activeRegs.push({
           eventId: event.id,
           participants: filled.map(p => ({
             studentName: p.studentName.trim(),
-            rollNo: (p.rollNo || '').trim()
+            rollNo: (p.rollNo || '').trim(),
+            gender: p.gender,
+            department: p.department.trim(),
+            year: p.year
           }))
         })
       }
@@ -447,43 +466,13 @@ export default function GuestRegister() {
 
     setSubmitting(true)
     try {
-      // Assign foodType to participants to match vegCount and nonVegCount
-      const allParticipants = []
-      activeRegs.forEach(reg => {
-        reg.participants.forEach(p => {
-          if (p.studentName && p.studentName.trim() !== '') {
-            allParticipants.push(p)
-          }
-        })
-      })
-
-      const nameToFoodType = {}
-      let vegRemaining = vegCount
-      
-      allParticipants.forEach(p => {
-        const cleanName = p.studentName.trim().toLowerCase()
-        if (!nameToFoodType[cleanName]) {
-          if (vegRemaining > 0) {
-            nameToFoodType[cleanName] = 'Veg'
-            vegRemaining--
-          } else {
-            nameToFoodType[cleanName] = 'Non-Veg'
-          }
-        }
-      })
-
       // Loop to register for each selected event
       for (const reg of activeRegs) {
-        const participantsWithFood = reg.participants.map(p => ({
-          ...p,
-          foodType: p.studentName ? (nameToFoodType[p.studentName.trim().toLowerCase()] || 'Veg') : 'Veg'
-        }))
-
         const { data: regId, error: regError } = await supabase.rpc('register_team', {
           p_college_id: collegeId,
           p_leader_id: leaderId,
           p_event_id: reg.eventId,
-          p_participants: participantsWithFood
+          p_participants: reg.participants
         })
         if (regError) throw regError
         
@@ -620,7 +609,7 @@ export default function GuestRegister() {
               type="button" 
               onClick={() => navigate('/leader')} 
               className="guest-btn guest-btn-primary"
-              style={{ width: '100%', padding: '14px', justifyContent: 'center' }}
+              style={{ width: '100%', padding: '14px' }}
             >
               Enter Leader Dashboard
             </button>
@@ -898,9 +887,9 @@ export default function GuestRegister() {
                               fontWeight: '600'
                             }}
                           >
-                            <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px', textAlign: 'left' }}>
-                              <span>{event.event_name}</span>
-                              <span style={{ fontSize: '0.8rem', color: 'var(--g-text-muted)', fontWeight: 'normal', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '20px' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                              {event.event_name} 
+                              <span style={{ fontSize: '0.85rem', color: 'var(--g-text-muted)', fontWeight: 'normal', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '20px' }}>
                                 Max {event.team_size} members
                               </span>
                             </span>
@@ -911,7 +900,7 @@ export default function GuestRegister() {
                           </button>
 
                           {isExpanded && (
-                            <div className="guest-event-expanded-content">
+                            <div style={{ padding: '20px', background: 'rgba(0,0,0,0.15)', borderTop: '1px solid var(--g-glass-border)' }}>
                               <div className="guest-sub-team-inputs-container">
                                 {Array.from({ length: event.team_size || 1 }).map((_, idx) => {
                                   const pData = participants[event.id]?.[idx] || { studentName: '', rollNo: '' }
@@ -953,6 +942,64 @@ export default function GuestRegister() {
                                           />
                                         </label>
                                       </div>
+                                      
+                                      <div className="guest-form-row" style={{ margin: '15px 0 0 0' }}>
+                                        <label className="guest-field">
+                                          <span>Gender {isRequired && '*'}</span>
+                                          <select
+                                            value={pData.gender || ''}
+                                            required={isRequired}
+                                            onChange={(e) => updateParticipant(event.id, idx, 'gender', e.target.value)}
+                                            style={{
+                                              width: '100%',
+                                              padding: '12px 16px',
+                                              background: 'rgba(255,255,255,0.03)',
+                                              border: '1px solid var(--g-glass-border)',
+                                              borderRadius: '8px',
+                                              color: 'var(--g-text)',
+                                              fontSize: '0.95rem'
+                                            }}
+                                          >
+                                            <option value="" style={{ background: '#12141c', color: '#fff' }}>Select gender…</option>
+                                            <option value="Male" style={{ background: '#12141c', color: '#fff' }}>Male</option>
+                                            <option value="Female" style={{ background: '#12141c', color: '#fff' }}>Female</option>
+                                          </select>
+                                        </label>
+                                        <label className="guest-field">
+                                          <span>Department {isRequired && '*'}</span>
+                                          <input 
+                                            type="text" 
+                                            placeholder="e.g. BCA" 
+                                            value={pData.department || ''}
+                                            required={isRequired}
+                                            onChange={(e) => updateParticipant(event.id, idx, 'department', e.target.value)}
+                                          />
+                                        </label>
+                                        <label className="guest-field">
+                                          <span>Year {isRequired && '*'}</span>
+                                          <select
+                                            value={pData.year || ''}
+                                            required={isRequired}
+                                            onChange={(e) => updateParticipant(event.id, idx, 'year', e.target.value)}
+                                            style={{
+                                              width: '100%',
+                                              padding: '12px 16px',
+                                              background: 'rgba(255,255,255,0.03)',
+                                              border: '1px solid var(--g-glass-border)',
+                                              borderRadius: '8px',
+                                              color: 'var(--g-text)',
+                                              fontSize: '0.95rem'
+                                            }}
+                                          >
+                                            <option value="" style={{ background: '#12141c', color: '#fff' }}>Select year…</option>
+                                            <option value="I Year" style={{ background: '#12141c', color: '#fff' }}>I Year</option>
+                                            <option value="II Year" style={{ background: '#12141c', color: '#fff' }}>II Year</option>
+                                            <option value="III Year" style={{ background: '#12141c', color: '#fff' }}>III Year</option>
+                                            <option value="I PG" style={{ background: '#12141c', color: '#fff' }}>I PG</option>
+                                            <option value="II PG" style={{ background: '#12141c', color: '#fff' }}>II PG</option>
+                                          </select>
+                                        </label>
+                                      </div>
                                     </div>
                                   )
                                 })}
@@ -971,7 +1018,7 @@ export default function GuestRegister() {
               )}
             </div>
 
-            <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between' }}>
               <button type="button" className="guest-btn guest-btn-secondary" onClick={() => setStep(1)}>
                 Back to Profile
               </button>
@@ -1042,7 +1089,7 @@ export default function GuestRegister() {
               )}
             </div>
 
-            <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between' }}>
               <button type="button" className="guest-btn guest-btn-secondary" onClick={() => setStep(2)}>
                 Back to Participants
               </button>

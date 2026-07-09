@@ -49,51 +49,86 @@ export default function Dashboard() {
 
       {/* Registrations List */}
       <div>
-        <h3 style={{ marginBottom: '15px' }}>Registered Contests</h3>
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Event Name</th>
-                <th>Category</th>
-                <th>Prelims Venue</th>
-                <th>Prelims Time</th>
-                <th>Mains Venue</th>
-                <th>Mains Time</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {registrations.map((r) => {
-                const event = events.find((e) => e.id === r.event_id)
-                const prelimsVenue = event ? (venues.find((v) => v.id === event.prelims_venue)?.venue_name || 'TBD') : 'TBD'
-                const mainsVenue = event ? (venues.find((v) => v.id === event.mains_venue)?.venue_name || 'TBD') : 'TBD'
-                return (
-                  <tr key={r.id}>
-                    <td>
-                      <strong>{event?.event_name || r.event_id}</strong>
-                    </td>
-                    <td>{event?.category || '—'}</td>
-                    <td>{prelimsVenue}</td>
-                    <td>{event?.preliminary || '—'}</td>
-                    <td>{mainsVenue}</td>
-                    <td>{event?.mains || '—'}</td>
-                    <td>
-                      <span className={`badge badge-${r.status}`}>{r.status}</span>
-                    </td>
-                  </tr>
-                )
-              })}
-              {registrations.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="muted" style={{ textAlign: 'center', padding: '30px' }}>
-                    No contest registrations found yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <h3 style={{ marginBottom: '20px', fontFamily: 'Syne, sans-serif', color: 'var(--accent)' }}>Registered Contests</h3>
+        {registrations.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '40px 20px',
+            color: 'var(--text-secondary)',
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px dashed rgba(255,255,255,0.08)',
+            borderRadius: '12px',
+          }}>
+            No contest registrations found yet.
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+            gap: '20px'
+          }}>
+            {registrations.map((r) => {
+              const event = events.find((e) => e.id === r.event_id)
+              const prelimsVenue = event ? (venues.find((v) => v.id === event.prelims_venue)?.venue_name || 'TBD') : 'TBD'
+              const mainsVenue = event ? (venues.find((v) => v.id === event.mains_venue)?.venue_name || 'TBD') : 'TBD'
+              return (
+                <div 
+                  key={r.id} 
+                  className="card"
+                  style={{
+                    padding: '24px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '16px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    borderRadius: '16px',
+                    transition: 'transform 0.2s, box-shadow 0.2s',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                      <h4 style={{ margin: 0, fontSize: '1.25rem', color: '#fff', fontWeight: 700 }}>
+                        {event?.event_name || r.event_id}
+                      </h4>
+                      <span className={`badge badge-${r.status}`} style={{ textTransform: 'capitalize' }}>{r.status}</span>
+                    </div>
+                    
+                    {event?.category && (
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '3px 10px',
+                        background: 'rgba(var(--accent-rgb), 0.1)',
+                        color: 'var(--accent)',
+                        borderRadius: '20px',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        marginBottom: '16px'
+                      }}>
+                        {event.category}
+                      </span>
+                    )}
+ 
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.9rem' }}>
+                      <div style={{ borderLeft: '3px solid rgba(255,255,255,0.1)', paddingLeft: '10px' }}>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600, marginBottom: '2px' }}>Preliminaries</div>
+                        <div>📍 <strong style={{ color: '#fff' }}>{prelimsVenue}</strong></div>
+                        <div className="muted" style={{ fontSize: '0.85rem', marginTop: '2px' }}>🕒 {event?.preliminary || '—'}</div>
+                      </div>
+                      
+                      <div style={{ borderLeft: '3px solid var(--accent)', paddingLeft: '10px' }}>
+                        <div style={{ color: 'var(--accent)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600, marginBottom: '2px' }}>Mains</div>
+                        <div>📍 <strong style={{ color: '#fff' }}>{mainsVenue}</strong></div>
+                        <div className="muted" style={{ fontSize: '0.85rem', marginTop: '2px' }}>🕒 {event?.mains || '—'}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

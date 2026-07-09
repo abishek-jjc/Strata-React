@@ -254,6 +254,21 @@ export default function CrudManager({
                         const opt = field.options.find((o) => (o.value ?? o) === val)
                         if (opt) val = opt.label ?? opt
                       }
+                      if (field && field.type === 'image') {
+                        return (
+                          <td key={c}>
+                            {val ? (
+                              <img 
+                                src={val} 
+                                alt="preview" 
+                                style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover', display: 'block' }} 
+                              />
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                        )
+                      }
                       return <td key={c}>{String(val ?? '')}</td>
                     })}
                     <td className="row-actions">
@@ -338,6 +353,44 @@ export default function CrudManager({
                     value={form[f.name] || ''}
                     onChange={(e) => setForm({ ...form, [f.name]: e.target.value })}
                   />
+                ) : f.type === 'image' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        setError('')
+                        setSaving(true)
+                        try {
+                          const fileName = `leader_${Date.now()}_${file.name.replace(/\s+/g, '_')}`
+                          const { data, error: uploadError } = await supabase.storage
+                            .from('assets')
+                            .upload(fileName, file, { upsert: true })
+
+                          if (uploadError) throw uploadError
+
+                          const { data: { publicUrl } } = supabase.storage
+                            .from('assets')
+                            .getPublicUrl(fileName)
+
+                          setForm({ ...form, [f.name]: publicUrl })
+                        } catch (err) {
+                          setError('Failed to upload image: ' + err.message)
+                        } finally {
+                          setSaving(false)
+                        }
+                      }}
+                    />
+                    {form[f.name] && (
+                      <img 
+                        src={form[f.name]} 
+                        alt="Preview" 
+                        style={{ maxWidth: '120px', maxHeight: '120px', borderRadius: '8px', border: '1px solid var(--border)', objectFit: 'cover' }} 
+                      />
+                    )}
+                  </div>
                 ) : f.type === 'select' ? (
                   <select
                     value={form[f.name] || ''}

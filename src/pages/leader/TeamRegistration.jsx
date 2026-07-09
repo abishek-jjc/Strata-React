@@ -5,7 +5,7 @@ import { useTable } from '../../hooks/useTable'
 import { TABLES } from '../../supabase/tables'
 import { hasDuplicateNamesWithinTeam } from '../../utils/validators'
 
-const emptyParticipant = () => ({ studentName: '', rollNo: '', foodType: 'Veg' })
+const emptyParticipant = () => ({ studentName: '', rollNo: '', food: '-', gender: '', department: '', year: '' })
 
 export default function TeamRegistration() {
   const { profile } = useAuth()
@@ -81,20 +81,44 @@ export default function TeamRegistration() {
       return setError('Two participants in this team have the same name.')
     }
 
+    if (participants.some((p) => !p.gender)) {
+      return setError('Every participant needs a gender selection.')
+    }
+    if (participants.some((p) => !p.department || !p.department.trim())) {
+      return setError('Every participant needs a department.')
+    }
+    if (participants.some((p) => !p.year)) {
+      return setError('Every participant needs a year selection.')
+    }
+
     setSubmitting(true)
     try {
-      const { error: rpcError } = await supabase.rpc('register_team', {
+      const { data: regId, error: rpcError } = await supabase.rpc('register_team', {
         p_college_id: profile.college_id,
         p_leader_id: profile.ref_id,
         p_event_id: eventId,
         p_participants: participants.map((p) => ({
           studentName: p.studentName.trim(),
           rollNo: p.rollNo.trim(),
-          foodType: p.foodType || 'Veg',
+          gender: p.gender,
+          department: p.department.trim(),
+          year: p.year
         })),
       })
 
       if (rpcError) throw rpcError
+
+      // Calculate food counts
+      const vegCount = participants.filter((p) => p.food === 'Veg').length
+      const nonVegCount = participants.filter((p) => p.food === 'Non-Veg').length
+
+      // Update registration food counts using the returned regId
+      const { error: countError } = await supabase.rpc('update_registration_food_count', {
+        p_registration_id: regId,
+        p_veg_count: vegCount,
+        p_nonveg_count: nonVegCount,
+      })
+      if (countError) throw countError
 
       setSuccess('Team registered successfully! Waiting for admin review.')
       setEventId('')
@@ -169,7 +193,10 @@ export default function TeamRegistration() {
                     <th style={{ width: 36 }}>#</th>
                     <th>Name <span style={{ color: '#ef4444' }}>*</span></th>
                     <th>Roll Number <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th style={{ width: 140 }}>Food Type <span style={{ color: '#ef4444' }}>*</span></th>
+                    <th>Gender <span style={{ color: '#ef4444' }}>*</span></th>
+                    <th>Department <span style={{ color: '#ef4444' }}>*</span></th>
+                    <th>Year <span style={{ color: '#ef4444' }}>*</span></th>
+                    <th style={{ width: 140 }}>Food Choice</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -211,13 +238,75 @@ export default function TeamRegistration() {
                       <td>
                         <select
                           className="input"
-                          value={p.foodType || 'Veg'}
-                          onChange={(e) => updateParticipant(i, 'foodType', e.target.value)}
+                          value={p.gender || ''}
+                          onChange={(e) => updateParticipant(i, 'gender', e.target.value)}
                           required
-                          style={{ minHeight: '38px' }}
+                          style={{
+                            padding: '6px 10px',
+                            minHeight: 'auto',
+                            background: 'rgba(255,255,255,0.05)',
+                            color: '#fff',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '6px',
+                            width: '100%'
+                          }}
                         >
-                          <option value="Veg">Veg</option>
-                          <option value="Non-Veg">Non-Veg</option>
+                          <option value="" style={{ background: '#12141c', color: '#fff' }}>Select gender…</option>
+                          <option value="Male" style={{ background: '#12141c', color: '#fff' }}>Male</option>
+                          <option value="Female" style={{ background: '#12141c', color: '#fff' }}>Female</option>
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          className="input"
+                          value={p.department || ''}
+                          onChange={(e) => updateParticipant(i, 'department', e.target.value)}
+                          placeholder="e.g. BCA"
+                          required
+                        />
+                      </td>
+                      <td>
+                        <select
+                          className="input"
+                          value={p.year || ''}
+                          onChange={(e) => updateParticipant(i, 'year', e.target.value)}
+                          required
+                          style={{
+                            padding: '6px 10px',
+                            minHeight: 'auto',
+                            background: 'rgba(255,255,255,0.05)',
+                            color: '#fff',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '6px',
+                            width: '100%'
+                          }}
+                        >
+                          <option value="" style={{ background: '#12141c', color: '#fff' }}>Select year…</option>
+                          <option value="I Year" style={{ background: '#12141c', color: '#fff' }}>I Year</option>
+                          <option value="II Year" style={{ background: '#12141c', color: '#fff' }}>II Year</option>
+                          <option value="III Year" style={{ background: '#12141c', color: '#fff' }}>III Year</option>
+                          <option value="I PG" style={{ background: '#12141c', color: '#fff' }}>I PG</option>
+                          <option value="II PG" style={{ background: '#12141c', color: '#fff' }}>II PG</option>
+                        </select>
+                      </td>
+                      <td>
+                        <select
+                          className="input"
+                          value={p.food || '-'}
+                          onChange={(e) => updateParticipant(i, 'food', e.target.value)}
+                          style={{
+                            padding: '6px 10px',
+                            minHeight: 'auto',
+                            background: 'rgba(255,255,255,0.05)',
+                            color: '#fff',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '6px',
+                            width: '100%'
+                          }}
+                        >
+                          <option value="-" style={{ background: '#12141c', color: '#fff' }}>—</option>
+                          <option value="Veg" style={{ background: '#12141c', color: '#fff' }}>Veg</option>
+                          <option value="Non-Veg" style={{ background: '#12141c', color: '#fff' }}>Non-Veg</option>
                         </select>
                       </td>
                     </tr>
@@ -250,18 +339,12 @@ export default function TeamRegistration() {
             border: '1px solid rgba(16,185,129,0.3)',
             borderRadius: '10px',
             padding: '16px 20px',
-            margin: '15px 0',
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px'
+            margin: '15px 0'
           }}>
-            <p className="success" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent', width: '100%', textAlign: 'center' }}>
+            <p className="success" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent' }}>
               {success}
             </p>
-            <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '0.9rem', width: '100%' }}>
+            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '0.9rem' }}>
               <span>You must join the WhatsApp Group for further updates:</span>
               {whatsappLink ? (
                 <a 

@@ -689,9 +689,7 @@ select option {
   flex-direction: column;
   gap: 0;
   box-shadow: 4px 0 40px rgba(0,0,0,0.25);
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  position: relative;
   overflow: hidden;
 }
 
@@ -1142,13 +1140,10 @@ select option {
 
 /* Responsive sidebar and container overrides */
 @media (max-width: 768px) {
-  .app-shell {
-    display: block;
-  }
   .sidebar-toggle-btn {
     display: flex !important;
   }
-  .sidebar {
+  .app-shell .sidebar {
     position: fixed;
     top: 0;
     bottom: 0;
@@ -1159,7 +1154,7 @@ select option {
     box-shadow: 8px 0 30px rgba(0, 0, 0, 0.6);
   }
   
-  .sidebar.open {
+  .app-shell .sidebar.open {
     transform: translateX(0);
   }
   

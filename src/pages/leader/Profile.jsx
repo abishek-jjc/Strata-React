@@ -17,11 +17,11 @@ export default function Profile() {
       if (!profile?.college_id) return
       const { data } = await supabase
         .from(TABLES.COLLEGES)
-        .select('college')
+        .select('college, department')
         .eq('id', profile.college_id)
         .maybeSingle()
       if (data) {
-        setCollegeName(data.college)
+        setCollegeName(data.department ? `${data.college} - ${data.department}` : data.college)
       }
     }
     loadCollege()

@@ -90,9 +90,15 @@ export default function Reports() {
 
   // Helper mappings
   const collegeName = (id) => {
+<<<<<<< HEAD
     const c = colleges.find((col) => col.id === id)
     if (!c) return '—'
     return c.department ? `${c.college} (${c.department})` : c.college
+=======
+    const col = colleges.find((c) => c.id === id)
+    if (!col) return '—'
+    return col.department ? `${col.college} - ${col.department}` : col.college
+>>>>>>> 136559d708957a7c6d5ce127a30d39cde5e51c5a
   }
   const eventName = (id) => events.find((e) => e.id === id)?.event_name || '—'
   const leaderName = (id) => studentLeaders.find((l) => l.id === id)?.name || '—'
@@ -216,7 +222,17 @@ export default function Reports() {
     )
   }, [reportRows, search])
 
-  const columns = filtered[0] ? Object.keys(filtered[0]) : []
+  const columns = useMemo(() => {
+    if (!filtered[0]) return []
+    const allKeys = Object.keys(filtered[0])
+    return allKeys.filter((key) => {
+      // Return true if at least one row has a non-empty, non-placeholder value
+      return filtered.some((row) => {
+        const val = row[key]
+        return val !== null && val !== undefined && val !== '' && val !== '—' && val !== '-'
+      })
+    })
+  }, [filtered])
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage)
 
@@ -282,7 +298,14 @@ export default function Reports() {
   }
 
   function handleExportExcel() {
-    exportToExcel(filtered, `${active}_report`)
+    const dataToExport = filtered.map((row) => {
+      const newRow = {}
+      columns.forEach((col) => {
+        newRow[col] = row[col]
+      })
+      return newRow
+    })
+    exportToExcel(dataToExport, `${active}_report`)
   }
 
   // Toggle selection for Multi-Event checklist

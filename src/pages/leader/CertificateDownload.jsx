@@ -39,8 +39,8 @@ export default function CertificateDownload() {
     const cert = certificates?.find(c => c.student_id === student.id && (c.position === 'Participation' || !c.position))
     return {
       student,
-      issued: student.certificate_status === 'issued' || !!cert,
-      cert: cert || { student_id: student.id, position: 'Participation', certificate_number: `CERT-PART-${student.id.substring(0, 8).toUpperCase()}` }
+      issued: !!cert,
+      cert: cert
     }
   })
 
@@ -50,7 +50,7 @@ export default function CertificateDownload() {
   // 2. Winner Certificates mapping (resolved from winners table)
   const winnerList = []
   const myCollege = colleges?.find(c => c.id === profile?.college_id)
-  const myCollegeName = myCollege ? (myCollege.department ? `${myCollege.college} (${myCollege.department})` : myCollege.college) : ''
+  const myCollegeName = myCollege ? (myCollege.department ? `${myCollege.college} - ${myCollege.department}` : myCollege.college) : ''
 
   if (winners && lots && students && colleges && certificates && events) {
     winners.forEach(w => {
@@ -72,8 +72,8 @@ export default function CertificateDownload() {
             student,
             winnerPlace: place,
             winnerEventName: eventName,
-            issued: student.certificate_status === 'issued' || !!cert,
-            cert: cert || { student_id: student.id, position: place, certificate_number: `CERT-WIN-${student.id.substring(0, 8).toUpperCase()}` }
+            issued: !!cert,
+            cert: cert
           })
         })
       })
@@ -87,7 +87,8 @@ export default function CertificateDownload() {
   const getEventName = (eventId) => events?.find((e) => e.id === eventId)?.event_name || 'Unknown Event'
   const getCollegeName = (studentId) => {
     const student = students?.find((s) => s.id === studentId)
-    return colleges?.find((c) => c.id === student?.college_id)?.college || 'Unknown College'
+    const college = colleges?.find((c) => c.id === student?.college_id)
+    return college ? (college.department ? `${college.college} - ${college.department}` : college.college) : 'Unknown College'
   }
 
   function downloadBlob(bytes, filename) {
@@ -159,32 +160,24 @@ export default function CertificateDownload() {
         const placeVal = cert.position || ''
 
         if (layout.student_name) {
-          const size = Number(layout.student_name.fontSize) || 24
-          const textWidth = font.widthOfTextAtSize(sName, size)
-          const x = (layout.student_name.x / 100) * width - textWidth / 2
+          const x = (layout.student_name.x / 100) * width
           const y = height - (layout.student_name.y / 100) * height
-          page.drawText(sName, { x, y, size, font, color: rgb(0.1, 0.1, 0.1) })
+          page.drawText(sName, { x, y, size: Number(layout.student_name.fontSize) || 24, font, color: rgb(0.1, 0.1, 0.1) })
         }
         if (layout.college_name) {
-          const size = Number(layout.college_name.fontSize) || 16
-          const textWidth = font.widthOfTextAtSize(cName, size)
-          const x = (layout.college_name.x / 100) * width - textWidth / 2
+          const x = (layout.college_name.x / 100) * width
           const y = height - (layout.college_name.y / 100) * height
-          page.drawText(cName, { x, y, size, font, color: rgb(0.2, 0.2, 0.2) })
+          page.drawText(cName, { x, y, size: Number(layout.college_name.fontSize) || 16, font, color: rgb(0.2, 0.2, 0.2) })
         }
         if (layout.event_name) {
-          const size = Number(layout.event_name.fontSize) || 18
-          const textWidth = font.widthOfTextAtSize(eName, size)
-          const x = (layout.event_name.x / 100) * width - textWidth / 2
+          const x = (layout.event_name.x / 100) * width
           const y = height - (layout.event_name.y / 100) * height
-          page.drawText(eName, { x, y, size, font, color: rgb(0.2, 0.2, 0.2) })
+          page.drawText(eName, { x, y, size: Number(layout.event_name.fontSize) || 18, font, color: rgb(0.2, 0.2, 0.2) })
         }
         if (layout.place && placeVal !== 'Participation') {
-          const size = Number(layout.place.fontSize) || 20
-          const textWidth = font.widthOfTextAtSize(placeVal, size)
-          const x = (layout.place.x / 100) * width - textWidth / 2
+          const x = (layout.place.x / 100) * width
           const y = height - (layout.place.y / 100) * height
-          page.drawText(placeVal, { x, y, size, font, color: rgb(0.85, 0.3, 0.1) })
+          page.drawText(placeVal, { x, y, size: Number(layout.place.fontSize) || 20, font, color: rgb(0.85, 0.3, 0.1) })
         }
       }
 
@@ -230,49 +223,67 @@ export default function CertificateDownload() {
             {downloadingBulk ? 'Generating...' : 'Download All Participation'}
           </button>
         </div>
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Student</th>
-                <th>Event</th>
-                <th>Certificate No</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {participationList.map((item) => (
-                <tr key={item.student.id}>
-                  <td>{item.student.student_name}</td>
-                  <td>{getEventName(item.student.event_id)}</td>
-                  <td>{item.issued ? item.cert.certificate_number : '—'}</td>
-                  <td>
-                    <span className={item.issued ? 'success' : 'muted'}>
-                      {item.issued ? '✓ Issued' : 'Not Issued'}
-                    </span>
-                  </td>
-                  <td>
-                    {item.issued ? (
-                      <button className="link" onClick={() => downloadSingle(item.cert)} disabled={downloadingBulk}>
-                        Download Certificate
-                      </button>
-                    ) : (
-                      <span className="muted" style={{ fontSize: '0.85rem' }}>Unavailable</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {participationList.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="muted" style={{ textAlign: 'center' }}>
-                    No participants registered for your college yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {participationList.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)' }}>
+            No participants registered for your college yet.
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: '16px',
+            marginTop: '16px'
+          }}>
+            {participationList.map((item) => (
+              <div 
+                key={item.student.id}
+                className="card"
+                style={{
+                  padding: '20px',
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '12px'
+                }}
+              >
+                <div>
+                  <h4 style={{ margin: 0, color: '#fff', fontSize: '1.1rem', fontWeight: 700 }}>
+                    {item.student.student_name}
+                  </h4>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--accent)', marginTop: '4px', fontWeight: 600 }}>
+                    {getEventName(item.student.event_id)}
+                  </div>
+                  
+                  <div style={{ marginTop: '12px', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div>
+                      <span className="muted">Certificate No:</span>{' '}
+                      <strong style={{ color: '#fff' }}>{item.issued ? item.cert.certificate_number : '—'}</strong>
+                    </div>
+                    <div>
+                      <span className="muted">Status:</span>{' '}
+                      <span className={item.issued ? 'success' : 'muted'} style={{ fontWeight: 600 }}>
+                        {item.issued ? '✓ Issued' : 'Not Issued'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
+                  {item.issued ? (
+                    <button className="link" onClick={() => downloadSingle(item.cert)} disabled={downloadingBulk} style={{ fontWeight: 600 }}>
+                      📥 Download PDF
+                    </button>
+                  ) : (
+                    <span className="muted" style={{ fontSize: '0.85rem' }}>Unavailable</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="card" style={{ padding: '24px' }}>
@@ -287,55 +298,79 @@ export default function CertificateDownload() {
             {downloadingBulk ? 'Generating...' : 'Download All Winners'}
           </button>
         </div>
-        <div className="table-responsive">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Student</th>
-                <th>Event</th>
-                <th>Position</th>
-                <th>Certificate No</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {winnerList.map((item, idx) => (
-                <tr key={`${item.student.id}-${item.winnerPlace}-${idx}`}>
-                  <td>{item.student.student_name}</td>
-                  <td>{item.winnerEventName}</td>
-                  <td>
-                    <strong style={{ color: item.winnerPlace === '1st Place' ? '#f59e0b' : '#9ca3af' }}>
+        {winnerList.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)' }}>
+            No winner positions assigned to your college yet.
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: '16px',
+            marginTop: '16px'
+          }}>
+            {winnerList.map((item, idx) => (
+              <div 
+                key={`${item.student.id}-${item.winnerPlace}-${idx}`}
+                className="card"
+                style={{
+                  padding: '20px',
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '12px'
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <h4 style={{ margin: 0, color: '#fff', fontSize: '1.1rem', fontWeight: 700 }}>
+                      {item.student.student_name}
+                    </h4>
+                    <span style={{
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      background: item.winnerPlace === '1st Place' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(156, 163, 175, 0.12)',
+                      color: item.winnerPlace === '1st Place' ? '#f59e0b' : '#9ca3af'
+                    }}>
                       {item.winnerPlace}
-                    </strong>
-                  </td>
-                  <td>{item.issued ? item.cert.certificate_number : '—'}</td>
-                  <td>
-                    <span className={item.issued ? 'success' : 'muted'}>
-                      {item.issued ? '✓ Issued' : 'Not Issued'}
                     </span>
-                  </td>
-                  <td>
-                    {item.issued ? (
-                      <button className="link" onClick={() => downloadSingle(item.cert)} disabled={downloadingBulk}>
-                        Download Certificate
-                      </button>
-                    ) : (
-                      <span className="muted" style={{ fontSize: '0.85rem' }}>Unavailable</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {winnerList.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="muted" style={{ textAlign: 'center' }}>
-                    No winner positions assigned to your college yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--accent)', marginTop: '4px', fontWeight: 600 }}>
+                    {item.winnerEventName}
+                  </div>
+                  
+                  <div style={{ marginTop: '12px', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div>
+                      <span className="muted">Certificate No:</span>{' '}
+                      <strong style={{ color: '#fff' }}>{item.issued ? item.cert.certificate_number : '—'}</strong>
+                    </div>
+                    <div>
+                      <span className="muted">Status:</span>{' '}
+                      <span className={item.issued ? 'success' : 'muted'} style={{ fontWeight: 600 }}>
+                        {item.issued ? '✓ Issued' : 'Not Issued'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
+                  {item.issued ? (
+                    <button className="link" onClick={() => downloadSingle(item.cert)} disabled={downloadingBulk} style={{ fontWeight: 600 }}>
+                      📥 Download PDF
+                    </button>
+                  ) : (
+                    <span className="muted" style={{ fontSize: '0.85rem' }}>Unavailable</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

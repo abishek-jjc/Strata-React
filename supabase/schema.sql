@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS public.leaders (
   created_at  timestamptz DEFAULT now()
 );
 ALTER TABLE public.leaders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.leaders ADD COLUMN IF NOT EXISTS image_url text;
 
 -- 2c. rules
 CREATE TABLE IF NOT EXISTS public.rules (
@@ -414,12 +415,12 @@ BEGIN
     SELECT assigned_college INTO v_first_college
       FROM public.lots WHERE lot_name = NEW.first_place LIMIT 1;
     IF v_first_college IS NOT NULL THEN
-      UPDATE public.students SET winning_prize = 'First Place'
-        WHERE event_id = NEW.event_id 
-          AND college_id IN (
-            SELECT id FROM public.colleges 
-             WHERE lower(trim(college)) = lower(trim(v_first_college))
-          );
+      SELECT id INTO v_first_college_id FROM public.colleges
+        WHERE lower(trim(CASE WHEN department IS NOT NULL AND trim(department) <> '' THEN college || ' (' || department || ')' ELSE college END)) = lower(trim(v_first_college)) LIMIT 1;
+      IF v_first_college_id IS NOT NULL THEN
+        UPDATE public.students SET winning_prize = 'First Place'
+          WHERE event_id = NEW.event_id AND college_id = v_first_college_id;
+      END IF;
     END IF;
   END IF;
 
@@ -427,12 +428,12 @@ BEGIN
     SELECT assigned_college INTO v_second_college
       FROM public.lots WHERE lot_name = NEW.second_place LIMIT 1;
     IF v_second_college IS NOT NULL THEN
-      UPDATE public.students SET winning_prize = 'Second Place'
-        WHERE event_id = NEW.event_id 
-          AND college_id IN (
-            SELECT id FROM public.colleges 
-             WHERE lower(trim(college)) = lower(trim(v_second_college))
-          );
+      SELECT id INTO v_second_college_id FROM public.colleges
+        WHERE lower(trim(CASE WHEN department IS NOT NULL AND trim(department) <> '' THEN college || ' (' || department || ')' ELSE college END)) = lower(trim(v_second_college)) LIMIT 1;
+      IF v_second_college_id IS NOT NULL THEN
+        UPDATE public.students SET winning_prize = 'Second Place'
+          WHERE event_id = NEW.event_id AND college_id = v_second_college_id;
+      END IF;
     END IF;
   END IF;
 
@@ -623,12 +624,16 @@ BEGIN
   FOR v_participant IN SELECT * FROM jsonb_array_elements(p_participants) LOOP
     INSERT INTO public.students (
       student_name, student_name_normalized, roll_no, food_type,
+      gender, department, year,
       registration_id, leader_id, college_id, event_id, certificate_status
     ) VALUES (
       v_participant->>'studentName',
       lower(trim(v_participant->>'studentName')),
       v_participant->>'rollNo',
       coalesce(v_participant->>'foodType', 'Veg'),
+      v_participant->>'gender',
+      v_participant->>'department',
+      v_participant->>'year',
       v_reg_id, p_leader_id, p_college_id, p_event_id, 'not issued'
     );
   END LOOP;
