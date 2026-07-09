@@ -72,20 +72,23 @@ export default function Payment() {
     e.preventDefault()
     setAuthError('')
     setVerifying(true)
+    const normalizedKey = enteredKey.trim().toUpperCase()
     try {
       const { data, error } = await supabase
-        .from(TABLES.PAYMENT_POLLS)
-        .select('*')
-        .eq('poll_key', enteredKey.trim().toUpperCase())
-        .maybeSingle()
+        .rpc('verify_payment_desk_key', { p_keycode: normalizedKey })
 
       if (error) throw error
 
       if (!data) {
         setAuthError('Invalid payment poll key.')
       } else {
-        sessionStorage.setItem('active_payment_poll', JSON.stringify(data))
-        setActivePoll(data)
+        const sessionPayload = {
+          id: data.id,
+          poll_name: data.poll_name,
+          poll_key: normalizedKey
+        }
+        sessionStorage.setItem('active_payment_poll', JSON.stringify(sessionPayload))
+        setActivePoll(sessionPayload)
       }
     } catch (err) {
       setAuthError(err.message)
@@ -131,23 +134,14 @@ export default function Payment() {
     e.preventDefault()
     setSaving(true)
     try {
-      // 1. Update college status to paid
-      const { error: updateError } = await supabase
-        .from(TABLES.COLLEGES)
-        .update({ is_paid: editPaid })
-        .eq('id', editingCollege.id)
+      // Clear payment and write trace log securely in a single transaction RPC
+      const { error: rpcError } = await supabase.rpc('clear_college_payment_with_key', {
+        p_college_id: editingCollege.id,
+        p_keycode: activePoll.poll_key,
+        p_is_paid: editPaid
+      })
 
-      if (updateError) throw updateError
-
-      // 2. Insert trace log in payment_logs if marked as paid
-      if (editPaid) {
-        const { error: logError } = await supabase.from(TABLES.PAYMENT_LOGS).insert({
-          poll_id: activePoll.id,
-          poll_name: activePoll.poll_name,
-          college_name: editingCollege.college,
-        })
-        if (logError) throw logError
-      }
+      if (rpcError) throw rpcError
 
       // Update local state without full reload
       setColleges((prev) =>

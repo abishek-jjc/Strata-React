@@ -643,6 +643,11 @@ DECLARE
   v_leader_id uuid;
   v_email text;
 BEGIN
+  -- Strict identity authorization check
+  IF p_user_id <> auth.uid() THEN
+    RAISE EXCEPTION 'Unauthorized profile configuration request.';
+  END IF;
+
   SELECT email INTO v_email FROM auth.users WHERE id = p_user_id;
   IF v_email IS NULL THEN
     RAISE EXCEPTION 'User not found in authentication catalog.';
@@ -696,10 +701,94 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
+  -- Verify caller is admin OR is the specific leader associated with this registration
+  IF NOT (
+    public.current_role_name() = 'admin' OR
+    EXISTS (
+      SELECT 1 FROM public.registrations r
+       WHERE r.id = p_registration_id
+         AND r.leader_id = (SELECT ref_id FROM public.profiles WHERE id = auth.uid())
+    )
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized registration update request.';
+  END IF;
+
   UPDATE public.registrations
      SET veg_count = p_veg_count,
          nonveg_count = p_nonveg_count
    WHERE id = p_registration_id;
+END;
+$$;
+
+-- SECURITY DEFINER RPC to verify payment poll desk keys securely without exposing keys
+CREATE OR REPLACE FUNCTION public.verify_payment_desk_key(
+  p_keycode text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_poll_id uuid;
+  v_poll_name text;
+BEGIN
+  SELECT id, poll_name INTO v_poll_id, v_poll_name
+    FROM public.payment_polls
+   WHERE upper(trim(poll_key)) = upper(trim(p_keycode))
+   LIMIT 1;
+
+  IF v_poll_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'id', v_poll_id,
+    'poll_name', v_poll_name
+  );
+END;
+$$;
+
+-- SECURITY DEFINER RPC to clear college payment and insert log in a single transaction
+CREATE OR REPLACE FUNCTION public.clear_college_payment_with_key(
+  p_college_id uuid,
+  p_keycode    text,
+  p_is_paid    boolean
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_poll_id uuid;
+  v_poll_name text;
+  v_college_name text;
+BEGIN
+  -- Verify operator desk key code
+  SELECT id, poll_name INTO v_poll_id, v_poll_name
+    FROM public.payment_polls
+   WHERE upper(trim(poll_key)) = upper(trim(p_keycode))
+   LIMIT 1;
+
+  IF v_poll_id IS NULL THEN
+    RAISE EXCEPTION 'Unauthorized payment operator desk keycode.';
+  END IF;
+
+  -- Get college name for logging
+  SELECT college INTO v_college_name FROM public.colleges WHERE id = p_college_id;
+  IF v_college_name IS NULL THEN
+    RAISE EXCEPTION 'College not found.';
+  END IF;
+
+  -- 1. Update college status to paid
+  UPDATE public.colleges
+     SET is_paid = p_is_paid
+   WHERE id = p_college_id;
+
+  -- 2. Insert trace log in payment_logs if marked as paid
+  IF p_is_paid THEN
+    INSERT INTO public.payment_logs (poll_id, poll_name, college_name)
+    VALUES (v_poll_id, v_poll_name, v_college_name);
+  END IF;
 END;
 $$;
 
@@ -832,13 +921,18 @@ DROP POLICY IF EXISTS "colleges: admin write"      ON public.colleges;
 DROP POLICY IF EXISTS "colleges: payment update"   ON public.colleges;
 CREATE POLICY "colleges: public read"      ON public.colleges FOR SELECT USING (true);
 CREATE POLICY "colleges: admin write"      ON public.colleges FOR ALL    USING (current_role_name() = 'admin');
-CREATE POLICY "colleges: payment update"   ON public.colleges FOR UPDATE USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "student_leaders: signed-in read" ON public.student_leaders;
 DROP POLICY IF EXISTS "student_leaders: public read"    ON public.student_leaders;
 DROP POLICY IF EXISTS "student_leaders: admin write"    ON public.student_leaders;
-CREATE POLICY "student_leaders: public read"    ON public.student_leaders FOR SELECT USING (true);
-CREATE POLICY "student_leaders: admin write"    ON public.student_leaders FOR ALL    USING (current_role_name() = 'admin');
+CREATE POLICY "student_leaders: private read"   ON public.student_leaders FOR SELECT
+  USING (
+    current_role_name() = 'admin' OR
+    email = auth.jwt()->>'email' OR
+    id = (SELECT ref_id FROM public.profiles WHERE id = auth.uid())
+  );
+CREATE POLICY "student_leaders: admin write"    ON public.student_leaders FOR ALL
+  USING (current_role_name() = 'admin');
 
 DROP POLICY IF EXISTS "lots: public read"     ON public.lots;
 DROP POLICY IF EXISTS "lots: admin write"     ON public.lots;
@@ -847,14 +941,34 @@ CREATE POLICY "lots: admin write"     ON public.lots FOR ALL    USING (current_r
 
 DROP POLICY IF EXISTS "registrations: public read"   ON public.registrations;
 DROP POLICY IF EXISTS "registrations: admin write"   ON public.registrations;
-CREATE POLICY "registrations: public read"   ON public.registrations FOR SELECT USING (true);
-CREATE POLICY "registrations: admin write"   ON public.registrations FOR ALL    USING (current_role_name() = 'admin');
+CREATE POLICY "registrations: secure read"   ON public.registrations FOR SELECT
+  USING (
+    current_role_name() = 'admin' OR
+    leader_id = (SELECT ref_id FROM public.profiles WHERE id = auth.uid()) OR
+    event_id IN (
+      SELECT event_id FROM public.incharges WHERE id = (
+        SELECT ref_id FROM public.profiles WHERE id = auth.uid()
+      )
+    )
+  );
+CREATE POLICY "registrations: admin write"   ON public.registrations FOR ALL
+  USING (current_role_name() = 'admin');
 
 DROP POLICY IF EXISTS "students: public read"                   ON public.students;
 DROP POLICY IF EXISTS "students: admin write"                   ON public.students;
 DROP POLICY IF EXISTS "students: incharge update winner_place"  ON public.students;
-CREATE POLICY "students: public read"   ON public.students FOR SELECT USING (true);
-CREATE POLICY "students: admin write"   ON public.students FOR ALL    USING (current_role_name() = 'admin');
+CREATE POLICY "students: secure read"   ON public.students FOR SELECT
+  USING (
+    current_role_name() = 'admin' OR
+    leader_id = (SELECT ref_id FROM public.profiles WHERE id = auth.uid()) OR
+    event_id IN (
+      SELECT event_id FROM public.incharges WHERE id = (
+        SELECT ref_id FROM public.profiles WHERE id = auth.uid()
+      )
+    )
+  );
+CREATE POLICY "students: admin write"   ON public.students FOR ALL
+  USING (current_role_name() = 'admin');
 CREATE POLICY "students: incharge update winner_place" ON public.students FOR UPDATE
   USING (
     current_role_name() = 'incharge' AND
@@ -867,23 +981,38 @@ CREATE POLICY "students: incharge update winner_place" ON public.students FOR UP
 
 DROP POLICY IF EXISTS "certificates: admin read"  ON public.certificates;
 DROP POLICY IF EXISTS "certificates: admin write" ON public.certificates;
-CREATE POLICY "certificates: admin read"  ON public.certificates FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "certificates: admin write" ON public.certificates FOR ALL    USING (current_role_name() = 'admin');
+CREATE POLICY "certificates: secure read"  ON public.certificates FOR SELECT
+  USING (
+    current_role_name() = 'admin' OR
+    student_id IN (
+      SELECT id FROM public.students
+       WHERE leader_id = (SELECT ref_id FROM public.profiles WHERE id = auth.uid())
+    )
+  );
+CREATE POLICY "certificates: admin write" ON public.certificates FOR ALL
+  USING (current_role_name() = 'admin');
 
 DROP POLICY IF EXISTS "payments: admin read"  ON public.payments;
 DROP POLICY IF EXISTS "payments: admin write" ON public.payments;
-CREATE POLICY "payments: admin read"  ON public.payments FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "payments: admin write" ON public.payments FOR ALL    USING (current_role_name() = 'admin');
+CREATE POLICY "payments: secure read"  ON public.payments FOR SELECT
+  USING (
+    current_role_name() = 'admin' OR
+    college_id = (SELECT college_id FROM public.profiles WHERE id = auth.uid())
+  );
+CREATE POLICY "payments: admin write" ON public.payments FOR ALL
+  USING (current_role_name() = 'admin');
 
 DROP POLICY IF EXISTS "payment_polls: public read"  ON public.payment_polls;
 DROP POLICY IF EXISTS "payment_polls: admin write"  ON public.payment_polls;
-CREATE POLICY "payment_polls: public read"  ON public.payment_polls FOR SELECT USING (true);
-CREATE POLICY "payment_polls: admin write"  ON public.payment_polls FOR ALL    USING (current_role_name() = 'admin');
+CREATE POLICY "payment_polls: admin read"  ON public.payment_polls FOR SELECT
+  USING (current_role_name() = 'admin');
+CREATE POLICY "payment_polls: admin write"  ON public.payment_polls FOR ALL
+  USING (current_role_name() = 'admin');
 
 DROP POLICY IF EXISTS "payment_logs: public insert" ON public.payment_logs;
 DROP POLICY IF EXISTS "payment_logs: admin read"    ON public.payment_logs;
-CREATE POLICY "payment_logs: public insert" ON public.payment_logs FOR INSERT WITH CHECK (true);
-CREATE POLICY "payment_logs: admin read"    ON public.payment_logs FOR SELECT USING (true);
+CREATE POLICY "payment_logs: admin read"    ON public.payment_logs FOR SELECT
+  USING (current_role_name() = 'admin');
 
 DROP POLICY IF EXISTS "winners: public read"  ON public.winners;
 DROP POLICY IF EXISTS "winners: admin write"  ON public.winners;
@@ -1091,24 +1220,36 @@ CREATE POLICY "Public Download Assets" ON storage.objects
   FOR SELECT TO public
   USING (bucket_id = 'assets');
 
--- Policy to allow anyone (anonymous and authenticated users) to upload assets
+-- Policy to allow only admins to upload assets
 DROP POLICY IF EXISTS "Public Upload Assets" ON storage.objects;
 CREATE POLICY "Public Upload Assets" ON storage.objects
   FOR INSERT TO public
-  WITH CHECK (bucket_id = 'assets');
+  WITH CHECK (
+    bucket_id = 'assets' AND
+    auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'admin')
+  );
 
--- Policy to allow updates on assets
+-- Policy to allow only admins to update assets
 DROP POLICY IF EXISTS "Public Update Assets" ON storage.objects;
 CREATE POLICY "Public Update Assets" ON storage.objects
   FOR UPDATE TO public
-  USING (bucket_id = 'assets')
-  WITH CHECK (bucket_id = 'assets');
+  USING (
+    bucket_id = 'assets' AND
+    auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'admin')
+  )
+  WITH CHECK (
+    bucket_id = 'assets' AND
+    auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'admin')
+  );
 
--- Policy to allow deletions of assets
+-- Policy to allow only admins to delete assets
 DROP POLICY IF EXISTS "Public Delete Assets" ON storage.objects;
 CREATE POLICY "Public Delete Assets" ON storage.objects
   FOR DELETE TO public
-  USING (bucket_id = 'assets');
+  USING (
+    bucket_id = 'assets' AND
+    auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'admin')
+  );
 
 -- ============================================================================
 -- END OF SCRIPT
