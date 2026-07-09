@@ -562,6 +562,8 @@ BEGIN
 EXCEPTION
   WHEN unique_violation THEN
     RAISE EXCEPTION 'This college has already registered for this event.';
+  WHEN foreign_key_violation THEN
+    RAISE EXCEPTION 'Registration failed: The student leader or college profile is invalid or has been deleted.';
 END;
 $$;
 
