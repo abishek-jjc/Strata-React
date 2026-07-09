@@ -12,10 +12,19 @@ export default function Home() {
   const [invTitle, setInvTitle] = useState('You Are Cordially Invited')
   const [invTagline, setInvTagline] = useState('STRATA 2K26 — State Level Intercollegiate Technical Meet, ANJAC Sivakasi')
   const [invBody, setInvBody] = useState('')
+  const [invPdfUrl, setInvPdfUrl] = useState('')
   const [eventCount, setEventCount] = useState(6)
   
   // Countdown state
   const [timeLeft, setTimeLeft] = useState({ days: '00', hours: '00', minutes: '00', seconds: '00' })
+
+  function handleDownloadInvitation() {
+    if (invPdfUrl && invPdfUrl.trim() !== '') {
+      window.open(invPdfUrl, '_blank')
+    } else {
+      alert('Invitation PDF is not available yet.')
+    }
+  }
 
   // Scanner state
   const [showScanner, setShowScanner] = useState(false)
@@ -120,6 +129,7 @@ export default function Home() {
         if (settingsMap.invitation_title) setInvTitle(settingsMap.invitation_title)
         if (settingsMap.invitation_tagline) setInvTagline(settingsMap.invitation_tagline)
         if (settingsMap.invitation_body) setInvBody(settingsMap.invitation_body)
+        if (settingsMap.invitation_pdf_url) setInvPdfUrl(settingsMap.invitation_pdf_url)
       }
 
       // Event Count
@@ -169,8 +179,10 @@ export default function Home() {
     <GuestLayout>
       {/* Hero Section */}
       <section className="guest-hero">
-        <p className="guest-college-info">Ayya Nadar Janaki Ammal College (Autonomous)</p>
-        <p className="guest-college-sub">Sivakasi · Re-accredited with A++ by NAAC</p>
+        <p className="guest-college-info">Ayya Nadar Janaki Ammal College</p>
+        <p className="guest-college-sub" style={{ textTransform: 'none', letterSpacing: 'normal', fontSize: '0.85rem', maxWidth: '800px', margin: '-10px auto 30px auto', lineHeight: '1.5' }}>
+          (Autonomous, Affiliated to Madurai Kamaraj University, Re-accredited (4th cycle) with ‘A+’ Grade (CGPA of 3.48 out of 4) by NAAC, recognized as College of Excellence and Mentor Institution by UGC, Star College by DBT and Ranked 72nd at National Level in NIRF 2025, DST-FIST(2024) supported and ISO 9001:2015 & ISO 21001:2018 Certified Institution), Sivakasi
+        </p>
         <h1 className="guest-hero-title">STRATA 2K26</h1>
         <p className="guest-hero-tagline">
           State Level Intercollegiate Technical Meet organized by the <strong>Department of Computer Science</strong>
@@ -235,9 +247,21 @@ export default function Home() {
               <strong>Dept. of Computer Science, ANJAC</strong>
             </div>
             <div style={{ display: 'flex', gap: '15px' }}>
-              <Link to="/invitation" style={{ padding: '12px 24px', borderRadius: '50px', border: '1px solid var(--g-glass-border)', color: 'var(--g-secondary)', textDecoration: 'none', fontWeight: '600', fontSize: '0.9rem' }}>
-                View Full Invitation
-              </Link>
+              <button 
+                onClick={handleDownloadInvitation} 
+                style={{ 
+                  padding: '12px 24px', 
+                  borderRadius: '50px', 
+                  border: '1px solid var(--g-glass-border)', 
+                  color: 'var(--g-secondary)', 
+                  background: 'none', 
+                  fontWeight: '600', 
+                  fontSize: '0.9rem',
+                  cursor: 'pointer' 
+                }}
+              >
+                Download Invitation
+              </button>
               <Link to="/login" className="guest-btn guest-btn-primary" style={{ padding: '12px 28px', fontSize: '0.9rem' }}>
                 Login Portal →
               </Link>

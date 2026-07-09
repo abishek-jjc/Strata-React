@@ -58,13 +58,6 @@ export default function StudentList() {
 
   return (
     <div>
-      <div style={{ padding: '15px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', marginBottom: '20px', borderRadius: '8px' }}>
-        <h4 style={{ margin: '0 0 10px 0', color: 'var(--accent)' }}>System Diagnostics</h4>
-        <pre style={{ margin: 0, fontSize: '0.85rem', overflow: 'auto', maxHeight: '150px' }}>
-          {JSON.stringify({ profile, studentsCount: students.length, studentsLoading }, null, 2)}
-        </pre>
-      </div>
-
       <h2>Your Participants</h2>
       <div className="table-responsive">
         <table className="data-table">

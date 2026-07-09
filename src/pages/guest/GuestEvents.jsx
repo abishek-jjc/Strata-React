@@ -3,6 +3,48 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { TABLES } from '../../supabase/tables'
 import GuestLayout from '../../components/layout/GuestLayout'
+import { 
+  Code2, 
+  Monitor, 
+  HelpCircle, 
+  Presentation, 
+  Cpu, 
+  Briefcase, 
+  Trophy,
+  QrCode,
+  Brain,
+  Recycle,
+  Lightbulb,
+  Bug,
+  Film
+} from 'lucide-react'
+
+const EVENT_ICONS = {
+  'logic hunt': QrCode,
+  'mind spark': Brain,
+  'code detox': Recycle,
+  'tech premier league': Trophy,
+  'idea forge': Lightbulb,
+  'code sprint': Code2,
+  'syntax wars': Bug,
+  'frame fusion': Film
+}
+
+const getEventIcon = (name) => {
+  if (!name) return null
+  const normalized = name.toLowerCase().trim()
+  const IconComponent = EVENT_ICONS[normalized] || Trophy
+  return (
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      filter: 'drop-shadow(0 0 25px rgba(0, 242, 254, 0.45))' 
+    }}>
+      <IconComponent size={140} strokeWidth={1.2} style={{ color: 'var(--g-secondary)' }} />
+    </div>
+  )
+}
 
 export default function GuestEvents() {
   const navigate = useNavigate()
@@ -73,16 +115,7 @@ export default function GuestEvents() {
   const mainsVenue = activeEvent ? (venues.find((v) => v.id === activeEvent.mains_venue)?.venue_name || 'TBD') : 'TBD'
   const staffName = activeEvent ? (incharges.find((i) => i.id === activeEvent.staff_incharge)?.name || 'TBD') : 'TBD'
 
-  function getInitials(name) {
-    if (!name) return ''
-    return name
-      .split(' ')
-      .filter(w => !['dr.', 'mr.', 'ms.'].includes(w.toLowerCase()))
-      .map(w => w[0])
-      .join('')
-      .substring(0, 2)
-      .toUpperCase()
-  }
+  // getInitials removed in favor of Lucide Icons mapping
 
   return (
     <GuestLayout>
@@ -115,10 +148,10 @@ export default function GuestEvents() {
             {activeEvent && (
               <div className="guest-event-details-card guest-glass-panel">
                 
-                {/* Left: Fallback Media initials */}
+                {/* Left: Event Illustration Icon */}
                 <div className="guest-details-media-container">
                   <div className="guest-details-banner-fallback">
-                    <span>{getInitials(activeEvent.event_name)}</span>
+                    {getEventIcon(activeEvent.event_name)}
                   </div>
                 </div>
 

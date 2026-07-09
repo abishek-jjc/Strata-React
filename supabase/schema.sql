@@ -926,6 +926,7 @@ CREATE POLICY "colleges: admin write"      ON public.colleges FOR ALL    USING (
 
 DROP POLICY IF EXISTS "student_leaders: signed-in read" ON public.student_leaders;
 DROP POLICY IF EXISTS "student_leaders: public read"    ON public.student_leaders;
+DROP POLICY IF EXISTS "student_leaders: private read"   ON public.student_leaders;
 DROP POLICY IF EXISTS "student_leaders: admin write"    ON public.student_leaders;
 CREATE POLICY "student_leaders: private read"   ON public.student_leaders FOR SELECT
   USING (
@@ -942,6 +943,7 @@ CREATE POLICY "lots: public read"     ON public.lots FOR SELECT USING (true);
 CREATE POLICY "lots: admin write"     ON public.lots FOR ALL    USING (current_role_name() = 'admin');
 
 DROP POLICY IF EXISTS "registrations: public read"   ON public.registrations;
+DROP POLICY IF EXISTS "registrations: secure read"   ON public.registrations;
 DROP POLICY IF EXISTS "registrations: admin write"   ON public.registrations;
 CREATE POLICY "registrations: secure read"   ON public.registrations FOR SELECT
   USING (
@@ -957,6 +959,7 @@ CREATE POLICY "registrations: admin write"   ON public.registrations FOR ALL
   USING (current_role_name() = 'admin');
 
 DROP POLICY IF EXISTS "students: public read"                   ON public.students;
+DROP POLICY IF EXISTS "students: secure read"                   ON public.students;
 DROP POLICY IF EXISTS "students: admin write"                   ON public.students;
 DROP POLICY IF EXISTS "students: incharge update winner_place"  ON public.students;
 CREATE POLICY "students: secure read"   ON public.students FOR SELECT
@@ -982,6 +985,7 @@ CREATE POLICY "students: incharge update winner_place" ON public.students FOR UP
   );
 
 DROP POLICY IF EXISTS "certificates: admin read"  ON public.certificates;
+DROP POLICY IF EXISTS "certificates: secure read"  ON public.certificates;
 DROP POLICY IF EXISTS "certificates: admin write" ON public.certificates;
 CREATE POLICY "certificates: secure read"  ON public.certificates FOR SELECT
   USING (
@@ -994,8 +998,9 @@ CREATE POLICY "certificates: secure read"  ON public.certificates FOR SELECT
 CREATE POLICY "certificates: admin write" ON public.certificates FOR ALL
   USING (current_role_name() = 'admin');
 
-DROP POLICY IF EXISTS "payments: admin read"  ON public.payments;
-DROP POLICY IF EXISTS "payments: admin write" ON public.payments;
+DROP POLICY IF EXISTS "payments: admin read"   ON public.payments;
+DROP POLICY IF EXISTS "payments: secure read"   ON public.payments;
+DROP POLICY IF EXISTS "payments: admin write"  ON public.payments;
 CREATE POLICY "payments: secure read"  ON public.payments FOR SELECT
   USING (
     current_role_name() = 'admin' OR
@@ -1005,6 +1010,7 @@ CREATE POLICY "payments: admin write" ON public.payments FOR ALL
   USING (current_role_name() = 'admin');
 
 DROP POLICY IF EXISTS "payment_polls: public read"  ON public.payment_polls;
+DROP POLICY IF EXISTS "payment_polls: admin read"   ON public.payment_polls;
 DROP POLICY IF EXISTS "payment_polls: admin write"  ON public.payment_polls;
 CREATE POLICY "payment_polls: admin read"  ON public.payment_polls FOR SELECT
   USING (current_role_name() = 'admin');
@@ -1066,7 +1072,7 @@ INSERT INTO public.settings (key_name, value) VALUES
   ('invitation_tagline',      'STRATA 2K26 — State Level Intercollegiate Technical Meet, ANJAC Sivakasi'),
   ('invitation_body',         'On behalf of the Department of Computer Science, Ayya Nadar Janaki Ammal College (Autonomous), Sivakasi, we warmly invite you and your talented students to participate in STRATA 2K26 — our prestigious State Level Intercollegiate Technical Meet.
 
-The event features 6 exciting contests spanning Coding, Web Design, Technical Quiz, Paper Presentation, AI & Prompt Engineering, and IT Management challenges.
+The event features 8 exciting contests: Logic Hunt, Mind Spark, Code Detox, Tech Premier League, Idea Forge, Code Sprint, Syntax Wars, and Frame Fusion.
 
 Date: 25 September 2026
 Venue: ANJAC, Sivakasi
@@ -1084,7 +1090,8 @@ We warmly look forward to welcoming you and your participants to our campus.'),
   ('whatsapp_group_link',     ''),
   ('participation_cert_url',  ''),
   ('winner_cert_1_url',       ''),
-  ('winner_cert_2_url',       '')
+  ('winner_cert_2_url',       ''),
+  ('about_us',                'Ayya Nadar Janaki Ammal College (ANJAC), Sivakasi, established in 1963, is a pioneer in rural education and a UGC-conferred ''College of Excellence''. STRATA 2K26 is our premier State-Level Intercollegiate Technical Meet organized by the Department of Computer Science, aimed at fostering competitive excellence and innovation in computer technology.')
 ON CONFLICT (key_name) DO UPDATE SET value = EXCLUDED.value;
 
 -- 6c. Default leaders (Principal + HOD messages)
@@ -1124,6 +1131,7 @@ Misbehavior or violation of rules will lead to the immediate disqualification of
   );
 
 -- 6e. Default events
+DELETE FROM public.events;
 INSERT INTO public.events (
   id, event_name, category, description, rules, staff_incharge,
   minimum_participants, maximum_participants, team_size,
@@ -1140,41 +1148,53 @@ SELECT
   'active'
 FROM (VALUES
   (
-    '50000000-0000-0000-0000-000000000001',
-    'Code Craft', 'Coding & Debugging',
-    'Unleash your programming intellect. Solve algorithmic puzzles, complete data structure challenges, and write clean, optimized code under time constraints.',
-    E'Individual event.\nParticipants can choose between C, C++, Java, or Python.\nDuration: 45 minutes.\nStrictly no internet access or external devices allowed.\nDecisions of the jury will be final and binding.',
-    'Mrs. A. Devi', '1','1','1', 'CS Lab III','CS Lab III','10:00','10:00'
+    '50000000-0000-0000-0000-000000000011',
+    'Logic Hunt', 'Technical Game',
+    'Clue-solving treasure hunt using QR codes placed around the campus.',
+    E'Team Size: 3 Participants.\nPreliminary round will be conducted.\nTwo participants from a team will be allowed to attend the prelims.\n10 teams will be selected to the next round.\nQR Codes will be placed at various locations.\nEach QR Code contains a clue or question.\nTeams must solve the clues and locate the next QR code.\nFirst three teams completing all clues qualify for the final round.',
+    'Mrs. A. Devi', '3', '3', '3', 'Main Seminar Hall', 'Conference Hall', '10:00', '11:30'
   ),(
-    '50000000-0000-0000-0000-000000000002',
-    'Web Vision', 'Web Design',
-    'Build the future of UI. Design and implement responsive, visually outstanding, and accessible web experiences based on a surprise live theme.',
-    E'Team of 2 members maximum.\nHTML, CSS, JS, and CSS Frameworks (Bootstrap/Tailwind via CDN) are permitted.\nTime limit: 60 minutes.\nPre-made templates or themes are strictly forbidden.\nTheme will be announced at the commencement of the event.',
-    'Mr. M. Rajesh', '1','2','2', 'UG Lab 5','UG Lab 5','10:30','10:30'
+    '50000000-0000-0000-0000-000000000012',
+    'Mind Spark', 'Technical Quiz',
+    'Test your range of IT knowledge, CS fundamentals, programming concepts, and current technology trends.',
+    E'Team Size: 2 Participants.\nPreliminary round will be conducted.\nTop five teams will qualify for the final round.\nQuestions will include:\n- Computer Science Fundamentals\n- Programming Concepts\n- Current Technology Trends',
+    'Dr. P. Senthil', '2', '2', '2', 'Main Seminar Hall', 'Main Seminar Hall', '11:00', '12:00'
   ),(
-    '50000000-0000-0000-0000-000000000003',
-    'Quiz Quest', 'Technical Quiz',
-    'Test your range of IT knowledge. A fast-paced contest testing your familiarity with computer history, networking, modern tools, and system architecture.',
-    E'Team of 2 members.\nPreliminary written round will filter top 6 teams for the stage quiz.\nNo negative marking in preliminary round.\nStage quiz consists of Audio-Visual, Rapid Fire, and Buzz rounds.\nMobile usage results in instant disqualification.',
-    'Dr. P. Senthil', '2','2','2', 'Main Seminar Hall','Main Seminar Hall','11:30','11:30'
+    '50000000-0000-0000-0000-000000000013',
+    'Code Detox', 'Model Making',
+    'Craft innovative models using e-waste/raw materials to promote sustainability.',
+    E'Team Size: 2 Participants.\nParticipants should bring their own e-waste/raw materials.\nComponents should not be pre-assembled.\nAssembly should begin only after the event starts.\nTeams with pre-assembled components will be disqualified.\nTime Duration: 1 Hour.',
+    'Mr. M. Rajesh', '2', '2', '2', 'UG Lab 5', 'UG Lab 5', '10:15', '10:15'
   ),(
-    '50000000-0000-0000-0000-000000000004',
-    'Paper Vista', 'PPT Presentation',
-    'Present your technical findings. Showcase original research papers and ideas on AI, Cloud Computing, Cyber Security, and Big Data.',
-    E'Team of maximum 2 members.\nSubmit a soft copy of the PPT and abstract during desk registration.\nTopics: AI/ML, Blockchain, Cybersecurity, Cloud Systems, IoT.\nPresentation: 7 minutes | Q&A: 3 minutes.',
-    'Dr. R. Kavitha', '1','2','2', 'CS Seminar Hall','CS Seminar Hall','10:15','10:15'
+    '50000000-0000-0000-0000-000000000014',
+    'Tech Premier League', 'Sports Quiz',
+    'An IPL-based technical and sports quiz ending in a high-stakes mock auction.',
+    E'Team Size: 2 Participants.\nPreliminary IPL Quiz round will be conducted.\nQuestions will be based on IPL.\nTop five teams will be selected for the final round (AUCTION).\nPrizes will be awarded to the Top Two Teams.',
+    'Dr. R. Kavitha', '2', '2', '2', 'CS Seminar Hall', 'CS Seminar Hall', '10:30', '12:00'
   ),(
-    '50000000-0000-0000-0000-000000000005',
-    'AI Fusion', 'Prompt Engineering',
-    'Prompt engineering challenge. Leverage LLMs and generative design interfaces to complete complex asset creation and prompt-optimization tasks.',
-    E'Individual event.\nPrompt engineering challenge.\nTools and platforms will be provided by the host department.\nParticipants must achieve the target generated output in the fewest steps.\nStrict time limit of 30 minutes.\nPrompt logs must be saved and submitted.',
-    'Mrs. S. Nancy', '1','1','1', 'PG Lab','PG Lab','11:00','11:00'
+    '50000000-0000-0000-0000-000000000015',
+    'Idea Forge', 'Presentation',
+    'Present innovative ideas on Artificial Intelligence (AI), connect systems with Model Context Protocol (MCP), and showcase agentic systems.',
+    E'Two participants per team.\nFive minutes for presentation and three minutes for queries.\nOriginal innovative ideas can be presented.\nTopics may be from the following:\n- Retrieval-Augmented Generation (RAG)\n- Model Context Protocol (MCP)\n- Agentic AI\n- AI Agents\n- Large Language Models (LLMs)\n- Generative AI\n- AI in Education\n- AI for Smart Healthcare\n- Ethical AI\n- The Future of AI\nNote: PPT/PDF submission to cs-regular@anjaconline.org on or before 05.08.2026.',
+    'Mrs. S. Nancy', '2', '2', '2', 'PG Lab', 'PG Lab', '09:45', '09:45'
   ),(
-    '50000000-0000-0000-0000-000000000006',
-    'Pitch Perfect', 'IT Manager',
-    'Enter the boardroom. Face high-pressure stress interviews, team coordination tests, and showcase manager-level problem-solving capacities.',
-    E'Individual event.\nRound 1: Technical & Managerial Aptitude Test.\nRound 2: Group Discussion.\nRound 3: Stress Interview.\nFormal attire is mandatory. Participants must submit their Resume.',
-    'V. Venkatesh Babu', '1','1','1', 'HOD Office','HOD Office','12:00','12:00'
+    '50000000-0000-0000-0000-000000000016',
+    'Code Sprint', 'Coding',
+    'Implement clean, optimized algorithms for spot problems under time limits.',
+    E'One participant per team.\nPreliminary will be conducted.\nDuration is one hour.\nProblem will be given on the spot.\nSoftware can be used: C/C++/Java/Python.',
+    'Mrs. A. Devi', '1', '1', '1', 'CS Lab I', 'CS Lab I', '10:00', '10:00'
+  ),(
+    '50000000-0000-0000-0000-000000000017',
+    'Syntax Wars', 'Debugging',
+    'Identify and correct syntactic and logical errors in code files.',
+    E'One participant per team.\nPreliminary will be conducted.\nIdentify and correct errors in the given programs.\nLanguages may include C, C++, Java, and Python.',
+    'Mr. M. Rajesh', '1', '1', '1', 'CS Lab II', 'CS Lab II', '11:00', '11:00'
+  ),(
+    '50000000-0000-0000-0000-000000000018',
+    'Frame Fusion', 'Short Film',
+    'Showcase your cinematic and storytelling skills on an open theme.',
+    E'The competition is based on an Open Theme.\nA maximum of 2 participants are allowed per team.\nThe duration of the short film must be between 3–4 minutes (including title and credits).\nThe completed short film must be submitted on or before 02/08/2026, prior to the event date.\nAny film containing vulgar, offensive, illegal, or unsafe content will be disqualified.\nThe use of copyrighted material is strictly prohibited.',
+    'V. Venkatesh Babu', '1', '2', '2', 'Conference Hall', 'Conference Hall', '12:00', '12:00'
   )
 ) AS e(id, event_name, category, description, rules, staff_incharge,
        min_p, max_p, team_sz, p_venue, m_venue, p_time, m_time)

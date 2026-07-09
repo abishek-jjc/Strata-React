@@ -144,7 +144,6 @@ export default function GuestLayout({ children }) {
               <li><NavLink to="/events" onClick={() => setMobileOpen(false)}>Contests</NavLink></li>
               <li><NavLink to="/rules" onClick={() => setMobileOpen(false)}>Rules</NavLink></li>
               <li><NavLink to="/contact" onClick={() => setMobileOpen(false)}>Contact Us</NavLink></li>
-              <li><NavLink to="/invitation" onClick={() => setMobileOpen(false)}>Invitation</NavLink></li>
               <li>
                 <button 
                   className="guest-nav-cta" 

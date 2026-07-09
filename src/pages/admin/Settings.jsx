@@ -8,6 +8,7 @@ export default function Settings() {
   const [invTagline, setInvTagline] = useState('')
   const [invBody, setInvBody] = useState('')
   const [invPdfUrl, setInvPdfUrl] = useState('')
+  const [aboutUs, setAboutUs] = useState('')
   const [paymentQrUrl, setPaymentQrUrl] = useState('')
   const [whatsappLink, setWhatsappLink] = useState('')
   const [contactEmail, setContactEmail] = useState('')
@@ -42,6 +43,7 @@ export default function Settings() {
             if (row.key_name === 'contact_phone') setContactPhone(row.value)
             if (row.key_name === 'contact_address') setContactAddress(row.value)
             if (row.key_name === 'contact_extra') setContactExtra(row.value)
+            if (row.key_name === 'about_us') setAboutUs(row.value)
           })
         }
       } catch (err) {
@@ -71,6 +73,7 @@ export default function Settings() {
         { key_name: 'contact_phone', value: contactPhone },
         { key_name: 'contact_address', value: contactAddress },
         { key_name: 'contact_extra', value: contactExtra },
+        { key_name: 'about_us', value: aboutUs }
       ])
 
       if (upsertError) throw upsertError
@@ -238,6 +241,16 @@ export default function Settings() {
             rows={8}
             value={invBody}
             onChange={(e) => setInvBody(e.target.value)}
+            required
+          />
+        </label>
+
+        <label className="field">
+          <span>About Us text (one paragraph)</span>
+          <textarea
+            rows={5}
+            value={aboutUs}
+            onChange={(e) => setAboutUs(e.target.value)}
             required
           />
         </label>

@@ -4,16 +4,31 @@ import { TABLES } from '../../supabase/tables'
 import GuestLayout from '../../components/layout/GuestLayout'
 
 export default function AboutUs() {
+  const [aboutUsText, setAboutUsText] = useState('')
   const [leaders, setLeaders] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function loadData() {
-      const { data } = await supabase
+      // Fetch about_us setting
+      const { data: settingData } = await supabase
+        .from(TABLES.SETTINGS)
+        .select('key_name, value')
+        .eq('key_name', 'about_us')
+        .maybeSingle()
+      if (settingData) {
+        setAboutUsText(settingData.value)
+      }
+
+      // Fetch leaders
+      const { data: leadersData } = await supabase
         .from(TABLES.LEADERS)
         .select('*')
         .order('created_at', { ascending: true })
-      if (data) setLeaders(data)
+      if (leadersData) {
+        setLeaders(leadersData)
+      }
+
       setLoading(false)
     }
     loadData()
@@ -21,55 +36,26 @@ export default function AboutUs() {
 
   return (
     <GuestLayout>
-      {/* About Section */}
-      <section className="guest-section" style={{ paddingTop: '40px' }}>
+      {/* About Us Paragraph Section */}
+      <section className="guest-section" style={{ paddingTop: '40px', paddingBottom: '30px' }}>
         <div className="guest-section-header">
-          <span className="guest-section-tag">A Legacy of Light</span>
-          <h2 className="guest-section-title">The College</h2>
+          <span className="guest-section-tag">STRATA 2K26</span>
+          <h2 className="guest-section-title">About Us</h2>
         </div>
-        <div className="guest-about-grid">
-          <div className="guest-college-highlight guest-glass-panel">
-            <h3>ANJAC Sivakasi</h3>
-            <div className="guest-highlight-item">
-              <div className="guest-highlight-icon">★</div>
-              <div className="guest-highlight-text">
-                <h4>Estd. 1963</h4>
-                <p>Founded by Thiru. P. Ayya Nadar and Thirumathi A. Janaki Ammal to cater to rural education needs.</p>
-              </div>
-            </div>
-            <div className="guest-highlight-item">
-              <div className="guest-highlight-icon">★</div>
-              <div className="guest-highlight-text">
-                <h4>College of Excellence</h4>
-                <p>Conferred with the prestigious "College of Excellence" status by the UGC.</p>
-              </div>
-            </div>
-            <div className="guest-highlight-item">
-              <div className="guest-highlight-icon">★</div>
-              <div className="guest-highlight-text">
-                <h4>Sprawling 150+ Acres</h4>
-                <p>State-of-the-art campus infrastructure located on the Sivakasi-Srivilliputhur highway.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="guest-about-content">
-            <h3>Academic Eminence</h3>
-            <p>
-              Ayya Nadar Janaki Ammal College (ANJAC), established in 1963, stands as a beacon of academic excellence in Southern Tamil Nadu. As an autonomous institution affiliated with Madurai Kamaraj University, the college has earned wide repute for its rigorous training, moral values, and research activities.
+        
+        {loading ? (
+          <p style={{ textAlign: 'center', color: 'var(--g-text-muted)' }}>Loading...</p>
+        ) : (
+          <div className="guest-glass-panel" style={{ maxWidth: '900px', margin: '0 auto', padding: '40px 30px' }}>
+            <p style={{ fontSize: '1.15rem', lineHeight: '1.9', color: 'var(--g-text)', margin: 0, whiteSpace: 'pre-wrap' }}>
+              {aboutUsText || 'No about information configured yet.'}
             </p>
-            <p>
-              Nurtured by the Janaki Ammal Ayya Nadar Trust and P. Iya Nadar Charitable Trust, the institution has successfully evolved into a multi-disciplinary campus offering diverse UG, PG, and doctoral programs, consistently achieving top scores in NAAC accreditation cycles.
-            </p>
-            <a href="https://www.anjaconline.org" target="_blank" rel="noopener noreferrer" className="guest-btn guest-btn-secondary">
-              Visit College Portal
-            </a>
           </div>
-        </div>
+        )}
       </section>
 
-      {/* Leadership Messages */}
-      <section className="guest-section" style={{ paddingBottom: '40px' }}>
+      {/* Leadership Messages Section */}
+      <section className="guest-section" style={{ paddingTop: 0, paddingBottom: '60px' }}>
         <div className="guest-section-header">
           <span className="guest-section-tag">Visionary Guides</span>
           <h2 className="guest-section-title">Our Leaders</h2>
@@ -97,7 +83,7 @@ export default function AboutUs() {
                   {leader.description}
                 </p>
                 <span className="guest-leader-badge">
-                  {leader.position.toLowerCase().includes('principal') ? 'Patron' : 'Convener'}
+                  {leader.position.toLowerCase().includes('principal') ? 'Patron' : 'Head of the Dept.'}
                 </span>
               </div>
             ))}
