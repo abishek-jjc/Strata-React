@@ -182,58 +182,60 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <table className="data-table" style={{ marginTop: 15 }}>
-        <thead>
-          <tr>
-            <th>Student Name</th>
-            <th>Class (Year)</th>
-            <th>Email</th>
-            <th>College</th>
-            <th>Winner Position</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredStudents.map((s) => (
-            <tr key={s.id}>
-              <td>{s.student_name}</td>
-              <td>{s.year || '—'}</td>
-              <td>{s.email || '—'}</td>
-              <td>{getCollegeName(s.college_id)}</td>
-              <td>
-                <select
-                  value={winnerPlaces[s.id] || ''}
-                  onChange={(e) => setWinnerPlaces({ ...winnerPlaces, [s.id]: e.target.value })}
-                  className="input"
-                  style={{ width: 140, padding: '3px 8px' }}
-                >
-                  <option value="">None</option>
-                  <option value="1st Place">1st Place</option>
-                  <option value="2nd Place">2nd Place</option>
-                  <option value="3rd Place">3rd Place</option>
-                </select>
-              </td>
-              <td>
-                <button
-                  onClick={() => handleSaveWinner(s.id)}
-                  disabled={saving[s.id]}
-                  className="link"
-                  style={{ fontWeight: 'bold' }}
-                >
-                  {saving[s.id] ? 'Saving…' : 'Save'}
-                </button>
-              </td>
-            </tr>
-          ))}
-          {filteredStudents.length === 0 && (
+      <div className="table-responsive">
+        <table className="data-table" style={{ marginTop: 15 }}>
+          <thead>
             <tr>
-              <td colSpan={6} className="muted" style={{ textAlign: 'center' }}>
-                No students registered for this event yet.
-              </td>
+              <th>Student Name</th>
+              <th>Class (Year)</th>
+              <th>Email</th>
+              <th>College</th>
+              <th>Winner Position</th>
+              <th>Actions</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredStudents.map((s) => (
+              <tr key={s.id}>
+                <td>{s.student_name}</td>
+                <td>{s.year || '—'}</td>
+                <td>{s.email || '—'}</td>
+                <td>{getCollegeName(s.college_id)}</td>
+                <td>
+                  <select
+                    value={winnerPlaces[s.id] || ''}
+                    onChange={(e) => setWinnerPlaces({ ...winnerPlaces, [s.id]: e.target.value })}
+                    className="input"
+                    style={{ width: 140, padding: '3px 8px' }}
+                  >
+                    <option value="">None</option>
+                    <option value="1st Place">1st Place</option>
+                    <option value="2nd Place">2nd Place</option>
+                    <option value="3rd Place">3rd Place</option>
+                  </select>
+                </td>
+                <td>
+                  <button
+                    onClick={() => handleSaveWinner(s.id)}
+                    disabled={saving[s.id]}
+                    className="link"
+                    style={{ fontWeight: 'bold' }}
+                  >
+                    {saving[s.id] ? 'Saving…' : 'Save'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {filteredStudents.length === 0 && (
+              <tr>
+                <td colSpan={6} className="muted" style={{ textAlign: 'center' }}>
+                  No participants registered for this event.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

@@ -239,7 +239,7 @@ export default function Payment() {
             />
           </div>
 
-          <div style={{ overflowX: 'auto', marginBottom: '15px' }}>
+          <div className="table-responsive">
             <table className="data-table">
               <thead>
                 <tr>

@@ -47,10 +47,6 @@ import LeaderProfile from './pages/leader/Profile'
 import LeaderPayment from './pages/leader/Payment'
 import LeaderWhatsApp from './pages/leader/WhatsApp'
 
-// Accountant Portal
-import AccountantDashboard from './pages/accountant/Dashboard'
-import PaymentCollection from './pages/accountant/PaymentCollection'
-import PaymentHistory from './pages/accountant/PaymentHistory'
 
 function withShell(element) {
   return <AppShell>{element}</AppShell>
@@ -106,10 +102,6 @@ export default function App() {
           {/* Incharge */}
           <Route path="/incharge" element={<ProtectedRoute allow={['incharge']}>{withShell(<InchargeDashboard />)}</ProtectedRoute>} />
 
-          {/* Accountant */}
-          <Route path="/accountant" element={<ProtectedRoute allow={['accountant']}>{withShell(<AccountantDashboard />)}</ProtectedRoute>} />
-          <Route path="/accountant/collect" element={<ProtectedRoute allow={['accountant']}>{withShell(<PaymentCollection />)}</ProtectedRoute>} />
-          <Route path="/accountant/history" element={<ProtectedRoute allow={['accountant']}>{withShell(<PaymentHistory />)}</ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

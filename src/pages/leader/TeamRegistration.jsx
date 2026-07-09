@@ -161,54 +161,56 @@ export default function TeamRegistration() {
         {/* Participant slots — generated from team_size */}
         {participants.length > 0 && (
           <div style={{ marginTop: 12 }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th style={{ width: 36 }}>#</th>
-                  <th>Name <span style={{ color: '#ef4444' }}>*</span></th>
-                  <th>Roll Number <span style={{ color: '#ef4444' }}>*</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {participants.map((p, i) => (
-                  <tr key={i}>
-                    <td>
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 24,
-                        height: 24,
-                        borderRadius: '50%',
-                        background: 'rgba(var(--accent-rgb),0.15)',
-                        color: 'var(--accent)',
-                        fontWeight: 700,
-                        fontSize: 12,
-                      }}>{i + 1}</span>
-                    </td>
-                    <td>
-                      <input
-                        className="input"
-                        value={p.studentName}
-                        onChange={(e) => updateParticipant(i, 'studentName', e.target.value)}
-                        placeholder={`Participant ${i + 1} name`}
-                        required
-                        minLength={3}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        className="input"
-                        value={p.rollNo || ''}
-                        onChange={(e) => updateParticipant(i, 'rollNo', e.target.value)}
-                        placeholder={`Participant ${i + 1} roll number`}
-                        required
-                      />
-                    </td>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 36 }}>#</th>
+                    <th>Name <span style={{ color: '#ef4444' }}>*</span></th>
+                    <th>Roll Number <span style={{ color: '#ef4444' }}>*</span></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {participants.map((p, i) => (
+                    <tr key={i}>
+                      <td>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 24,
+                          height: 24,
+                          borderRadius: '50%',
+                          background: 'rgba(var(--accent-rgb),0.15)',
+                          color: 'var(--accent)',
+                          fontWeight: 700,
+                          fontSize: 12,
+                        }}>{i + 1}</span>
+                      </td>
+                      <td>
+                        <input
+                          className="input"
+                          value={p.studentName}
+                          onChange={(e) => updateParticipant(i, 'studentName', e.target.value)}
+                          placeholder={`Participant ${i + 1} name`}
+                          required
+                          minLength={3}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="input"
+                          value={p.rollNo || ''}
+                          onChange={(e) => updateParticipant(i, 'rollNo', e.target.value)}
+                          placeholder={`Participant ${i + 1} roll number`}
+                          required
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

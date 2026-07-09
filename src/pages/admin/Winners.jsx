@@ -145,7 +145,7 @@ export default function Winners() {
   if (loading) return <p className="muted">Loading winners manager...</p>
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '30px', alignItems: 'start' }}>
+    <div className="responsive-grid-sidebar wide-sidebar">
       {/* Left Column: Event Winner Assignment */}
       <div>
         <h2>Event Winners Allocation</h2>

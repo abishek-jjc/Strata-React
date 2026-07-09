@@ -721,7 +721,7 @@ export default function Certificates() {
             </div>
 
             {/* Modal Content Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '30px', alignItems: 'start' }}>
+            <div className="responsive-grid-sidebar">
               {/* Left Column: Canvas Preview */}
               <div>
                 {/* 2.1 PDF Upload Panel */}
@@ -947,7 +947,7 @@ export default function Certificates() {
         <p className="muted">Loading students data…</p>
       ) : activeTab === 'participation' ? (
         <>
-          <div style={{ overflowX: 'auto', marginBottom: '15px' }}>
+          <div className="table-responsive">
             <table className="data-table">
               <thead>
                 <tr>
@@ -1032,7 +1032,7 @@ export default function Certificates() {
         </>
       ) : (
         <>
-          <div style={{ overflowX: 'auto', marginBottom: '15px' }}>
+          <div className="table-responsive">
             <table className="data-table">
               <thead>
                 <tr>

@@ -42,10 +42,6 @@
   --accent: var(--layer-leader);
   --accent-rgb: 16, 185, 129;
 }
-.app-shell.role-accountant {
-  --accent: var(--layer-account);
-  --accent-rgb: 99, 102, 241;
-}
 .app-shell.role-incharge {
   --accent: var(--layer-incharge);
   --accent-rgb: 6, 182, 212;
@@ -1109,7 +1105,7 @@ select option {
    ========================================================= */
 
 .sidebar-toggle-btn {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   background: none;
@@ -1126,8 +1122,27 @@ select option {
   color: var(--text-primary);
 }
 
+.responsive-grid-sidebar {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 30px;
+  align-items: start;
+}
+.responsive-grid-sidebar.wide-sidebar {
+  grid-template-columns: 1fr 380px;
+}
+.profile-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 12px;
+  font-size: 0.95rem;
+}
+
 /* Responsive sidebar and container overrides */
 @media (max-width: 768px) {
+  .sidebar-toggle-btn {
+    display: flex !important;
+  }
   .sidebar {
     position: fixed;
     top: 0;
@@ -1203,6 +1218,17 @@ select option {
   .login-hint-box {
     padding: 10px 12px !important;
     font-size: 11.5px !important;
+  }
+
+  .responsive-grid-sidebar,
+  .responsive-grid-sidebar.wide-sidebar {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+
+  .profile-details-grid {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
   }
 }
 

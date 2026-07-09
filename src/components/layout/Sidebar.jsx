@@ -31,11 +31,6 @@ const NAV = {
     ['/leader/payment', 'Payment'],
     ['/leader/whatsapp', 'WhatsApp Group'],
   ],
-  accountant: [
-    ['/accountant', 'Dashboard'],
-    ['/accountant/collect', 'Payment Collection'],
-    ['/accountant/history', 'Payment History'],
-  ],
   incharge: [
     ['/incharge', 'Dashboard / Winners'],
   ],
@@ -44,7 +39,6 @@ const NAV = {
 const ROLE_ICON = {
   admin: '⚙️',
   leader: '🎓',
-  accountant: '💳',
   incharge: '🏆',
 }
 

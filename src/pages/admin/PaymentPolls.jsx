@@ -151,12 +151,12 @@ export default function PaymentPolls() {
           Create secure, temporary access keycodes for operator desks at spot registration counters.
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '30px', alignItems: 'start' }}>
+        <div className="responsive-grid-sidebar">
           
           {/* Active Polls Table */}
           <div className="card">
             <h3 style={{ marginTop: 0, marginBottom: '15px' }}>Active Operator Desks</h3>
-            <div style={{ overflowX: 'auto' }}>
+            <div className="table-responsive">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -309,7 +309,7 @@ export default function PaymentPolls() {
           />
         </div>
 
-        <div style={{ overflowX: 'auto', marginBottom: '15px' }}>
+        <div className="table-responsive">
           <table className="data-table">
             <thead>
               <tr>

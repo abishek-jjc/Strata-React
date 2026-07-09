@@ -158,7 +158,7 @@ export default function Registrations() {
   return (
     <div>
       <h2>Registrations</h2>
-      <div style={{ overflowX: 'auto', marginBottom: '15px' }}>
+      <div className="table-responsive">
         <table className="data-table">
           <thead>
             <tr>

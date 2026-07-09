@@ -61,7 +61,7 @@ export default function Profile() {
       
       <div className="card" style={{ marginBottom: '24px', padding: '24px' }}>
         <h3 style={{ marginTop: 0, marginBottom: '16px', color: 'var(--accent)' }}>Account Details</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '12px', fontSize: '0.95rem' }}>
+        <div className="profile-details-grid">
           <span className="muted">Name:</span>
           <strong>{profile?.name || '-'}</strong>
           
