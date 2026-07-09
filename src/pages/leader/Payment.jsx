@@ -36,7 +36,7 @@ export default function Payment() {
   
   const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
   const currentTotal = students.length * feePerStudent
-  const remainingPayable = myCollege?.is_paid ? 0 : Math.max(0, currentTotal - totalPaid)
+  const remainingPayable = Math.max(0, currentTotal - totalPaid)
   const extraPaid = Math.max(0, totalPaid - currentTotal)
   const extraStudentsCount = Math.floor(extraPaid / feePerStudent)
 
@@ -175,7 +175,7 @@ export default function Payment() {
           )}
 
           {/* QR Code Card if not paid */}
-          {!myCollege?.is_paid && (
+          {!isFullyPaid && (
             <div className="card" style={{ padding: '24px', textAlign: 'center' }}>
               <h3 style={{ marginTop: 0, marginBottom: '16px', color: 'var(--accent)', fontSize: '1.15rem' }}>Scan to Pay</h3>
               <p className="muted" style={{ fontSize: '0.9rem', marginBottom: '20px', lineHeight: '1.6' }}>

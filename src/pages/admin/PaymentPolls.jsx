@@ -30,7 +30,10 @@ export default function PaymentPolls() {
   // Calculate amount cleared for a college
   const getAmountCleared = (collegeName) => {
     if (!colleges || !students) return 0
-    const col = colleges.find((c) => c.college.toLowerCase() === collegeName.toLowerCase())
+    const col = colleges.find((c) => {
+      const cName = c.department ? `${c.college} (${c.department})` : c.college
+      return cName.toLowerCase() === collegeName.toLowerCase()
+    })
     if (!col) return 0
     const studentCount = students.filter((s) => s.college_id === col.id).length
     return studentCount * Number(feePerStudent)

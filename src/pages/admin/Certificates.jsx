@@ -23,27 +23,28 @@ export default function Certificates() {
   // Master Layout configurations (in percentages)
   const [layouts, setLayouts] = useState({
     participation: {
-      student_name: { x: 35, y: 40, fontSize: 24 },
-      event_name: { x: 35, y: 52, fontSize: 18 },
-      college_name: { x: 35, y: 64, fontSize: 16 }
+      student_name: { x: 50, y: 40, fontSize: 24 },
+      college_name: { x: 50, y: 52, fontSize: 16 },
+      event_name: { x: 50, y: 64, fontSize: 18 }
     },
     winner1: {
-      student_name: { x: 35, y: 40, fontSize: 24 },
-      event_name: { x: 35, y: 52, fontSize: 18 },
-      college_name: { x: 35, y: 64, fontSize: 16 },
-      place: { x: 35, y: 28, fontSize: 20 }
+      student_name: { x: 50, y: 40, fontSize: 24 },
+      college_name: { x: 25, y: 55, fontSize: 16 },
+      event_name: { x: 75, y: 55, fontSize: 18 },
+      place: { x: 50, y: 75, fontSize: 20 }
     },
     winner2: {
-      student_name: { x: 35, y: 40, fontSize: 24 },
-      event_name: { x: 35, y: 52, fontSize: 18 },
-      college_name: { x: 35, y: 64, fontSize: 16 },
-      place: { x: 35, y: 28, fontSize: 20 }
+      student_name: { x: 50, y: 40, fontSize: 24 },
+      college_name: { x: 25, y: 55, fontSize: 16 },
+      event_name: { x: 75, y: 55, fontSize: 18 },
+      place: { x: 50, y: 75, fontSize: 20 }
     }
   })
 
   // State for active popup template editor
   const [editingTemplate, setEditingTemplate] = useState(null) // null, 'participation', 'winner1', 'winner2'
   const [modalLayout, setModalLayout] = useState(null)
+  const [pdfPageSize, setPdfPageSize] = useState({ width: 841.89, height: 595.28 })
 
   const [loadingBulk, setLoadingBulk] = useState(false)
 
@@ -153,6 +154,7 @@ export default function Certificates() {
         
         // We want to scale the page to fit 680px width or 480px height
         const viewport = page.getViewport({ scale: 1.0 })
+        setPdfPageSize({ width: viewport.width, height: viewport.height })
         const scaleX = 680 / viewport.width
         const scaleY = 480 / viewport.height
         const scale = Math.min(scaleX, scaleY)
@@ -337,7 +339,7 @@ export default function Certificates() {
       if (!lot || !lot.assigned_college) return
 
       const collegeName = lot.assigned_college
-      const college = colleges.find((c) => c.college === collegeName)
+      const college = colleges.find((c) => (c.department ? `${c.college} (${c.department})` : c.college) === collegeName)
       if (!college) return
       
       const collegeStudents = eligibleStudents.filter(
@@ -383,7 +385,11 @@ export default function Certificates() {
   }, [filteredWinners, winnersPage])
 
   const getEventName = (id) => events.find((e) => e.id === id)?.event_name || 'Loading…'
-  const getCollegeName = (id) => colleges.find((c) => c.id === id)?.college || 'Loading…'
+  const getCollegeName = (id) => {
+    const c = colleges.find((col) => col.id === id)
+    if (!c) return 'Loading…'
+    return c.department ? `${c.college} (${c.department})` : c.college
+  }
 
   // Helper function to download arrayBuffer as PDF file
   function downloadBlob(bytes, filename) {
@@ -422,24 +428,32 @@ export default function Certificates() {
       const placeVal = student.winnerPlace || ''
 
       if (layout.student_name) {
-        const x = (layout.student_name.x / 100) * width
+        const size = Number(layout.student_name.fontSize) || 24
+        const textWidth = font.widthOfTextAtSize(sName, size)
+        const x = (layout.student_name.x / 100) * width - textWidth / 2
         const y = height - (layout.student_name.y / 100) * height
-        page.drawText(sName, { x, y, size: Number(layout.student_name.fontSize) || 24, font, color: rgb(0.1, 0.1, 0.1) })
+        page.drawText(sName, { x, y, size, font, color: rgb(0.1, 0.1, 0.1) })
       }
       if (layout.college_name) {
-        const x = (layout.college_name.x / 100) * width
+        const size = Number(layout.college_name.fontSize) || 16
+        const textWidth = font.widthOfTextAtSize(cName, size)
+        const x = (layout.college_name.x / 100) * width - textWidth / 2
         const y = height - (layout.college_name.y / 100) * height
-        page.drawText(cName, { x, y, size: Number(layout.college_name.fontSize) || 16, font, color: rgb(0.2, 0.2, 0.2) })
+        page.drawText(cName, { x, y, size, font, color: rgb(0.2, 0.2, 0.2) })
       }
       if (layout.event_name) {
-        const x = (layout.event_name.x / 100) * width
+        const size = Number(layout.event_name.fontSize) || 18
+        const textWidth = font.widthOfTextAtSize(eName, size)
+        const x = (layout.event_name.x / 100) * width - textWidth / 2
         const y = height - (layout.event_name.y / 100) * height
-        page.drawText(eName, { x, y, size: Number(layout.event_name.fontSize) || 18, font, color: rgb(0.2, 0.2, 0.2) })
+        page.drawText(eName, { x, y, size, font, color: rgb(0.2, 0.2, 0.2) })
       }
       if (layout.place && placeVal) {
-        const x = (layout.place.x / 100) * width
+        const size = Number(layout.place.fontSize) || 20
+        const textWidth = font.widthOfTextAtSize(placeVal, size)
+        const x = (layout.place.x / 100) * width - textWidth / 2
         const y = height - (layout.place.y / 100) * height
-        page.drawText(placeVal, { x, y, size: Number(layout.place.fontSize) || 20, font, color: rgb(0.85, 0.3, 0.1) })
+        page.drawText(placeVal, { x, y, size, font, color: rgb(0.85, 0.3, 0.1) })
       }
     }
 
@@ -812,6 +826,10 @@ export default function Certificates() {
                         if (key === 'student_name') color = '#00e5ff' // cyan
                         if (key === 'place') color = '#ff1744' // red
 
+                        // Calculate scale factor and screen font size to match PDF scaling
+                        const scale = pageDimensions.width / pdfPageSize.width
+                        const screenFontSize = (item.fontSize || 18) * scale
+
                         return (
                           <div
                             key={key}
@@ -820,18 +838,20 @@ export default function Certificates() {
                               position: 'absolute',
                               left: `${item.x}%`,
                               top: `${item.y}%`,
-                              padding: '8px 16px',
-                              background: 'rgba(12, 14, 18, 0.85)',
-                              border: `1.5px solid ${color}`,
+                              transform: 'translate(-50%, -100%)', // Center horizontally and align baseline vertically
+                              padding: '2px 6px',
+                              background: 'rgba(15, 18, 29, 0.75)',
+                              border: `1.5px dashed ${color}`,
                               color: color,
-                              borderRadius: '6px',
+                              borderRadius: '4px',
                               cursor: 'move',
-                              fontSize: '11px',
+                              fontSize: `${screenFontSize}px`,
                               fontWeight: 'bold',
                               userSelect: 'none',
-                              boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+                              boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
                               whiteSpace: 'nowrap',
-                              zIndex: 10
+                              zIndex: 10,
+                              lineHeight: 1.0
                             }}
                           >
                             {label} ({Math.round(item.x)}%, {Math.round(item.y)}%)

@@ -247,12 +247,13 @@ export default function Payment() {
               </thead>
               <tbody>
                 {paginatedColleges.map((c) => {
-                  const collegeLot = lots.find((l) => l.assigned_college === c.college)
+                  const cName = c.department ? `${c.college} (${c.department})` : c.college
+                  const collegeLot = lots.find((l) => l.assigned_college === cName)
                   const studentCount = students.filter((s) => s.college_id === c.id).length
                   const payableAmount = studentCount * feePerStudent
                   return (
                     <tr key={c.id}>
-                      <td><strong>{c.college}</strong></td>
+                      <td><strong>{cName}</strong></td>
                       <td>{collegeLot ? <strong>{collegeLot.lot_name}</strong> : <span className="muted">—</span>}</td>
                       <td>{studentCount} student(s)</td>
                       <td><strong>Rs. {payableAmount}</strong> <span className="muted" style={{ fontSize: '0.8rem' }}>(Rs. {feePerStudent}/std)</span></td>

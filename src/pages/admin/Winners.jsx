@@ -99,14 +99,15 @@ export default function Winners() {
   const leaderboard = colleges
     .map((col) => {
       // Find lot assigned to this college
-      const cLot = lots.find((l) => l.assigned_college === col.college)?.lot_name || ''
+      const cName = col.department ? `${col.college} (${col.department})` : col.college
+      const cLot = lots.find((l) => l.assigned_college === cName)?.lot_name || ''
       
       const firsts = winners.filter((w) => w.first_place === cLot && cLot !== '').length
       const seconds = winners.filter((w) => w.second_place === cLot && cLot !== '').length
       const points = firsts * 5 + seconds * 3
 
       return {
-        college: col.college,
+        college: cName,
         lot_name: cLot,
         firsts,
         seconds,

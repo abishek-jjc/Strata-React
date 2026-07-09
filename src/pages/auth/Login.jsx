@@ -66,13 +66,7 @@ export default function Login() {
           </div>
           <p className="login-subtitle">State Level Intercollegiate Technical Meet</p>
 
-          {/* Hint */}
-          <div className="login-hint-box" style={{ marginBottom: '10px' }}>
-            <span>🎓</span>
-            <span>
-              <strong>Authenticating:</strong> Please sign in with your Google Account to proceed.
-            </span>
-          </div>
+
 
           <button
             type="button"
@@ -101,7 +95,7 @@ export default function Login() {
               <path d="M3.952 10.699c-.18-.54-.282-1.117-.282-1.699s.102-1.159.282-1.699V4.969H.924C.335 6.147 0 7.481 0 9s.335 2.853.924 4.031l3.028-2.332z" fill="#FBBC05"/>
               <path d="M9 3.58c1.32 0 2.5.454 3.436 1.348l2.578-2.578C13.468 1.096 11.43 0 9 0 5.438 0 2.404 2.04 10.924 4.969l3.028 2.332c.711-2.132 2.698-3.721 5.048-3.721z" fill="#EA4335"/>
             </svg>
-            {loading ? 'Redirecting to Google...' : 'Sign in with Google'}
+            Sign in with Google
           </button>
 
           {error && <p className="error" style={{ margin: 0, textAlign: 'center' }}>{error}</p>}

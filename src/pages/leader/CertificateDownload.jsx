@@ -50,7 +50,7 @@ export default function CertificateDownload() {
   // 2. Winner Certificates mapping (resolved from winners table)
   const winnerList = []
   const myCollege = colleges?.find(c => c.id === profile?.college_id)
-  const myCollegeName = myCollege?.college || ''
+  const myCollegeName = myCollege ? (myCollege.department ? `${myCollege.college} (${myCollege.department})` : myCollege.college) : ''
 
   if (winners && lots && students && colleges && certificates && events) {
     winners.forEach(w => {
@@ -159,24 +159,32 @@ export default function CertificateDownload() {
         const placeVal = cert.position || ''
 
         if (layout.student_name) {
-          const x = (layout.student_name.x / 100) * width
+          const size = Number(layout.student_name.fontSize) || 24
+          const textWidth = font.widthOfTextAtSize(sName, size)
+          const x = (layout.student_name.x / 100) * width - textWidth / 2
           const y = height - (layout.student_name.y / 100) * height
-          page.drawText(sName, { x, y, size: Number(layout.student_name.fontSize) || 24, font, color: rgb(0.1, 0.1, 0.1) })
+          page.drawText(sName, { x, y, size, font, color: rgb(0.1, 0.1, 0.1) })
         }
         if (layout.college_name) {
-          const x = (layout.college_name.x / 100) * width
+          const size = Number(layout.college_name.fontSize) || 16
+          const textWidth = font.widthOfTextAtSize(cName, size)
+          const x = (layout.college_name.x / 100) * width - textWidth / 2
           const y = height - (layout.college_name.y / 100) * height
-          page.drawText(cName, { x, y, size: Number(layout.college_name.fontSize) || 16, font, color: rgb(0.2, 0.2, 0.2) })
+          page.drawText(cName, { x, y, size, font, color: rgb(0.2, 0.2, 0.2) })
         }
         if (layout.event_name) {
-          const x = (layout.event_name.x / 100) * width
+          const size = Number(layout.event_name.fontSize) || 18
+          const textWidth = font.widthOfTextAtSize(eName, size)
+          const x = (layout.event_name.x / 100) * width - textWidth / 2
           const y = height - (layout.event_name.y / 100) * height
-          page.drawText(eName, { x, y, size: Number(layout.event_name.fontSize) || 18, font, color: rgb(0.2, 0.2, 0.2) })
+          page.drawText(eName, { x, y, size, font, color: rgb(0.2, 0.2, 0.2) })
         }
         if (layout.place && placeVal !== 'Participation') {
-          const x = (layout.place.x / 100) * width
+          const size = Number(layout.place.fontSize) || 20
+          const textWidth = font.widthOfTextAtSize(placeVal, size)
+          const x = (layout.place.x / 100) * width - textWidth / 2
           const y = height - (layout.place.y / 100) * height
-          page.drawText(placeVal, { x, y, size: Number(layout.place.fontSize) || 20, font, color: rgb(0.85, 0.3, 0.1) })
+          page.drawText(placeVal, { x, y, size, font, color: rgb(0.85, 0.3, 0.1) })
         }
       }
 

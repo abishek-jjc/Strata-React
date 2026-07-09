@@ -447,13 +447,43 @@ export default function GuestRegister() {
 
     setSubmitting(true)
     try {
+      // Assign foodType to participants to match vegCount and nonVegCount
+      const allParticipants = []
+      activeRegs.forEach(reg => {
+        reg.participants.forEach(p => {
+          if (p.studentName && p.studentName.trim() !== '') {
+            allParticipants.push(p)
+          }
+        })
+      })
+
+      const nameToFoodType = {}
+      let vegRemaining = vegCount
+      
+      allParticipants.forEach(p => {
+        const cleanName = p.studentName.trim().toLowerCase()
+        if (!nameToFoodType[cleanName]) {
+          if (vegRemaining > 0) {
+            nameToFoodType[cleanName] = 'Veg'
+            vegRemaining--
+          } else {
+            nameToFoodType[cleanName] = 'Non-Veg'
+          }
+        }
+      })
+
       // Loop to register for each selected event
       for (const reg of activeRegs) {
+        const participantsWithFood = reg.participants.map(p => ({
+          ...p,
+          foodType: p.studentName ? (nameToFoodType[p.studentName.trim().toLowerCase()] || 'Veg') : 'Veg'
+        }))
+
         const { data: regId, error: regError } = await supabase.rpc('register_team', {
           p_college_id: collegeId,
           p_leader_id: leaderId,
           p_event_id: reg.eventId,
-          p_participants: reg.participants
+          p_participants: participantsWithFood
         })
         if (regError) throw regError
         
@@ -590,7 +620,7 @@ export default function GuestRegister() {
               type="button" 
               onClick={() => navigate('/leader')} 
               className="guest-btn guest-btn-primary"
-              style={{ width: '100%', padding: '14px' }}
+              style={{ width: '100%', padding: '14px', justifyContent: 'center' }}
             >
               Enter Leader Dashboard
             </button>
@@ -941,7 +971,7 @@ export default function GuestRegister() {
               )}
             </div>
 
-            <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
               <button type="button" className="guest-btn guest-btn-secondary" onClick={() => setStep(1)}>
                 Back to Profile
               </button>
@@ -1012,7 +1042,7 @@ export default function GuestRegister() {
               )}
             </div>
 
-            <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
               <button type="button" className="guest-btn guest-btn-secondary" onClick={() => setStep(2)}>
                 Back to Participants
               </button>

@@ -55,7 +55,9 @@ export default function Registrations() {
   }
 
   async function assignLot(reg) {
-    const cName = colleges.find((c) => c.id === reg.college_id)?.college || ''
+    const colObj = colleges.find((c) => c.id === reg.college_id)
+    if (!colObj) return
+    const cName = colObj.department ? `${colObj.college} (${colObj.department})` : colObj.college
     
     // Check if college already has a lot assigned
     let lot = lots.find((l) => l.assigned_college.toLowerCase().trim() === cName.toLowerCase().trim())

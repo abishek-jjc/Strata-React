@@ -464,15 +464,23 @@ CREATE OR REPLACE FUNCTION assign_lot_automatically()
 RETURNS TRIGGER AS $$
 DECLARE
   v_college_name text;
+  v_department text;
+  v_college_with_dept text;
   v_lot_id uuid;
 BEGIN
-  -- Fetch college name
-  SELECT college INTO v_college_name FROM colleges WHERE id = NEW.college_id;
+  -- Fetch college and department name
+  SELECT college, department INTO v_college_name, v_department FROM colleges WHERE id = NEW.college_id;
   
   IF v_college_name IS NOT NULL THEN
-    -- Check if a lot is already assigned to this college (and lock the row)
+    IF v_department IS NOT NULL AND trim(v_department) <> '' THEN
+      v_college_with_dept := v_college_name || ' (' || v_department || ')';
+    ELSE
+      v_college_with_dept := v_college_name;
+    END IF;
+
+    -- Check if a lot is already assigned to this college/department (and lock the row)
     SELECT id INTO v_lot_id FROM lots 
-     WHERE lower(trim(assigned_college)) = lower(trim(v_college_name)) 
+     WHERE lower(trim(assigned_college)) = lower(trim(v_college_with_dept)) 
      LIMIT 1
      FOR UPDATE;
     
@@ -484,11 +492,11 @@ BEGIN
        LIMIT 1
        FOR UPDATE SKIP LOCKED;
       
-      -- If an unassigned lot is found, claim it for this college
+      -- If an unassigned lot is found, claim it for this college/department
       IF v_lot_id IS NOT NULL THEN
         UPDATE lots 
            SET is_assigned = true, 
-               assigned_college = v_college_name 
+               assigned_college = v_college_with_dept 
          WHERE id = v_lot_id;
       END IF;
     END IF;
@@ -845,7 +853,7 @@ BEGIN
   END IF;
 
   -- Get college name for logging
-  SELECT college INTO v_college_name FROM public.colleges WHERE id = p_college_id;
+  SELECT case when department is not null and trim(department) <> '' then college || ' (' || department || ')' else college end INTO v_college_name FROM public.colleges WHERE id = p_college_id;
   IF v_college_name IS NULL THEN
     RAISE EXCEPTION 'College not found.';
   END IF;

@@ -250,12 +250,18 @@ export default function TeamRegistration() {
             border: '1px solid rgba(16,185,129,0.3)',
             borderRadius: '10px',
             padding: '16px 20px',
-            margin: '15px 0'
+            margin: '15px 0',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
           }}>
-            <p className="success" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent' }}>
+            <p className="success" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent', width: '100%', textAlign: 'center' }}>
               {success}
             </p>
-            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '0.9rem' }}>
+            <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '0.9rem', width: '100%' }}>
               <span>You must join the WhatsApp Group for further updates:</span>
               {whatsappLink ? (
                 <a 

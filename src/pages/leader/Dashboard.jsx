@@ -19,7 +19,7 @@ export default function Dashboard() {
   const myCollegeName = myCollege?.college || myCollege?.college_name || ''
   const myCollegeDept = myCollege?.department || ''
   const displayCollege = myCollegeDept ? `${myCollegeName} (${myCollegeDept})` : myCollegeName
-  const collegeLot = lots.find((l) => l.assigned_college === myCollegeName)
+  const collegeLot = lots.find((l) => l.assigned_college === displayCollege)
 
   if (loading) return <p className="muted">Loading dashboard...</p>
 

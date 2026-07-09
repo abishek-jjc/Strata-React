@@ -4,13 +4,24 @@ import { useTable } from '../../hooks/useTable'
 
 export default function Food() {
   const { data: dbRegistrations, loading: regLoading } = useTable(TABLES.REGISTRATIONS)
+  const { data: students, loading: studLoading } = useTable(TABLES.STUDENTS)
   const { data: colleges, loading: colLoading } = useTable(TABLES.COLLEGES)
 
-  const loading = regLoading || colLoading
+  const loading = regLoading || studLoading || colLoading
 
-  const registrations = useMemo(() => dbRegistrations || [], [dbRegistrations])
+  const regStatusMap = useMemo(() => {
+    const map = {}
+    dbRegistrations?.forEach(r => {
+      map[r.id] = r.status
+    })
+    return map
+  }, [dbRegistrations])
 
-  // Aggregate totals across all valid registrations (ignoring REJECTED)
+  const activeStudents = useMemo(() => {
+    return (students || []).filter(s => regStatusMap[s.registration_id] !== REGISTRATION_STATUS.REJECTED)
+  }, [students, regStatusMap])
+
+  // Aggregate totals across all unique students per college (ignoring REJECTED registrations)
   const stats = useMemo(() => {
     let veg = 0
     let nonveg = 0
@@ -18,48 +29,54 @@ export default function Food() {
 
     const collegeStats = {}
 
-    registrations.forEach(reg => {
-      if (reg.status === REGISTRATION_STATUS.REJECTED) return
-
-      const v = reg.veg_count || 0
-      const nv = reg.nonveg_count || 0
-      const collegeId = reg.college_id
+    activeStudents.forEach(s => {
+      const collegeId = s.college_id
+      if (!collegeId) return
 
       if (!collegeStats[collegeId]) {
         collegeStats[collegeId] = {
           collegeId,
-          veg: v,
-          nonveg: nv,
-          total: v + nv,
+          uniqueStudents: {}
         }
-        veg += v
-        nonveg += nv
-        total += (v + nv)
-      } else {
-        // If the food counts are updated identically across events, we just take the max to be safe
-        const current = collegeStats[collegeId]
-        if (v > current.veg) {
-          veg += (v - current.veg)
-          current.veg = v
-        }
-        if (nv > current.nonveg) {
-          nonveg += (nv - current.nonveg)
-          current.nonveg = nv
-        }
-        current.total = current.veg + current.nonveg
+      }
+
+      const cleanName = s.student_name.trim().toLowerCase()
+      const existing = collegeStats[collegeId].uniqueStudents[cleanName]
+      
+      // Keep unique students. If we have duplicate student names, prioritize Non-Veg if either is Non-Veg
+      if (!existing || (s.food_type === 'Non-Veg' && existing.food_type !== 'Non-Veg')) {
+        collegeStats[collegeId].uniqueStudents[cleanName] = s
       }
     })
 
-    const list = Object.values(collegeStats).map(s => {
-      const col = colleges?.find(c => c.id === s.collegeId)
+    const list = Object.values(collegeStats).map(cStat => {
+      let cVeg = 0
+      let cNonVeg = 0
+      
+      Object.values(cStat.uniqueStudents).forEach(s => {
+        if (s.food_type === 'Non-Veg') {
+          cNonVeg++
+        } else {
+          cVeg++
+        }
+      })
+
+      veg += cVeg
+      nonveg += cNonVeg
+      total += (cVeg + cNonVeg)
+
+      const col = colleges?.find(c => c.id === cStat.collegeId)
       return {
-        ...s,
-        collegeName: col?.college || 'Unknown College'
+        collegeId: cStat.collegeId,
+        collegeName: col ? (col.department ? `${col.college} (${col.department})` : col.college) : 'Unknown College',
+        veg: cVeg,
+        nonveg: cNonVeg,
+        total: cVeg + cNonVeg
       }
     }).sort((a, b) => a.collegeName.localeCompare(b.collegeName))
 
     return { veg, nonveg, total, list }
-  }, [registrations, colleges])
+  }, [activeStudents, colleges])
 
   if (loading) {
     return <p className="muted">Loading food metrics...</p>
