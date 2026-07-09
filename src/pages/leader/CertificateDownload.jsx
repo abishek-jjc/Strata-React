@@ -14,6 +14,8 @@ export default function CertificateDownload() {
   const { data: certificates } = useTable(TABLES.CERTIFICATES)
   const { data: events } = useTable(TABLES.EVENTS)
   const { data: colleges } = useTable(TABLES.COLLEGES)
+  const { data: winners } = useTable(TABLES.WINNERS)
+  const { data: lots } = useTable(TABLES.LOTS)
   
   const [settings, setSettings] = useState({})
   const [downloadingBulk, setDownloadingBulk] = useState(false)
@@ -32,18 +34,60 @@ export default function CertificateDownload() {
     loadSettings()
   }, [])
 
-  // Filter certificates issued to students belonging to this leader
-  const studentIds = new Set(students.map((s) => s.id))
-  const issuedCerts = certificates.filter((c) => studentIds.has(c.student_id))
+  // 1. Participation Certificates mapping (list all students of this leader)
+  const participationList = (students || []).map(student => {
+    const cert = certificates?.find(c => c.student_id === student.id && (c.position === 'Participation' || !c.position))
+    return {
+      student,
+      issued: !!cert,
+      cert: cert
+    }
+  })
 
-  const participationCerts = issuedCerts.filter(c => c.position === 'Participation' || !c.position)
-  const winnerCerts = issuedCerts.filter(c => c.position === '1st Place' || c.position === '2nd Place')
+  // Filter only issued participation certs for bulk download
+  const participationCerts = participationList.filter(item => item.issued).map(item => item.cert)
 
-  const getStudentName = (studentId) => students.find((s) => s.id === studentId)?.student_name || 'Unknown Student'
-  const getEventName = (eventId) => events.find((e) => e.id === eventId)?.event_name || 'Unknown Event'
+  // 2. Winner Certificates mapping (resolved from winners table)
+  const winnerList = []
+  const myCollege = colleges?.find(c => c.id === profile?.college_id)
+  const myCollegeName = myCollege?.college || ''
+
+  if (winners && lots && students && colleges && certificates && events) {
+    winners.forEach(w => {
+      const eventName = events.find(e => e.id === w.event_id)?.event_name || ''
+      const places = [
+        { place: '1st Place', lotName: w.first_place },
+        { place: '2nd Place', lotName: w.second_place },
+      ]
+      places.forEach(({ place, lotName }) => {
+        if (!lotName || lotName === '-') return
+        const lot = lots.find(l => l.lot_name === lotName)
+        if (!lot || lot.assigned_college !== myCollegeName) return
+
+        // Students from my college registered in this event
+        const collegeStudents = students.filter(s => s.event_id === w.event_id)
+        collegeStudents.forEach(student => {
+          const cert = certificates.find(c => c.student_id === student.id && c.position === place)
+          winnerList.push({
+            student,
+            winnerPlace: place,
+            winnerEventName: eventName,
+            issued: !!cert,
+            cert: cert
+          })
+        })
+      })
+    })
+  }
+
+  // Filter only issued winner certs for bulk download
+  const winnerCerts = winnerList.filter(item => item.issued).map(item => item.cert)
+
+  const getStudentName = (studentId) => students?.find((s) => s.id === studentId)?.student_name || 'Unknown Student'
+  const getEventName = (eventId) => events?.find((e) => e.id === eventId)?.event_name || 'Unknown Event'
   const getCollegeName = (studentId) => {
-    const student = students.find((s) => s.id === studentId)
-    return colleges.find((c) => c.id === student?.college_id)?.college || 'Unknown College'
+    const student = students?.find((s) => s.id === studentId)
+    return colleges?.find((c) => c.id === student?.college_id)?.college || 'Unknown College'
   }
 
   function downloadBlob(bytes, filename) {
@@ -178,37 +222,49 @@ export default function CertificateDownload() {
             {downloadingBulk ? 'Generating...' : 'Download All Participation'}
           </button>
         </div>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Student</th>
-              <th>Event</th>
-              <th>Certificate No</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {participationCerts.map((c) => (
-              <tr key={c.id}>
-                <td>{getStudentName(c.student_id)}</td>
-                <td>{getEventName(c.event_id)}</td>
-                <td>{c.certificate_number}</td>
-                <td>
-                  <button className="link" onClick={() => downloadSingle(c)} disabled={downloadingBulk}>
-                    Download
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {participationCerts.length === 0 && (
+        <div className="table-responsive">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={4} className="muted" style={{ textAlign: 'center' }}>
-                  No participation certificates issued for your team yet.
-                </td>
+                <th>Student</th>
+                <th>Event</th>
+                <th>Certificate No</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {participationList.map((item) => (
+                <tr key={item.student.id}>
+                  <td>{item.student.student_name}</td>
+                  <td>{getEventName(item.student.event_id)}</td>
+                  <td>{item.issued ? item.cert.certificate_number : '—'}</td>
+                  <td>
+                    <span className={item.issued ? 'success' : 'muted'}>
+                      {item.issued ? '✓ Issued' : 'Not Issued'}
+                    </span>
+                  </td>
+                  <td>
+                    {item.issued ? (
+                      <button className="link" onClick={() => downloadSingle(item.cert)} disabled={downloadingBulk}>
+                        Download Certificate
+                      </button>
+                    ) : (
+                      <span className="muted" style={{ fontSize: '0.85rem' }}>Unavailable</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {participationList.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="muted" style={{ textAlign: 'center' }}>
+                    No participants registered for your college yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="card" style={{ padding: '24px' }}>
@@ -223,43 +279,55 @@ export default function CertificateDownload() {
             {downloadingBulk ? 'Generating...' : 'Download All Winners'}
           </button>
         </div>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Student</th>
-              <th>Event</th>
-              <th>Position</th>
-              <th>Certificate No</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {winnerCerts.map((c) => (
-              <tr key={c.id}>
-                <td>{getStudentName(c.student_id)}</td>
-                <td>{getEventName(c.event_id)}</td>
-                <td>
-                  <strong style={{ color: c.position === '1st Place' ? '#f59e0b' : '#9ca3af' }}>
-                    {c.position}
-                  </strong>
-                </td>
-                <td>{c.certificate_number}</td>
-                <td>
-                  <button className="link" onClick={() => downloadSingle(c)} disabled={downloadingBulk}>
-                    Download
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {winnerCerts.length === 0 && (
+        <div className="table-responsive">
+          <table className="data-table">
+            <thead>
               <tr>
-                <td colSpan={5} className="muted" style={{ textAlign: 'center' }}>
-                  No winner certificates issued for your team yet.
-                </td>
+                <th>Student</th>
+                <th>Event</th>
+                <th>Position</th>
+                <th>Certificate No</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {winnerList.map((item, idx) => (
+                <tr key={`${item.student.id}-${item.winnerPlace}-${idx}`}>
+                  <td>{item.student.student_name}</td>
+                  <td>{item.winnerEventName}</td>
+                  <td>
+                    <strong style={{ color: item.winnerPlace === '1st Place' ? '#f59e0b' : '#9ca3af' }}>
+                      {item.winnerPlace}
+                    </strong>
+                  </td>
+                  <td>{item.issued ? item.cert.certificate_number : '—'}</td>
+                  <td>
+                    <span className={item.issued ? 'success' : 'muted'}>
+                      {item.issued ? '✓ Issued' : 'Not Issued'}
+                    </span>
+                  </td>
+                  <td>
+                    {item.issued ? (
+                      <button className="link" onClick={() => downloadSingle(item.cert)} disabled={downloadingBulk}>
+                        Download Certificate
+                      </button>
+                    ) : (
+                      <span className="muted" style={{ fontSize: '0.85rem' }}>Unavailable</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {winnerList.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="muted" style={{ textAlign: 'center' }}>
+                    No winner positions assigned to your college yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

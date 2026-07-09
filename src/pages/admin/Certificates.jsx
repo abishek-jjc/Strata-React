@@ -517,13 +517,10 @@ export default function Certificates() {
       return
     }
 
-    if (!confirm(`Are you sure you want to issue and download certificates for all ${unissued.length} unissued participants?`)) return
+    if (!confirm(`Are you sure you want to issue certificates in the database for all ${unissued.length} unissued participants?`)) return
     
     setLoadingBulk(true)
     try {
-      const bytes = await generateBulkPdf(unissued, participationUrl, layouts.participation)
-      downloadBlob(bytes, `strata_participation_certificates.pdf`)
-
       for (const student of unissued) {
         const certNumber = `CERT-PART-${Date.now()}`
         await supabase.from(TABLES.CERTIFICATES).insert({
@@ -537,7 +534,7 @@ export default function Certificates() {
           .update({ certificate_status: 'issued' })
           .eq('id', student.id)
       }
-      alert('Successfully issued and downloaded bulk certificates!')
+      alert('Successfully issued certificates in the database!')
     } catch (err) {
       alert('Bulk issue failed: ' + err.message)
     } finally {
@@ -556,63 +553,10 @@ export default function Certificates() {
       return
     }
 
-    if (!confirm(`Are you sure you want to issue and download certificates for all ${unissued.length} unissued winners?`)) return
+    if (!confirm(`Are you sure you want to issue certificates in the database for all ${unissued.length} unissued winners?`)) return
     
     setLoadingBulk(true)
     try {
-      const combinedDoc = await PDFDocument.create()
-
-      const response1 = winner1Url ? await fetch(winner1Url) : null
-      const templateBytes1 = response1 ? await response1.arrayBuffer() : null
-      const response2 = winner2Url ? await fetch(winner2Url) : null
-      const templateBytes2 = response2 ? await response2.arrayBuffer() : null
-
-      for (const student of unissued) {
-        const tBytes = student.winnerPlace === '1st Place' ? templateBytes1 : templateBytes2
-        if (!tBytes) {
-          throw new Error(`Template for ${student.winnerPlace} is missing! Please upload the template first.`)
-        }
-
-        const tempDoc = await PDFDocument.load(tBytes)
-        const [copiedPage] = await combinedDoc.copyPages(tempDoc, [0])
-        combinedDoc.addPage(copiedPage)
-        
-        const page = combinedDoc.getPages()[combinedDoc.getPageCount() - 1]
-        const { width, height } = page.getSize()
-        const font = await combinedDoc.embedFont(StandardFonts.HelveticaBold)
-        
-        const layout = student.winnerPlace === '1st Place' ? layouts.winner1 : layouts.winner2
-
-        const sName = student.student_name || ''
-        const cName = student.winnerCollegeName || ''
-        const eName = student.winnerEventName || ''
-        const placeVal = student.winnerPlace || ''
-
-        if (layout.student_name) {
-          const x = (layout.student_name.x / 100) * width
-          const y = height - (layout.student_name.y / 100) * height
-          page.drawText(sName, { x, y, size: Number(layout.student_name.fontSize) || 24, font, color: rgb(0.1, 0.1, 0.1) })
-        }
-        if (layout.college_name) {
-          const x = (layout.college_name.x / 100) * width
-          const y = height - (layout.college_name.y / 100) * height
-          page.drawText(cName, { x, y, size: Number(layout.college_name.fontSize) || 16, font, color: rgb(0.2, 0.2, 0.2) })
-        }
-        if (layout.event_name) {
-          const x = (layout.event_name.x / 100) * width
-          const y = height - (layout.event_name.y / 100) * height
-          page.drawText(eName, { x, y, size: Number(layout.event_name.fontSize) || 18, font, color: rgb(0.2, 0.2, 0.2) })
-        }
-        if (layout.place && placeVal) {
-          const x = (layout.place.x / 100) * width
-          const y = height - (layout.place.y / 100) * height
-          page.drawText(placeVal, { x, y, size: Number(layout.place.fontSize) || 20, font, color: rgb(0.85, 0.3, 0.1) })
-        }
-      }
-
-      const combinedBytes = await combinedDoc.save()
-      downloadBlob(combinedBytes, `strata_winner_certificates.pdf`)
-
       for (const student of unissued) {
         const certNumber = `CERT-WIN-${Date.now()}`
         await supabase.from(TABLES.CERTIFICATES).insert({
@@ -626,7 +570,7 @@ export default function Certificates() {
           .update({ certificate_status: 'issued' })
           .eq('id', student.id)
       }
-      alert('Successfully issued and downloaded bulk winner certificates!')
+      alert('Successfully issued winner certificates in the database!')
     } catch (err) {
       alert('Bulk issue failed: ' + err.message)
     } finally {

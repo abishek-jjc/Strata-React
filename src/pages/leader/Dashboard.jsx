@@ -48,48 +48,50 @@ export default function Dashboard() {
       {/* Registrations List */}
       <div>
         <h3 style={{ marginBottom: '15px' }}>Registered Contests</h3>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Event Name</th>
-              <th>Category</th>
-              <th>Prelims Venue</th>
-              <th>Prelims Time</th>
-              <th>Mains Venue</th>
-              <th>Mains Time</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {registrations.map((r) => {
-              const event = events.find((e) => e.id === r.event_id)
-              const prelimsVenue = event ? (venues.find((v) => v.id === event.prelims_venue)?.venue_name || 'TBD') : 'TBD'
-              const mainsVenue = event ? (venues.find((v) => v.id === event.mains_venue)?.venue_name || 'TBD') : 'TBD'
-              return (
-                <tr key={r.id}>
-                  <td>
-                    <strong>{event?.event_name || r.event_id}</strong>
-                  </td>
-                  <td>{event?.category || '—'}</td>
-                  <td>{prelimsVenue}</td>
-                  <td>{event?.preliminary || '—'}</td>
-                  <td>{mainsVenue}</td>
-                  <td>{event?.mains || '—'}</td>
-                  <td>
-                    <span className={`badge badge-${r.status}`}>{r.status}</span>
+        <div className="table-responsive">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Event Name</th>
+                <th>Category</th>
+                <th>Prelims Venue</th>
+                <th>Prelims Time</th>
+                <th>Mains Venue</th>
+                <th>Mains Time</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {registrations.map((r) => {
+                const event = events.find((e) => e.id === r.event_id)
+                const prelimsVenue = event ? (venues.find((v) => v.id === event.prelims_venue)?.venue_name || 'TBD') : 'TBD'
+                const mainsVenue = event ? (venues.find((v) => v.id === event.mains_venue)?.venue_name || 'TBD') : 'TBD'
+                return (
+                  <tr key={r.id}>
+                    <td>
+                      <strong>{event?.event_name || r.event_id}</strong>
+                    </td>
+                    <td>{event?.category || '—'}</td>
+                    <td>{prelimsVenue}</td>
+                    <td>{event?.preliminary || '—'}</td>
+                    <td>{mainsVenue}</td>
+                    <td>{event?.mains || '—'}</td>
+                    <td>
+                      <span className={`badge badge-${r.status}`}>{r.status}</span>
+                    </td>
+                  </tr>
+                )
+              })}
+              {registrations.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="muted" style={{ textAlign: 'center', padding: '30px' }}>
+                    No contest registrations found yet.
                   </td>
                 </tr>
-              )
-            })}
-            {registrations.length === 0 && (
-              <tr>
-                <td colSpan={7} className="muted" style={{ textAlign: 'center', padding: '30px' }}>
-                  No contest registrations found yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

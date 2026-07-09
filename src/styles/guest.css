@@ -444,6 +444,28 @@ body.light-theme .guest-countdown-val {
   margin-top: 5px;
 }
 
+@media (max-width: 600px) {
+  .guest-countdown {
+    gap: 8px;
+    justify-content: center;
+    width: 100%;
+    margin-top: 15px;
+  }
+  .guest-countdown-item {
+    min-width: 68px;
+    padding: 8px 10px;
+    border-radius: 10px;
+  }
+  .guest-countdown-val {
+    font-size: 1.5rem;
+  }
+  .guest-countdown-label {
+    font-size: 0.55rem;
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+}
+
 /* Sections */
 .guest-section {
   padding: 100px 8%;
