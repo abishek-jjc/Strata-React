@@ -128,7 +128,7 @@ export default function Payment() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.95rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
                 <span className="muted">College:</span>
-                <strong>{myCollege?.college}</strong>
+                <strong>{myCollege?.department ? `${myCollege.college} (${myCollege.department})` : myCollege?.college}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
                 <span className="muted">Total Registered Students:</span>

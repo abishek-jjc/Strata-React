@@ -320,7 +320,7 @@ export default function Certificates() {
     const eventName = events.find((e) => e.id === s.event_id)?.event_name || ''
     const eventMatch = eventName.toLowerCase().includes(searchQuery.toLowerCase())
     const col = colleges.find((c) => c.id === s.college_id)
-    const collegeName = col ? (col.department ? `${col.college} - ${col.department}` : col.college) : ''
+    const collegeName = col ? (col.department ? `${col.college} (${col.department})` : col.college) : ''
     const collegeMatch = collegeName.toLowerCase().includes(searchQuery.toLowerCase())
     return nameMatch || eventMatch || collegeMatch
   })

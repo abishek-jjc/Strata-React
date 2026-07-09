@@ -12,7 +12,11 @@ export default function StudentList() {
   const { data: events, loading: eventsLoading } = useTable(TABLES.EVENTS)
   
   const sortedStudents = useMemo(() => {
-    return [...students].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+    return [...students].sort((a, b) => {
+      const timeDiff = new Date(a.created_at) - new Date(b.created_at)
+      if (timeDiff !== 0) return timeDiff
+      return a.id.localeCompare(b.id)
+    })
   }, [students])
   
   const [editingStudent, setEditingStudent] = useState(null)
@@ -188,6 +192,7 @@ export default function StudentList() {
               />
             </label>
 
+            <label className="field">
               <span>Food Choice</span>
               <select
                 value={editingStudent.food_type || 'Veg'}

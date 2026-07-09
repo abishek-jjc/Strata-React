@@ -258,6 +258,7 @@ ALTER TABLE public.students ADD COLUMN IF NOT EXISTS leader_id               uui
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS college_id              uuid REFERENCES public.colleges(id) ON DELETE CASCADE;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS event_id                uuid REFERENCES public.events(id) ON DELETE CASCADE;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS certificate_status      text NOT NULL DEFAULT 'not issued';
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS food_type               text CHECK (food_type IN ('Veg', 'Non-Veg', '-'));
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS winner_place            text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS winning_prize           text;
 
@@ -349,7 +350,7 @@ BEGIN
       FROM public.lots WHERE lot_name = NEW.first_place LIMIT 1;
     IF v_first_college IS NOT NULL THEN
       SELECT id INTO v_first_college_id FROM public.colleges
-        WHERE lower(trim(CASE WHEN department IS NOT NULL AND department <> '' THEN college || ' - ' || department ELSE college END)) = lower(trim(v_first_college)) LIMIT 1;
+        WHERE lower(trim(CASE WHEN department IS NOT NULL AND trim(department) <> '' THEN college || ' (' || department || ')' ELSE college END)) = lower(trim(v_first_college)) LIMIT 1;
       IF v_first_college_id IS NOT NULL THEN
         UPDATE public.students SET winning_prize = 'First Place'
           WHERE event_id = NEW.event_id AND college_id = v_first_college_id;
@@ -362,7 +363,7 @@ BEGIN
       FROM public.lots WHERE lot_name = NEW.second_place LIMIT 1;
     IF v_second_college IS NOT NULL THEN
       SELECT id INTO v_second_college_id FROM public.colleges
-        WHERE lower(trim(CASE WHEN department IS NOT NULL AND department <> '' THEN college || ' - ' || department ELSE college END)) = lower(trim(v_second_college)) LIMIT 1;
+        WHERE lower(trim(CASE WHEN department IS NOT NULL AND trim(department) <> '' THEN college || ' (' || department || ')' ELSE college END)) = lower(trim(v_second_college)) LIMIT 1;
       IF v_second_college_id IS NOT NULL THEN
         UPDATE public.students SET winning_prize = 'Second Place'
           WHERE event_id = NEW.event_id AND college_id = v_second_college_id;
@@ -556,13 +557,14 @@ BEGIN
 
   FOR v_participant IN SELECT * FROM jsonb_array_elements(p_participants) LOOP
     INSERT INTO public.students (
-      student_name, student_name_normalized, roll_no,
+      student_name, student_name_normalized, roll_no, food_type,
       gender, department, year,
       registration_id, leader_id, college_id, event_id, certificate_status
     ) VALUES (
       v_participant->>'studentName',
       lower(trim(v_participant->>'studentName')),
       v_participant->>'rollNo',
+      coalesce(v_participant->>'food', v_participant->>'foodType', '-'),
       v_participant->>'gender',
       v_participant->>'department',
       v_participant->>'year',

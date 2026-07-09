@@ -109,9 +109,10 @@ export default function Payment() {
   const registeredColleges = colleges.filter((c) => registeredCollegeIds.has(c.id))
 
   // Filter based on search query
-  const filteredColleges = registeredColleges.filter((c) =>
-    c.college.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredColleges = registeredColleges.filter((c) => {
+    const cName = c.department ? `${c.college} (${c.department})` : c.college
+    return cName.toLowerCase().includes(search.toLowerCase())
+  })
 
   const totalPages = Math.ceil(filteredColleges.length / itemsPerPage)
 
@@ -333,7 +334,7 @@ export default function Payment() {
           <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSave}>
             <h3>Update Payment Status</h3>
             <p className="muted" style={{ fontSize: '0.9rem' }}>
-              College: <strong>{editingCollege.college}</strong>
+              College: <strong>{editingCollege.department ? `${editingCollege.college} (${editingCollege.department})` : editingCollege.college}</strong>
             </p>
 
             <label className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px', marginTop: '10px' }}>

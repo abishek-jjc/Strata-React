@@ -21,7 +21,7 @@ export default function Profile() {
         .eq('id', profile.college_id)
         .maybeSingle()
       if (data) {
-        setCollegeName(data.department ? `${data.college} - ${data.department}` : data.college)
+        setCollegeName(data.department ? `${data.college} (${data.department})` : data.college)
       }
     }
     loadCollege()

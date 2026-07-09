@@ -102,7 +102,9 @@ export default function TeamRegistration() {
           rollNo: p.rollNo.trim(),
           gender: p.gender,
           department: p.department.trim(),
-          year: p.year
+          year: p.year,
+          food: p.food || '-',
+          foodType: p.food || '-'
         })),
       })
 
@@ -185,135 +187,131 @@ export default function TeamRegistration() {
 
         {/* Participant slots — generated from team_size */}
         {participants.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 36 }}>#</th>
-                    <th>Name <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th>Roll Number <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th>Gender <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th>Department <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th>Year <span style={{ color: '#ef4444' }}>*</span></th>
-                    <th style={{ width: 140 }}>Food Choice</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {participants.map((p, i) => (
-                    <tr key={i}>
-                      <td>
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: 24,
-                          height: 24,
-                          borderRadius: '50%',
-                          background: 'rgba(var(--accent-rgb),0.15)',
-                          color: 'var(--accent)',
-                          fontWeight: 700,
-                          fontSize: 12,
-                        }}>{i + 1}</span>
-                      </td>
-                      <td>
-                        <input
-                          className="input"
-                          value={p.studentName}
-                          onChange={(e) => updateParticipant(i, 'studentName', e.target.value)}
-                          placeholder={`Participant ${i + 1} name`}
-                          required
-                          minLength={3}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          className="input"
-                          value={p.rollNo || ''}
-                          onChange={(e) => updateParticipant(i, 'rollNo', e.target.value)}
-                          placeholder={`Participant ${i + 1} roll number`}
-                          required
-                        />
-                      </td>
-                      <td>
-                        <select
-                          className="input"
-                          value={p.gender || ''}
-                          onChange={(e) => updateParticipant(i, 'gender', e.target.value)}
-                          required
-                          style={{
-                            padding: '6px 10px',
-                            minHeight: 'auto',
-                            background: 'rgba(255,255,255,0.05)',
-                            color: '#fff',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            borderRadius: '6px',
-                            width: '100%'
-                          }}
-                        >
-                          <option value="" style={{ background: '#12141c', color: '#fff' }}>Select gender…</option>
-                          <option value="Male" style={{ background: '#12141c', color: '#fff' }}>Male</option>
-                          <option value="Female" style={{ background: '#12141c', color: '#fff' }}>Female</option>
-                        </select>
-                      </td>
-                      <td>
-                        <input
-                          className="input"
-                          value={p.department || ''}
-                          onChange={(e) => updateParticipant(i, 'department', e.target.value)}
-                          placeholder="e.g. BCA"
-                          required
-                        />
-                      </td>
-                      <td>
-                        <select
-                          className="input"
-                          value={p.year || ''}
-                          onChange={(e) => updateParticipant(i, 'year', e.target.value)}
-                          required
-                          style={{
-                            padding: '6px 10px',
-                            minHeight: 'auto',
-                            background: 'rgba(255,255,255,0.05)',
-                            color: '#fff',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            borderRadius: '6px',
-                            width: '100%'
-                          }}
-                        >
-                          <option value="" style={{ background: '#12141c', color: '#fff' }}>Select year…</option>
-                          <option value="I Year" style={{ background: '#12141c', color: '#fff' }}>I Year</option>
-                          <option value="II Year" style={{ background: '#12141c', color: '#fff' }}>II Year</option>
-                          <option value="III Year" style={{ background: '#12141c', color: '#fff' }}>III Year</option>
-                          <option value="I PG" style={{ background: '#12141c', color: '#fff' }}>I PG</option>
-                          <option value="II PG" style={{ background: '#12141c', color: '#fff' }}>II PG</option>
-                        </select>
-                      </td>
-                      <td>
-                        <select
-                          className="input"
-                          value={p.food || '-'}
-                          onChange={(e) => updateParticipant(i, 'food', e.target.value)}
-                          style={{
-                            padding: '6px 10px',
-                            minHeight: 'auto',
-                            background: 'rgba(255,255,255,0.05)',
-                            color: '#fff',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            borderRadius: '6px',
-                            width: '100%'
-                          }}
-                        >
-                          <option value="-" style={{ background: '#12141c', color: '#fff' }}>—</option>
-                          <option value="Veg" style={{ background: '#12141c', color: '#fff' }}>Veg</option>
-                          <option value="Non-Veg" style={{ background: '#12141c', color: '#fff' }}>Non-Veg</option>
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+            gap: '20px',
+            marginTop: '20px',
+            marginBottom: '20px'
+          }}>
+            {participants.map((p, i) => (
+              <div 
+                key={i} 
+                className="card" 
+                style={{ 
+                  padding: '24px', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '14px',
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderRadius: '16px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '8px' }}>
+                  <h4 style={{ margin: 0, color: 'var(--accent)', fontSize: '1.1rem', fontWeight: 700 }}>Participant #{i + 1}</h4>
+                </div>
+                
+                <label className="field">
+                  <span>Name <span style={{ color: '#ef4444' }}>*</span></span>
+                  <input
+                    className="input"
+                    value={p.studentName}
+                    onChange={(e) => updateParticipant(i, 'studentName', e.target.value)}
+                    placeholder="Enter name"
+                    required
+                    minLength={3}
+                  />
+                </label>
+                
+                <label className="field">
+                  <span>Roll Number <span style={{ color: '#ef4444' }}>*</span></span>
+                  <input
+                    className="input"
+                    value={p.rollNo || ''}
+                    onChange={(e) => updateParticipant(i, 'rollNo', e.target.value)}
+                    placeholder="Enter roll number"
+                    required
+                  />
+                </label>
+                
+                <label className="field">
+                  <span>Gender <span style={{ color: '#ef4444' }}>*</span></span>
+                  <select
+                    className="input"
+                    value={p.gender || ''}
+                    onChange={(e) => updateParticipant(i, 'gender', e.target.value)}
+                    required
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      color: '#fff',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '6px',
+                      width: '100%'
+                    }}
+                  >
+                    <option value="">Select gender…</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </label>
+                
+                <label className="field">
+                  <span>Department <span style={{ color: '#ef4444' }}>*</span></span>
+                  <input
+                    className="input"
+                    value={p.department || ''}
+                    onChange={(e) => updateParticipant(i, 'department', e.target.value)}
+                    placeholder="e.g. CS"
+                    required
+                  />
+                </label>
+                
+                <label className="field">
+                  <span>Year <span style={{ color: '#ef4444' }}>*</span></span>
+                  <select
+                    className="input"
+                    value={p.year || ''}
+                    onChange={(e) => updateParticipant(i, 'year', e.target.value)}
+                    required
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      color: '#fff',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '6px',
+                      width: '100%'
+                    }}
+                  >
+                    <option value="">Select year…</option>
+                    <option value="I Year">I Year</option>
+                    <option value="II Year">II Year</option>
+                    <option value="III Year">III Year</option>
+                    <option value="I PG">I PG</option>
+                    <option value="II PG">II PG</option>
+                  </select>
+                </label>
+                
+                <label className="field">
+                  <span>Food Choice</span>
+                  <select
+                    className="input"
+                    value={p.food || '-'}
+                    onChange={(e) => updateParticipant(i, 'food', e.target.value)}
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      color: '#fff',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '6px',
+                      width: '100%'
+                    }}
+                  >
+                    <option value="-">—</option>
+                    <option value="Veg">Veg</option>
+                    <option value="Non-Veg">Non-Veg</option>
+                  </select>
+                </label>
+              </div>
+            ))}
           </div>
         )}
 

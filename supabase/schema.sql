@@ -282,7 +282,7 @@ ALTER TABLE public.students ADD COLUMN IF NOT EXISTS gender                  tex
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS department              text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS year                    text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS email                   text;
-ALTER TABLE public.students ADD COLUMN IF NOT EXISTS food_type               text CHECK (food_type IN ('Veg', 'Non-Veg'));
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS food_type               text CHECK (food_type IN ('Veg', 'Non-Veg', '-'));
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS registration_id         uuid REFERENCES public.registrations(id) ON DELETE CASCADE;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS leader_id               uuid REFERENCES public.student_leaders(id) ON DELETE SET NULL;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS college_id              uuid REFERENCES public.colleges(id) ON DELETE CASCADE;
@@ -407,7 +407,9 @@ CREATE OR REPLACE FUNCTION public.sync_winning_prizes()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
   v_first_college     text;
+  v_first_college_id  uuid;
   v_second_college    text;
+  v_second_college_id uuid;
 BEGIN
   UPDATE public.students SET winning_prize = NULL WHERE event_id = NEW.event_id;
 
@@ -630,7 +632,7 @@ BEGIN
       v_participant->>'studentName',
       lower(trim(v_participant->>'studentName')),
       v_participant->>'rollNo',
-      coalesce(v_participant->>'foodType', 'Veg'),
+      coalesce(v_participant->>'food', v_participant->>'foodType', '-'),
       v_participant->>'gender',
       v_participant->>'department',
       v_participant->>'year',

@@ -177,7 +177,10 @@ export default function Winners() {
               const registeredCollegeIds = eventRegs.map((r) => r.college_id)
               const registeredCollegeNames = colleges
                 .filter((c) => registeredCollegeIds.includes(c.id))
-                .map((c) => (c.college || c.college_name || '').toLowerCase().trim())
+                .map((c) => {
+                  const combined = c.department ? `${c.college} (${c.department})` : c.college
+                  return combined.toLowerCase().trim()
+                })
                 .filter(Boolean)
 
               // Filter active lots to only those assigned to these registered colleges

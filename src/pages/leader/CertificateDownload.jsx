@@ -50,7 +50,7 @@ export default function CertificateDownload() {
   // 2. Winner Certificates mapping (resolved from winners table)
   const winnerList = []
   const myCollege = colleges?.find(c => c.id === profile?.college_id)
-  const myCollegeName = myCollege ? (myCollege.department ? `${myCollege.college} - ${myCollege.department}` : myCollege.college) : ''
+  const myCollegeName = myCollege ? (myCollege.department ? `${myCollege.college} (${myCollege.department})` : myCollege.college) : ''
 
   if (winners && lots && students && colleges && certificates && events) {
     winners.forEach(w => {
@@ -88,7 +88,7 @@ export default function CertificateDownload() {
   const getCollegeName = (studentId) => {
     const student = students?.find((s) => s.id === studentId)
     const college = colleges?.find((c) => c.id === student?.college_id)
-    return college ? (college.department ? `${college.college} - ${college.department}` : college.college) : 'Unknown College'
+    return college ? (college.department ? `${college.college} (${college.department})` : college.college) : 'Unknown College'
   }
 
   function downloadBlob(bytes, filename) {
