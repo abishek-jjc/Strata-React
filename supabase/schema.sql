@@ -17,6 +17,12 @@ BEGIN
   IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'payments') THEN
     TRUNCATE TABLE public.payments CASCADE;
   END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'payment_logs') THEN
+    TRUNCATE TABLE public.payment_logs CASCADE;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'payment_polls') THEN
+    TRUNCATE TABLE public.payment_polls CASCADE;
+  END IF;
   IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'students') THEN
     TRUNCATE TABLE public.students CASCADE;
   END IF;
@@ -25,6 +31,20 @@ BEGIN
   END IF;
   IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'student_leaders') THEN
     TRUNCATE TABLE public.student_leaders CASCADE;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'winners') THEN
+    TRUNCATE TABLE public.winners CASCADE;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'lots') THEN
+    TRUNCATE TABLE public.lots CASCADE;
+  END IF;
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'colleges') THEN
+    TRUNCATE TABLE public.colleges CASCADE;
+  END IF;
+
+  -- Safe reset profiles (keep admins)
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'profiles') THEN
+    DELETE FROM public.profiles WHERE role <> 'admin';
   END IF;
 
   -- Restore normal trigger behaviour
@@ -189,16 +209,25 @@ ALTER TABLE public.student_leaders ADD COLUMN IF NOT EXISTS department text;
 ALTER TABLE public.student_leaders ADD COLUMN IF NOT EXISTS college_id uuid REFERENCES public.colleges(id) ON DELETE CASCADE;
 ALTER TABLE public.student_leaders ADD COLUMN IF NOT EXISTS status     text NOT NULL DEFAULT 'active';
 
--- Enforce max 1 leader per college
+-- Enforce max 1 leader per college per department
 DO $$
 BEGIN
-  IF NOT EXISTS (
+  -- Drop old constraint if it exists
+  IF EXISTS (
     SELECT 1 FROM information_schema.table_constraints
     WHERE constraint_name = 'student_leaders_college_id_key'
       AND table_name = 'student_leaders'
   ) THEN
+    ALTER TABLE public.student_leaders DROP CONSTRAINT student_leaders_college_id_key;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'student_leaders_college_id_dept_key'
+      AND table_name = 'student_leaders'
+  ) THEN
     ALTER TABLE public.student_leaders
-      ADD CONSTRAINT student_leaders_college_id_key UNIQUE (college_id);
+      ADD CONSTRAINT student_leaders_college_id_dept_key UNIQUE (college_id, department);
   END IF;
 END $$;
 
@@ -252,6 +281,7 @@ ALTER TABLE public.students ADD COLUMN IF NOT EXISTS gender                  tex
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS department              text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS year                    text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS email                   text;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS food_type               text CHECK (food_type IN ('Veg', 'Non-Veg'));
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS registration_id         uuid REFERENCES public.registrations(id) ON DELETE CASCADE;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS leader_id               uuid REFERENCES public.student_leaders(id) ON DELETE SET NULL;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS college_id              uuid REFERENCES public.colleges(id) ON DELETE CASCADE;
@@ -262,10 +292,13 @@ ALTER TABLE public.students ADD COLUMN IF NOT EXISTS winning_prize           tex
 
 -- 2o. certificates
 CREATE TABLE IF NOT EXISTS public.certificates (
-  id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id uuid        REFERENCES public.students(id) ON DELETE CASCADE,
-  cert_type  text,
-  issued_at  timestamptz DEFAULT now()
+  id                 uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id         uuid        REFERENCES public.students(id) ON DELETE CASCADE,
+  event_id           uuid        REFERENCES public.events(id) ON DELETE CASCADE,
+  certificate_number text,
+  position           text,
+  cert_type          text,
+  issued_at          timestamptz DEFAULT now()
 );
 ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
 
@@ -332,14 +365,48 @@ CREATE TRIGGER trg_normalize_student_name
   BEFORE INSERT OR UPDATE ON public.students
   FOR EACH ROW EXECUTE FUNCTION public.normalize_student_name_trigger();
 
+-- Trigger helper to sync registration food counts automatically from students table
+CREATE OR REPLACE FUNCTION public.sync_registration_food_counts()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_reg_id uuid;
+  v_veg int;
+  v_nonveg int;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    v_reg_id := OLD.registration_id;
+  ELSE
+    v_reg_id := NEW.registration_id;
+  END IF;
+
+  IF v_reg_id IS NOT NULL THEN
+    SELECT count(*) FILTER (WHERE food_type = 'Veg'),
+           count(*) FILTER (WHERE food_type = 'Non-Veg')
+      INTO v_veg, v_nonveg
+      FROM public.students
+     WHERE registration_id = v_reg_id;
+
+    UPDATE public.registrations
+       SET veg_count = coalesce(v_veg, 0),
+           nonveg_count = coalesce(v_nonveg, 0)
+     WHERE id = v_reg_id;
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_registration_food_counts ON public.students;
+CREATE TRIGGER trg_sync_registration_food_counts
+  AFTER INSERT OR UPDATE OR DELETE ON public.students
+  FOR EACH ROW EXECUTE FUNCTION public.sync_registration_food_counts();
+
 -- 3b. Sync winning prizes (trigger helper)
 CREATE OR REPLACE FUNCTION public.sync_winning_prizes()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
   v_first_college     text;
-  v_first_college_id  uuid;
   v_second_college    text;
-  v_second_college_id uuid;
 BEGIN
   UPDATE public.students SET winning_prize = NULL WHERE event_id = NEW.event_id;
 
@@ -347,12 +414,12 @@ BEGIN
     SELECT assigned_college INTO v_first_college
       FROM public.lots WHERE lot_name = NEW.first_place LIMIT 1;
     IF v_first_college IS NOT NULL THEN
-      SELECT id INTO v_first_college_id FROM public.colleges
-        WHERE college = v_first_college LIMIT 1;
-      IF v_first_college_id IS NOT NULL THEN
-        UPDATE public.students SET winning_prize = 'First Place'
-          WHERE event_id = NEW.event_id AND college_id = v_first_college_id;
-      END IF;
+      UPDATE public.students SET winning_prize = 'First Place'
+        WHERE event_id = NEW.event_id 
+          AND college_id IN (
+            SELECT id FROM public.colleges 
+             WHERE lower(trim(college)) = lower(trim(v_first_college))
+          );
     END IF;
   END IF;
 
@@ -360,12 +427,12 @@ BEGIN
     SELECT assigned_college INTO v_second_college
       FROM public.lots WHERE lot_name = NEW.second_place LIMIT 1;
     IF v_second_college IS NOT NULL THEN
-      SELECT id INTO v_second_college_id FROM public.colleges
-        WHERE college = v_second_college LIMIT 1;
-      IF v_second_college_id IS NOT NULL THEN
-        UPDATE public.students SET winning_prize = 'Second Place'
-          WHERE event_id = NEW.event_id AND college_id = v_second_college_id;
-      END IF;
+      UPDATE public.students SET winning_prize = 'Second Place'
+        WHERE event_id = NEW.event_id 
+          AND college_id IN (
+            SELECT id FROM public.colleges 
+             WHERE lower(trim(college)) = lower(trim(v_second_college))
+          );
     END IF;
   END IF;
 
@@ -547,12 +614,13 @@ BEGIN
 
   FOR v_participant IN SELECT * FROM jsonb_array_elements(p_participants) LOOP
     INSERT INTO public.students (
-      student_name, student_name_normalized, roll_no,
+      student_name, student_name_normalized, roll_no, food_type,
       registration_id, leader_id, college_id, event_id, certificate_status
     ) VALUES (
       v_participant->>'studentName',
       lower(trim(v_participant->>'studentName')),
       v_participant->>'rollNo',
+      coalesce(v_participant->>'foodType', 'Veg'),
       v_reg_id, p_leader_id, p_college_id, p_event_id, 'not issued'
     );
   END LOOP;
@@ -658,6 +726,7 @@ BEGIN
   SELECT id INTO v_college_id
     FROM public.colleges
    WHERE lower(trim(college)) = lower(trim(p_college_name))
+     AND lower(trim(department)) = lower(trim(p_leader_dept))
    LIMIT 1;
 
   IF v_college_id IS NULL THEN
@@ -820,7 +889,9 @@ DECLARE
   v_reg_id       uuid;
 BEGIN
   SELECT id INTO v_college_id FROM public.colleges
-   WHERE lower(trim(college)) = lower(trim(p_college_name)) LIMIT 1;
+   WHERE lower(trim(college)) = lower(trim(p_college_name))
+     AND lower(trim(department)) = lower(trim(p_college_dept))
+   LIMIT 1;
 
   IF v_college_id IS NULL THEN
     INSERT INTO public.colleges (college, department, phone, email, address, status)
@@ -961,6 +1032,7 @@ CREATE POLICY "registrations: admin write"   ON public.registrations FOR ALL
 DROP POLICY IF EXISTS "students: public read"                   ON public.students;
 DROP POLICY IF EXISTS "students: secure read"                   ON public.students;
 DROP POLICY IF EXISTS "students: admin write"                   ON public.students;
+DROP POLICY IF EXISTS "students: leader update"                  ON public.students;
 DROP POLICY IF EXISTS "students: incharge update winner_place"  ON public.students;
 CREATE POLICY "students: secure read"   ON public.students FOR SELECT
   USING (
@@ -974,6 +1046,13 @@ CREATE POLICY "students: secure read"   ON public.students FOR SELECT
   );
 CREATE POLICY "students: admin write"   ON public.students FOR ALL
   USING (current_role_name() = 'admin');
+CREATE POLICY "students: leader update" ON public.students FOR UPDATE
+  USING (
+    leader_id = (SELECT ref_id FROM public.profiles WHERE id = auth.uid())
+  )
+  WITH CHECK (
+    leader_id = (SELECT ref_id FROM public.profiles WHERE id = auth.uid())
+  );
 CREATE POLICY "students: incharge update winner_place" ON public.students FOR UPDATE
   USING (
     current_role_name() = 'incharge' AND
@@ -990,9 +1069,10 @@ DROP POLICY IF EXISTS "certificates: admin write" ON public.certificates;
 CREATE POLICY "certificates: secure read"  ON public.certificates FOR SELECT
   USING (
     current_role_name() = 'admin' OR
-    student_id IN (
-      SELECT id FROM public.students
-       WHERE leader_id = (SELECT ref_id FROM public.profiles WHERE id = auth.uid())
+    EXISTS (
+      SELECT 1 FROM public.students s
+       WHERE s.id = student_id
+         AND s.leader_id = (SELECT ref_id FROM public.profiles WHERE id = auth.uid())
     )
   );
 CREATE POLICY "certificates: admin write" ON public.certificates FOR ALL
@@ -1053,45 +1133,42 @@ DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.incharges;     
 -- ============================================================================
 
 -- 6a. Default venues
+DELETE FROM public.venues;
 INSERT INTO public.venues (venue_name) VALUES
-  ('CS Lab I'),
-  ('CS Lab II'),
-  ('CS Lab III'),
-  ('PG Lab'),
-  ('Main Seminar Hall'),
-  ('CS Seminar Hall'),
-  ('HOD Office'),
-  ('UG Lab 5'),
-  ('Conference Hall')
+  ('Seminar Hall'),
+  ('Auditorium'),
+  ('C-9'),
+  ('UG Lab'),
+  ('E-Lab')
 ON CONFLICT (venue_name) DO NOTHING;
 
 -- 6b. Default page settings
 INSERT INTO public.settings (key_name, value) VALUES
-  ('event_date',              '2026-09-25 09:00:00'),
+  ('event_date',              '2026-08-07 09:00:00'),
   ('invitation_title',        'You Are Cordially Invited'),
-  ('invitation_tagline',      'STRATA 2K26 — State Level Intercollegiate Technical Meet, ANJAC Sivakasi'),
-  ('invitation_body',         'On behalf of the Department of Computer Science, Ayya Nadar Janaki Ammal College (Autonomous), Sivakasi, we warmly invite you and your talented students to participate in STRATA 2K26 — our prestigious State Level Intercollegiate Technical Meet.
+  ('invitation_tagline',      'STRATA 2K26 — State Level Intercollegiate Meet, ANJAC Sivakasi'),
+  ('invitation_body',         'On behalf of the Department of Computer Science, Ayya Nadar Janaki Ammal College (Autonomous), Sivakasi, we warmly invite you and your talented students to participate in STRATA 2K26 — our prestigious State Level Intercollegiate Meet.
 
-The event features 8 exciting contests: Logic Hunt, Mind Spark, Code Detox, Tech Premier League, Idea Forge, Code Sprint, Syntax Wars, and Frame Fusion.
+The event features 8 exciting contests: Idea Presentation for Artificial Intelligence (AI), Frame Fusion, Mystery Chase, Code Detox, Mind Spark, Code Sprint, Syntax Wars, and Tech Premier League.
 
-Date: 25 September 2026
+Date: 7 August 2026
 Venue: ANJAC, Sivakasi
-Registration Fee: Rs. 150 per participant (Spot Registration)
-Spot Registration opens at 8:30 AM and closes at 9:30 AM.
+Registration Fee: Rs. 236 per participant (Including GST 18%)
+Registration details can be mailed to anjacstrataofficial@gmail.com.
 
 We warmly look forward to welcoming you and your participants to our campus.'),
   ('invitation_pdf_url',      ''),
-  ('contact_email',           'cs@anjaconline.org'),
-  ('contact_phone',           '+91 98765 43210'),
-  ('contact_address',         'Department of Computer Science, Ayya Nadar Janaki Ammal College (Autonomous), Sivakasi - Srivilliputhur Road, Sivakasi - 626 124, Tamil Nadu, India.'),
-  ('contact_extra',           'Venue Coordinator: Dr. V. Venkatesh Babu (HOD, CS Dept.)'),
-  ('fee_per_student',         '150'),
+  ('contact_email',           'anjacstrataofficial@gmail.com'),
+  ('contact_phone',           '+91 9787970633, +91 7639535161'),
+  ('contact_address',         'Department of Computer Science, Ayya Nadar Janaki Ammal College (Autonomous), Sivakasi, Tamil Nadu, India.'),
+  ('contact_extra',           'Head of Department: Mr. V. Venkateshbabu'),
+  ('fee_per_student',         '236'),
   ('gpay_qr_url',             ''),
   ('whatsapp_group_link',     ''),
   ('participation_cert_url',  ''),
   ('winner_cert_1_url',       ''),
   ('winner_cert_2_url',       ''),
-  ('about_us',                'Ayya Nadar Janaki Ammal College (ANJAC), Sivakasi, established in 1963, is a pioneer in rural education and a UGC-conferred ''College of Excellence''. STRATA 2K26 is our premier State-Level Intercollegiate Technical Meet organized by the Department of Computer Science, aimed at fostering competitive excellence and innovation in computer technology.')
+  ('about_us',                'Ayya Nadar Janaki Ammal College (Autonomous), Sivakasi, established in 1963, in the industrial corporation of Sivakasi, popularly known as "Kutty Japan" in Tamil Nadu, is a pioneer in rural education and a recognized College of Excellence. STRATA 2K26 is our premier State-Level Intercollegiate Meet organized by the Department of Computer Science, aimed at fostering competitive excellence and innovation in computer technology.')
 ON CONFLICT (key_name) DO UPDATE SET value = EXCLUDED.value;
 
 -- 6c. Default leaders (Principal + HOD messages)
@@ -1100,34 +1177,32 @@ INSERT INTO public.leaders (name, position, description) VALUES
   (
     'Dr. C. Ashok',
     'Principal',
-    'ANJAC has always championed technical and creative integration. Fests like STRATA provide students the canvas they need to translate theoretical learning into practical mastery. I welcome all participants to engage, learn, and excel.'
+    'Ayya Nadar Janaki Ammal College has always championed technical and creative integration. Fests like STRATA provide students the canvas they need to translate theoretical learning into practical mastery. I welcome all participants to engage, learn, and excel.'
   ),
   (
-    'V. Venkatesh Babu',
+    'Mr. V. Venkateshbabu',
     'Head of Department',
-    'Technology changes rapidly, and students must possess critical adaptability. STRATA is curated to test that very agility. From complex debugging routines to dynamic design paradigms, we aim to prepare the next generation of IT leaders. Best of luck!'
+    'Technology changes rapidly, and students must possess critical adaptability. STRATA 2K26 is curated to test that very agility. From AI presentations to debug syntax wars, we aim to prepare the next generation of IT leaders. Best of luck!'
   );
 
 -- 6d. Default rules
 DELETE FROM public.rules;
 INSERT INTO public.rules (title, points) VALUES
   (
-    'Eligibility Criteria',
-    'Only bona fide UG and PG students of Computer Science, Computer Applications, and IT streams are eligible to participate.
-Participant overlaps are permitted, but it is their responsibility to manage clashing event schedules.
-Maximum representation of 12 students per college registration team.'
+    'General Instructions',
+    '1. Strata-2k26 is exclusively for UG & PG students of Computer based courses.
+2. Maximum number of participants per team is 15.
+3. It is the responsibility of the participants to avoid clashes between the events they are participating.
+4. The decision of the judges will be final for all events.
+5. Registration fee is 236/- per participant (Including GST 18% as per govt norms).'
   ),
   (
-    'Team Registration',
-    'Participants must produce their College Identity Card and a Bonafide Certificate signed by their Principal/HOD at the registration desk.
-Registration fee is Rs. 150 per participant, payable at the spot registration desk on arrival.
-Spot registration opens at 8:30 AM and strictly closes at 9:30 AM.'
-  ),
-  (
-    'Conduct & Decorum',
-    'Strict formal dress code is mandatory for all students attending the technical meet.
-Disciplined behavior must be maintained in the seminar halls, laboratories, and college premises.
-Misbehavior or violation of rules will lead to the immediate disqualification of the entire college team.'
+    'Registration & Certification',
+    '6. Special Website is designed for Strata''26 (link is available in the website: anjacstrata.netlify.app).
+7. Scan the QR code in the invitation with the scanner provided in the website and start registration online (Use the demo videos).
+8. The Digital Certificates for the winners and participants can be downloaded from website after Valedictory Function.
+9. Registration Details can be mailed to anjacstrataofficial@gmail.com.
+10. Spot registration is also available.'
   );
 
 -- 6e. Default events
@@ -1149,52 +1224,52 @@ SELECT
 FROM (VALUES
   (
     '50000000-0000-0000-0000-000000000011',
-    'Logic Hunt', 'Technical Game',
-    'Clue-solving treasure hunt using QR codes placed around the campus.',
-    E'Team Size: 3 Participants.\nPreliminary round will be conducted.\nTwo participants from a team will be allowed to attend the prelims.\n10 teams will be selected to the next round.\nQR Codes will be placed at various locations.\nEach QR Code contains a clue or question.\nTeams must solve the clues and locate the next QR code.\nFirst three teams completing all clues qualify for the final round.',
-    'Mrs. A. Devi', '3', '3', '3', 'Main Seminar Hall', 'Conference Hall', '10:00', '11:30'
+    'Idea Presentation', 'Presentation',
+    'Present innovative ideas on Artificial Intelligence (AI) and the future of technology.',
+    E'Two participants per team.\nFive minutes for presentation and three minutes for queries.\nOriginal innovative ideas/projects can be presented.\nTopics may be from AI, RAG, MCP, Agentic AI, LLMs, GenAI, and robotics.\nNote: Submissions must reach cs-regular@anjaconline.org in ppt/pdf format on/before 05.08.2026.',
+    'Mrs. S. Yogalakshmi', '2', '2', '2', 'Seminar Hall', 'Seminar Hall', '11:00', '11:00'
   ),(
     '50000000-0000-0000-0000-000000000012',
-    'Mind Spark', 'Technical Quiz',
-    'Test your range of IT knowledge, CS fundamentals, programming concepts, and current technology trends.',
-    E'Team Size: 2 Participants.\nPreliminary round will be conducted.\nTop five teams will qualify for the final round.\nQuestions will include:\n- Computer Science Fundamentals\n- Programming Concepts\n- Current Technology Trends',
-    'Dr. P. Senthil', '2', '2', '2', 'Main Seminar Hall', 'Main Seminar Hall', '11:00', '12:00'
+    'Frame Fusion', 'Short Film',
+    'Showcase your cinematic and storytelling skills with an open theme short film.',
+    E'The competition is based on an Open Theme.\nA maximum of 2 participants are allowed per team.\nThe duration of the short film must be between 3–4 minutes (including title and credits).\nThe completed short film must be submitted on or before 05/08/2026 in mp4/mkv/mov format to cs-regular@anjaconline.org.\nAny film containing vulgar, offensive, illegal, or unsafe content will be disqualified.',
+    'Mrs. K. Shenbaga Priya', '1', '2', '2', 'Auditorium', 'Auditorium', '11:00', '11:00'
   ),(
     '50000000-0000-0000-0000-000000000013',
-    'Code Detox', 'Model Making',
-    'Craft innovative models using e-waste/raw materials to promote sustainability.',
-    E'Team Size: 2 Participants.\nParticipants should bring their own e-waste/raw materials.\nComponents should not be pre-assembled.\nAssembly should begin only after the event starts.\nTeams with pre-assembled components will be disqualified.\nTime Duration: 1 Hour.',
-    'Mr. M. Rajesh', '2', '2', '2', 'UG Lab 5', 'UG Lab 5', '10:15', '10:15'
+    'Mystery Chase', 'Treasure Hunt',
+    'Clue-solving treasure hunt using QR codes placed around the campus.',
+    E'Team Size: 3 Participants.\nPreliminary will be conducted. Two Participants from a team will be allowed to attend the prelims.\n10 teams will be selected to the next round.\nQR Codes will be placed at various locations. Each QR Code contains a clue or question.\nTeams must solve the clues and locate the next QR code.\nFirst five teams completing all clues qualify for the final round.',
+    'Dr. V. Jayakumar', '3', '3', '3', 'UG Lab', 'C-9', '11:00', '12:00'
   ),(
     '50000000-0000-0000-0000-000000000014',
-    'Tech Premier League', 'Sports Quiz',
-    'An IPL-based technical and sports quiz ending in a high-stakes mock auction.',
-    E'Team Size: 2 Participants.\nPreliminary IPL Quiz round will be conducted.\nQuestions will be based on IPL.\nTop five teams will be selected for the final round (AUCTION).\nPrizes will be awarded to the Top Two Teams.',
-    'Dr. R. Kavitha', '2', '2', '2', 'CS Seminar Hall', 'CS Seminar Hall', '10:30', '12:00'
+    'Code Detox', 'Model Making',
+    'E-Waste Model Making: Craft innovative models using e-waste/raw materials.',
+    E'Team Size: 2 Participants.\nParticipants should bring their own e-waste/raw materials.\nComponents should not be pre-assembled.\nAssembly should begin only after the event starts.\nTeams with pre-assembled components will be disqualified.\nTime duration: 1 hour.',
+    'Dr. R. Vengateshkumar', '2', '2', '2', 'E-Lab', 'E-Lab', '11:30', '11:30'
   ),(
     '50000000-0000-0000-0000-000000000015',
-    'Idea Forge', 'Presentation',
-    'Present innovative ideas on Artificial Intelligence (AI), connect systems with Model Context Protocol (MCP), and showcase agentic systems.',
-    E'Two participants per team.\nFive minutes for presentation and three minutes for queries.\nOriginal innovative ideas can be presented.\nTopics may be from the following:\n- Retrieval-Augmented Generation (RAG)\n- Model Context Protocol (MCP)\n- Agentic AI\n- AI Agents\n- Large Language Models (LLMs)\n- Generative AI\n- AI in Education\n- AI for Smart Healthcare\n- Ethical AI\n- The Future of AI\nNote: PPT/PDF submission to cs-regular@anjaconline.org on or before 05.08.2026.',
-    'Mrs. S. Nancy', '2', '2', '2', 'PG Lab', 'PG Lab', '09:45', '09:45'
+    'Mind Spark', 'Technical Quiz',
+    'Test your IT range, CS fundamentals, programming concepts, and current tech trends.',
+    E'Two Participants per team.\nPreliminary will be conducted.\nTop five teams will qualify for the final round.\nQuestions will include Computer Science Fundamentals, Programming Concepts, and Current Technology Trends.',
+    'Dr. A. Dharmarajan', '2', '2', '2', 'UG Lab', 'Seminar Hall', '11:00', '14:00'
   ),(
     '50000000-0000-0000-0000-000000000016',
     'Code Sprint', 'Coding',
     'Implement clean, optimized algorithms for spot problems under time limits.',
-    E'One participant per team.\nPreliminary will be conducted.\nDuration is one hour.\nProblem will be given on the spot.\nSoftware can be used: C/C++/Java/Python.',
-    'Mrs. A. Devi', '1', '1', '1', 'CS Lab I', 'CS Lab I', '10:00', '10:00'
+    E'One participant per team.\nPreliminary will be conducted.\nDuration is one hour.\nProblem will be given on the spot.\nSoftware can be used: C/Java/Python.',
+    'Mrs. R. Ananthavalli', '1', '1', '1', 'UG Lab', 'UG Lab', '11:00', '12:00'
   ),(
     '50000000-0000-0000-0000-000000000017',
     'Syntax Wars', 'Debugging',
     'Identify and correct syntactic and logical errors in code files.',
     E'One participant per team.\nPreliminary will be conducted.\nIdentify and correct errors in the given programs.\nLanguages may include C, C++, Java, and Python.',
-    'Mr. M. Rajesh', '1', '1', '1', 'CS Lab II', 'CS Lab II', '11:00', '11:00'
+    'Mrs. K. Devikala', '1', '1', '1', 'UG Lab', 'UG Lab', '11:00', '12:00'
   ),(
     '50000000-0000-0000-0000-000000000018',
-    'Frame Fusion', 'Short Film',
-    'Showcase your cinematic and storytelling skills on an open theme.',
-    E'The competition is based on an Open Theme.\nA maximum of 2 participants are allowed per team.\nThe duration of the short film must be between 3–4 minutes (including title and credits).\nThe completed short film must be submitted on or before 02/08/2026, prior to the event date.\nAny film containing vulgar, offensive, illegal, or unsafe content will be disqualified.\nThe use of copyrighted material is strictly prohibited.',
-    'V. Venkatesh Babu', '1', '2', '2', 'Conference Hall', 'Conference Hall', '12:00', '12:00'
+    'Tech Premier League', 'Sports Quiz',
+    'An IPL-based quiz ending in a high-stakes mock auction.',
+    E'Team Size: 2 Participants.\nPreliminary IPL Quiz round will be conducted.\nQuestions will be based on IPL.\nTop five teams will be selected for the final round (AUCTION).\nPrizes will be awarded to the Top Two Teams.',
+    'Ms. R. Aishwarya Lakshmmi', '2', '2', '2', 'Auditorium', 'Auditorium', '11:30', '11:30'
   )
 ) AS e(id, event_name, category, description, rules, staff_incharge,
        min_p, max_p, team_sz, p_venue, m_venue, p_time, m_time)
@@ -1226,6 +1301,22 @@ INSERT INTO public.lots (lot_name, is_assigned, assigned_college) VALUES
   ('Lot 9',  false, '-'),
   ('Lot 10', false, '-')
 ON CONFLICT DO NOTHING;
+
+-- 6g. Default incharges (static event links)
+DELETE FROM public.incharges;
+INSERT INTO public.incharges (id, name, email, event_id) VALUES
+  ('60000000-0000-0000-0000-000000000011', 'Mrs. S. Yogalakshmi', 'yogalakshmi@anjaconline.org', '50000000-0000-0000-0000-000000000011'),
+  ('60000000-0000-0000-0000-000000000012', 'Mrs. K. Shenbaga Priya', 'shenbagapriya@anjaconline.org', '50000000-0000-0000-0000-000000000012'),
+  ('60000000-0000-0000-0000-000000000013', 'Dr. V. Jayakumar', 'jayakumar@anjaconline.org', '50000000-0000-0000-0000-000000000013'),
+  ('60000000-0000-0000-0000-000000000014', 'Dr. R. Vengateshkumar', 'vengateshkumar@anjaconline.org', '50000000-0000-0000-0000-000000000014'),
+  ('60000000-0000-0000-0000-000000000015', 'Dr. A. Dharmarajan', 'dharmarajan@anjaconline.org', '50000000-0000-0000-0000-000000000015'),
+  ('60000000-0000-0000-0000-000000000016', 'Mrs. R. Ananthavalli', 'ananthavalli@anjaconline.org', '50000000-0000-0000-0000-000000000016'),
+  ('60000000-0000-0000-0000-000000000017', 'Mrs. K. Devikala', 'devikala@anjaconline.org', '50000000-0000-0000-0000-000000000017'),
+  ('60000000-0000-0000-0000-000000000018', 'Ms. R. Aishwarya Lakshmmi', 'aishwaryalakshmmi@anjaconline.org', '50000000-0000-0000-0000-000000000018')
+ON CONFLICT (id) DO UPDATE SET
+  name     = EXCLUDED.name,
+  email    = EXCLUDED.email,
+  event_id = EXCLUDED.event_id;
 
 -- ============================================================================
 -- 7. STORAGE BUCKET CONFIGURATION (assets bucket for media and templates)

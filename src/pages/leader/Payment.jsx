@@ -36,7 +36,7 @@ export default function Payment() {
   
   const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
   const currentTotal = students.length * feePerStudent
-  const remainingPayable = Math.max(0, currentTotal - totalPaid)
+  const remainingPayable = myCollege?.is_paid ? 0 : Math.max(0, currentTotal - totalPaid)
   const extraPaid = Math.max(0, totalPaid - currentTotal)
   const extraStudentsCount = Math.floor(extraPaid / feePerStudent)
 

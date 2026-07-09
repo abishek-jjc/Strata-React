@@ -1140,6 +1140,9 @@ select option {
 
 /* Responsive sidebar and container overrides */
 @media (max-width: 768px) {
+  .app-shell {
+    display: block;
+  }
   .sidebar-toggle-btn {
     display: flex !important;
   }

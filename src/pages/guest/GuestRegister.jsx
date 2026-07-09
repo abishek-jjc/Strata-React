@@ -52,14 +52,15 @@ export default function GuestRegister() {
   const [agreeRules, setAgreeRules] = useState(false)
   const [showRulesModal, setShowRulesModal] = useState(false)
 
-  // Helper to query if a college has already registered a student leader
-  async function checkCollegeRegistration(name) {
-    if (!name) return false
+  // Helper to query if a college + department has already registered a student leader
+  async function checkCollegeRegistration(name, dept) {
+    if (!name || !dept) return false
     try {
       const { data: collegeRow } = await supabase
         .from(TABLES.COLLEGES)
         .select('id')
         .eq('college', name.trim())
+        .eq('department', dept.trim())
         .maybeSingle()
 
       if (collegeRow) {
@@ -115,7 +116,7 @@ export default function GuestRegister() {
             const savedCol = sessionStorage.getItem('pending_college_name')
             const savedDept = sessionStorage.getItem('pending_leader_dept')
             if (savedCol && savedDept) {
-              const isReg = await checkCollegeRegistration(savedCol)
+              const isReg = await checkCollegeRegistration(savedCol, savedDept)
               if (!isReg) {
                 setCollegeName(savedCol)
                 setLeaderDept(savedDept)
@@ -156,7 +157,7 @@ export default function GuestRegister() {
           qrScanner.clear()
         }).catch(err => console.error("Failed to stop scanner", err))
 
-        checkCollegeRegistration(decrypted.college).then((isReg) => {
+        checkCollegeRegistration(decrypted.college, decrypted.department).then((isReg) => {
           if (!isReg) {
             setCollegeName(decrypted.college)
             setLeaderDept(decrypted.department)
@@ -203,7 +204,7 @@ export default function GuestRegister() {
   // 4. Handle initial router state redirects
   useEffect(() => {
     if (location.state?.autoDecryptedCollege && location.state?.autoDecryptedDept) {
-      checkCollegeRegistration(location.state.autoDecryptedCollege).then((isReg) => {
+      checkCollegeRegistration(location.state.autoDecryptedCollege, location.state.autoDecryptedDept).then((isReg) => {
         if (!isReg) {
           setCollegeName(location.state.autoDecryptedCollege)
           setLeaderDept(location.state.autoDecryptedDept)
@@ -867,9 +868,9 @@ export default function GuestRegister() {
                               fontWeight: '600'
                             }}
                           >
-                            <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                              {event.event_name} 
-                              <span style={{ fontSize: '0.85rem', color: 'var(--g-text-muted)', fontWeight: 'normal', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '20px' }}>
+                            <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px', textAlign: 'left' }}>
+                              <span>{event.event_name}</span>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--g-text-muted)', fontWeight: 'normal', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '20px' }}>
                                 Max {event.team_size} members
                               </span>
                             </span>
@@ -880,7 +881,7 @@ export default function GuestRegister() {
                           </button>
 
                           {isExpanded && (
-                            <div style={{ padding: '20px', background: 'rgba(0,0,0,0.15)', borderTop: '1px solid var(--g-glass-border)' }}>
+                            <div className="guest-event-expanded-content">
                               <div className="guest-sub-team-inputs-container">
                                 {Array.from({ length: event.team_size || 1 }).map((_, idx) => {
                                   const pData = participants[event.id]?.[idx] || { studentName: '', rollNo: '' }

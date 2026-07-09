@@ -41,7 +41,8 @@ export default function StudentList() {
       .from(TABLES.STUDENTS)
       .update({
         student_name: editingStudent.student_name,
-        roll_no: editingStudent.roll_no || ''
+        roll_no: editingStudent.roll_no || '',
+        food_type: editingStudent.food_type || 'Veg'
       })
       .eq('id', editingStudent.id)
 
@@ -66,6 +67,7 @@ export default function StudentList() {
               <th>Name</th>
               <th>Roll Number</th>
               <th>Event</th>
+              <th>Food Choice</th>
               <th>Certificate Status</th>
               <th>Actions</th>
             </tr>
@@ -76,6 +78,11 @@ export default function StudentList() {
                 <td>{s.student_name}</td>
                 <td>{s.roll_no || '—'}</td>
                 <td>{getEventName(s.event_id)}</td>
+                <td>
+                  <span className={`badge badge-${s.food_type === 'Non-Veg' ? 'pending' : 'approved'}`} style={{ textTransform: 'capitalize' }}>
+                    {s.food_type || 'Veg'}
+                  </span>
+                </td>
                 <td>
                   <span className={`badge badge-${s.certificate_status === 'Issued' ? 'approved' : 'pending'}`}>
                     {s.certificate_status || 'Pending'}
@@ -89,7 +96,7 @@ export default function StudentList() {
               </tr>
             ))}
             {students.length === 0 && (
-              <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: '20px' }}>No participants registered yet.</td></tr>
+              <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: '20px' }}>No participants registered yet.</td></tr>
             )}
           </tbody>
         </table>
@@ -119,6 +126,18 @@ export default function StudentList() {
                 value={editingStudent.roll_no || ''}
                 onChange={(e) => setEditingStudent({ ...editingStudent, roll_no: e.target.value })}
               />
+            </label>
+
+            <label className="field">
+              <span>Food Choice</span>
+              <select
+                value={editingStudent.food_type || 'Veg'}
+                onChange={(e) => setEditingStudent({ ...editingStudent, food_type: e.target.value })}
+                required
+              >
+                <option value="Veg">Veg</option>
+                <option value="Non-Veg">Non-Veg</option>
+              </select>
             </label>
 
             <label className="field">

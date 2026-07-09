@@ -39,8 +39,8 @@ export default function CertificateDownload() {
     const cert = certificates?.find(c => c.student_id === student.id && (c.position === 'Participation' || !c.position))
     return {
       student,
-      issued: !!cert,
-      cert: cert
+      issued: student.certificate_status === 'issued' || !!cert,
+      cert: cert || { student_id: student.id, position: 'Participation', certificate_number: `CERT-PART-${student.id.substring(0, 8).toUpperCase()}` }
     }
   })
 
@@ -72,8 +72,8 @@ export default function CertificateDownload() {
             student,
             winnerPlace: place,
             winnerEventName: eventName,
-            issued: !!cert,
-            cert: cert
+            issued: student.certificate_status === 'issued' || !!cert,
+            cert: cert || { student_id: student.id, position: place, certificate_number: `CERT-WIN-${student.id.substring(0, 8).toUpperCase()}` }
           })
         })
       })

@@ -1502,3 +1502,35 @@ body.light-theme .guest-modal-rules-list li {
   }
 }
 
+/* Custom registration and input adjustments for mobile responsiveness */
+.guest-event-expanded-content {
+  padding: 20px;
+  background: rgba(0,0,0,0.15);
+  border-top: 1px solid var(--g-glass-border);
+}
+
+@media (max-width: 768px) {
+  .guest-section {
+    padding: 40px 16px !important;
+  }
+  .guest-section-header {
+    margin-bottom: 30px !important;
+  }
+  .guest-glass-panel {
+    padding: 16px !important;
+  }
+  .guest-event-expanded-content {
+    padding: 10px !important;
+  }
+  .guest-sub-team-inputs-container {
+    padding: 12px !important;
+    gap: 15px !important;
+    border-radius: 10px !important;
+  }
+  .guest-participant-card-styled {
+    padding-left: 10px !important;
+    gap: 10px !important;
+  }
+}
+
+

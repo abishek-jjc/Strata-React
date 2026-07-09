@@ -5,7 +5,7 @@ import { useTable } from '../../hooks/useTable'
 import { TABLES } from '../../supabase/tables'
 import { hasDuplicateNamesWithinTeam } from '../../utils/validators'
 
-const emptyParticipant = () => ({ studentName: '', rollNo: '' })
+const emptyParticipant = () => ({ studentName: '', rollNo: '', foodType: 'Veg' })
 
 export default function TeamRegistration() {
   const { profile } = useAuth()
@@ -90,6 +90,7 @@ export default function TeamRegistration() {
         p_participants: participants.map((p) => ({
           studentName: p.studentName.trim(),
           rollNo: p.rollNo.trim(),
+          foodType: p.foodType || 'Veg',
         })),
       })
 
@@ -168,6 +169,7 @@ export default function TeamRegistration() {
                     <th style={{ width: 36 }}>#</th>
                     <th>Name <span style={{ color: '#ef4444' }}>*</span></th>
                     <th>Roll Number <span style={{ color: '#ef4444' }}>*</span></th>
+                    <th style={{ width: 140 }}>Food Type <span style={{ color: '#ef4444' }}>*</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -205,6 +207,18 @@ export default function TeamRegistration() {
                           placeholder={`Participant ${i + 1} roll number`}
                           required
                         />
+                      </td>
+                      <td>
+                        <select
+                          className="input"
+                          value={p.foodType || 'Veg'}
+                          onChange={(e) => updateParticipant(i, 'foodType', e.target.value)}
+                          required
+                          style={{ minHeight: '38px' }}
+                        >
+                          <option value="Veg">Veg</option>
+                          <option value="Non-Veg">Non-Veg</option>
+                        </select>
                       </td>
                     </tr>
                   ))}

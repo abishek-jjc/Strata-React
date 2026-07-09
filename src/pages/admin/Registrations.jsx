@@ -37,7 +37,11 @@ export default function Registrations() {
     onConfirm: null,
   })
 
-  const collegeName = (id) => colleges.find((c) => c.id === id)?.college || id
+  const collegeName = (id) => {
+    const c = colleges.find((col) => col.id === id)
+    if (!c) return id
+    return c.department ? `${c.college} (${c.department})` : c.college
+  }
   const eventName = (id) => events.find((e) => e.id === id)?.event_name || id
 
   const showAlert = (title, message, type = 'info', onConfirm = null) => {
@@ -51,7 +55,7 @@ export default function Registrations() {
   }
 
   async function assignLot(reg) {
-    const cName = collegeName(reg.college_id)
+    const cName = colleges.find((c) => c.id === reg.college_id)?.college || ''
     
     // Check if college already has a lot assigned
     let lot = lots.find((l) => l.assigned_college.toLowerCase().trim() === cName.toLowerCase().trim())

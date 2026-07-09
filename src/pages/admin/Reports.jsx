@@ -89,7 +89,11 @@ export default function Reports() {
   }, [eventMode, events, selectedEvent, selectedEvents])
 
   // Helper mappings
-  const collegeName = (id) => colleges.find((c) => c.id === id)?.college || '—'
+  const collegeName = (id) => {
+    const c = colleges.find((col) => col.id === id)
+    if (!c) return '—'
+    return c.department ? `${c.college} (${c.department})` : c.college
+  }
   const eventName = (id) => events.find((e) => e.id === id)?.event_name || '—'
   const leaderName = (id) => studentLeaders.find((l) => l.id === id)?.name || '—'
   const studentName = (id) => students.find((s) => s.id === id)?.student_name || '—'

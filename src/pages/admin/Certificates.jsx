@@ -959,7 +959,7 @@ export default function Certificates() {
               </thead>
               <tbody>
                 {paginatedParticipation.map((s) => {
-                  const isIssued = certificates.some(
+                  const isIssued = s.certificate_status === 'issued' || certificates.some(
                     (c) => c.student_id === s.id && c.position === 'Participation'
                   )
                   return (
@@ -1045,7 +1045,7 @@ export default function Certificates() {
               </thead>
               <tbody>
                 {paginatedWinners.map((s, idx) => {
-                  const isIssued = certificates.some(
+                  const isIssued = s.certificate_status === 'issued' || certificates.some(
                     (c) => c.student_id === s.id && c.position === s.winnerPlace
                   )
                   const hasTemplates = winner1Url && winner2Url

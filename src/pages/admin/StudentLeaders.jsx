@@ -46,7 +46,13 @@ export default function StudentLeaders() {
 
   const fields = baseFields.map((f) =>
     f.name === 'college_id'
-      ? { ...f, options: colleges.map((c) => ({ value: c.id, label: c.college })) }
+      ? {
+          ...f,
+          options: colleges.map((c) => ({
+            value: c.id,
+            label: c.department ? `${c.college} (${c.department})` : c.college
+          }))
+        }
       : f
   )
 

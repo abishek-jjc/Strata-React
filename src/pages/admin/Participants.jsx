@@ -23,7 +23,7 @@ export default function Participants() {
   const fields = useMemo(() => {
     return baseFields.map((f) => {
       if (f.name === 'event_id') return { ...f, options: events.map((e) => ({ value: e.id, label: e.event_name })) }
-      if (f.name === 'college_id') return { ...f, options: colleges.map((c) => ({ value: c.id, label: c.college })) }
+      if (f.name === 'college_id') return { ...f, options: colleges.map((c) => ({ value: c.id, label: c.department ? `${c.college} (${c.department})` : c.college })) }
       return f
     })
   }, [events, colleges])
@@ -80,7 +80,7 @@ export default function Participants() {
           >
             <option value="">All Colleges</option>
             {colleges.map((c) => (
-              <option key={c.id} value={c.id}>{c.college}</option>
+              <option key={c.id} value={c.id}>{c.department ? `${c.college} (${c.department})` : c.college}</option>
             ))}
           </select>
         </>

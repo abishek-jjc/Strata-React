@@ -17,6 +17,8 @@ export default function Dashboard() {
   // Find college and lot assigned to this leader
   const myCollege = colleges.find((c) => c.id === profile?.college_id)
   const myCollegeName = myCollege?.college || myCollege?.college_name || ''
+  const myCollegeDept = myCollege?.department || ''
+  const displayCollege = myCollegeDept ? `${myCollegeName} (${myCollegeDept})` : myCollegeName
   const collegeLot = lots.find((l) => l.assigned_college === myCollegeName)
 
   if (loading) return <p className="muted">Loading dashboard...</p>
@@ -29,13 +31,13 @@ export default function Dashboard() {
       </div>
 
       {/* Lot Status Card */}
-      <div className="card" style={{ maxWidth: '400px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div className="card" style={{ maxWidth: '500px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-secondary)' }}>Your College Lot Number</h3>
         {collegeLot ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--accent)' }}>{collegeLot.lot_name}</span>
             <span style={{ fontSize: '0.9rem', color: 'var(--success)', background: 'rgba(16, 185, 129, 0.08)', padding: '4px 8px', borderRadius: '4px' }}>
-              ✓ Allocated to {myCollegeName}
+              ✓ Allocated to {displayCollege}
             </span>
           </div>
         ) : (
