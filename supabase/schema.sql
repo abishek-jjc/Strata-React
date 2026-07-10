@@ -711,6 +711,66 @@ CREATE TRIGGER trg_sync_profile_on_leader_change
   AFTER INSERT OR UPDATE ON public.student_leaders
   FOR EACH ROW EXECUTE FUNCTION public.sync_profile_on_leader_change();
 
+-- SECURITY DEFINER RPC to pre-register a leader profile bypassing auth check
+CREATE OR REPLACE FUNCTION public.pre_register_leader(
+  p_leader_name  text,
+  p_email        text,
+  p_phone        text,
+  p_department   text,
+  p_college_name text
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_college_id uuid;
+  v_leader_id uuid;
+BEGIN
+  -- 1. Find or create college
+  SELECT id INTO v_college_id
+    FROM public.colleges
+   WHERE lower(trim(college)) = lower(trim(p_college_name))
+     AND lower(trim(department)) = lower(trim(p_department))
+   LIMIT 1;
+
+  IF v_college_id IS NULL THEN
+    INSERT INTO public.colleges (college, department, status)
+    VALUES (p_college_name, p_department, 'active')
+    RETURNING id INTO v_college_id;
+  END IF;
+
+  -- 2. Check if a student leader is already registered for this college department
+  SELECT id INTO v_leader_id
+    FROM public.student_leaders
+   WHERE college_id = v_college_id
+     AND status = 'active'
+   LIMIT 1;
+
+  IF v_leader_id IS NOT NULL THEN
+    RAISE EXCEPTION 'A student leader has already been registered for this college and department.';
+  END IF;
+
+  -- 3. Check if email is already registered
+  SELECT id INTO v_leader_id
+    FROM public.student_leaders
+   WHERE lower(trim(email)) = lower(trim(p_email))
+     AND status = 'active'
+   LIMIT 1;
+
+  IF v_leader_id IS NOT NULL THEN
+    RAISE EXCEPTION 'This email is already registered as a student leader.';
+  END IF;
+
+  -- 4. Insert student leader
+  INSERT INTO public.student_leaders (name, phone, email, department, college_id, status)
+  VALUES (p_leader_name, p_phone, p_email, p_department, v_college_id, 'active')
+  RETURNING id INTO v_leader_id;
+
+  RETURN v_leader_id;
+END;
+$$;
+
 -- SECURITY DEFINER RPC to configure a leader profile securely bypassing RLS
 CREATE OR REPLACE FUNCTION public.configure_leader_profile(
   p_user_id      uuid,

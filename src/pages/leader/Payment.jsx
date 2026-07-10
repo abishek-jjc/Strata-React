@@ -16,32 +16,32 @@ export default function Payment() {
   const { data: registrations, loading: regLoading } = useTable(TABLES.REGISTRATIONS, [
     ['leader_id', 'eq', profile?.ref_id]
   ])
-  const { data: payments, loading: payLoading } = useTable(TABLES.PAYMENTS, [
-    ['college_id', 'eq', profile?.college_id]
-  ])
   const { data: settings, loading: setLoading } = useTable(TABLES.SETTINGS)
+  const { data: logs, loading: logsLoading } = useTable(TABLES.PAYMENT_LOGS)
 
-  const loading = colLoading || stdLoading || regLoading || setLoading || payLoading
+  const loading = colLoading || stdLoading || regLoading || setLoading || logsLoading
   const myCollege = colleges[0]
 
   if (loading) return <p className="muted">Loading payment details...</p>
 
   const paymentQrUrl = settings.find(s => s.key_name === 'payment_qr_url')?.value || ''
   const whatsappLink = settings.find(s => s.key_name === 'whatsapp_group_link')?.value || ''
-  
-  // Per person: 200 + 18% GST (Rs. 36) = Rs. 236
+
+  // Per person: 200 + 18% GST = Rs. 236
   const feeBase = 200
   const gstRate = 0.18
   const feePerStudent = feeBase * (1 + gstRate) // 236
-  
-  const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0)
-  const currentTotal = students.length * feePerStudent
-  const remainingPayable = Math.max(0, currentTotal - totalPaid)
-  const extraPaid = Math.max(0, totalPaid - currentTotal)
-  const extraStudentsCount = Math.floor(extraPaid / feePerStudent)
 
+  const paidCount = myCollege?.paid_student_count || 0
+  const unpaidCount = Math.max(0, students.length - paidCount)
+  const pendingTotal = unpaidCount * feePerStudent
   const hasRegistrations = registrations.length > 0
-  const isFullyPaid = remainingPayable === 0
+
+  // College is considered paid if there are registered students and no unpaid remaining students
+  const isPaid = students.length > 0 && unpaidCount === 0
+
+  const myCollegeName = myCollege?.department ? `${myCollege.college} (${myCollege.department})` : myCollege?.college
+  const myLogs = logs.filter(l => l.college_name === myCollegeName)
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto' }}>
@@ -57,9 +57,29 @@ export default function Payment() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
-          {/* Status banner */}
-          {isFullyPaid ? (
+
+          {/* Status banner — driven by colleges.is_paid set by the payment desk */}
+          {students.length === 0 ? (
+            <div style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '12px',
+              padding: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '15px'
+            }}>
+              <span style={{ fontSize: '1.8rem' }}>📋</span>
+              <div>
+                <strong style={{ color: 'var(--text-primary)', display: 'block', fontSize: '1.05rem', marginBottom: '4px' }}>
+                  No Participants Registered Yet
+                </strong>
+                <span className="muted" style={{ fontSize: '0.9rem' }}>
+                  Register students in events to calculate the payable entry fee.
+                </span>
+              </div>
+            </div>
+          ) : isPaid ? (
             <div style={{
               background: 'rgba(16,185,129,0.08)',
               border: '1px solid rgba(16,185,129,0.3)',
@@ -72,10 +92,10 @@ export default function Payment() {
               <span style={{ fontSize: '1.8rem', color: '#10b981' }}>✓</span>
               <div>
                 <strong style={{ color: '#10b981', display: 'block', fontSize: '1.05rem', marginBottom: '4px' }}>
-                  Payment Confirmed!
+                  Payment Fully Confirmed ✅
                 </strong>
                 <span className="muted" style={{ fontSize: '0.9rem' }}>
-                  Your college registration fee of <strong>Rs. {currentTotal}</strong> has been fully paid. Thank you!
+                  All {students.length} registered students are paid for. Thank you!
                 </span>
               </div>
             </div>
@@ -92,94 +112,59 @@ export default function Payment() {
               <span style={{ fontSize: '1.8rem', color: '#ef4444' }}>⚠️</span>
               <div>
                 <strong style={{ color: '#ef4444', display: 'block', fontSize: '1.05rem', marginBottom: '4px' }}>
-                  {totalPaid > 0 ? 'Additional Payment Required' : 'Payment Pending'}
+                  {paidCount > 0 ? 'Partial Payment Pending' : 'Payment Pending'}
                 </strong>
                 <span className="muted" style={{ fontSize: '0.9rem' }}>
-                  {totalPaid > 0 
-                    ? `You added more members after your previous payment. Remaining balance of Rs. ${remainingPayable} is payable. Please scan the QR Code below to pay.`
-                    : `Remaining balance of Rs. ${remainingPayable} is payable. Please scan the QR Code below to pay.`
-                  }
+                  {paidCount > 0 && <span>You previously paid for <strong>{paidCount}</strong> students. <br/></span>}
+                  Pending balance of <strong>Rs. {pendingTotal}</strong> is payable for <strong>{unpaidCount}</strong> new student(s). Visit the payment desk at the venue.
                 </span>
               </div>
             </div>
           )}
 
-          {/* Reduced participants warning */}
-          {extraPaid >= feePerStudent && (
-            <div style={{
-              background: 'rgba(245,158,11,0.08)',
-              border: '1px solid rgba(245,158,11,0.3)',
-              borderRadius: '12px',
-              padding: '16px 20px',
-              color: 'var(--warning, #f59e0b)',
-              fontSize: '0.92rem',
-              lineHeight: '1.5'
-            }}>
-              <strong>⚠️ Excess Payment Registered (Non-refundable)</strong>
-              <p style={{ margin: '6px 0 0 0', color: 'var(--text-secondary)' }}>
-                You have already paid for {Math.floor(totalPaid / feePerStudent)} student(s), but currently have only {students.length} registered. As fees are non-refundable, you need to register <strong>{extraStudentsCount}</strong> more participant(s) to utilize your paid balance.
-              </p>
-            </div>
-          )}
-
-          {/* Details Card */}
+          {/* Fee Breakdown Card */}
           <div className="card" style={{ padding: '24px' }}>
             <h3 style={{ marginTop: 0, marginBottom: '16px', color: 'var(--accent)', fontSize: '1.15rem' }}>Fee Breakdown</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.95rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
                 <span className="muted">College:</span>
-                <strong>{myCollege?.department ? `${myCollege.college} (${myCollege.department})` : myCollege?.college}</strong>
+                <strong>{myCollegeName}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
                 <span className="muted">Total Registered Students:</span>
                 <strong>{students.length} student(s)</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                <span className="muted">Already Paid For:</span>
+                <strong style={{ color: '#10b981' }}>{paidCount} student(s)</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                <span className="muted">New (Unpaid) Students:</span>
+                <strong style={{ color: unpaidCount > 0 ? '#ef4444' : 'var(--text-secondary)' }}>{unpaidCount} student(s)</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
                 <span className="muted">Fee Per Student (200 + 18% GST):</span>
                 <span>Rs. {feePerStudent}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
-                <span className="muted">Total Registered Cost:</span>
-                <strong>Rs. {currentTotal}</strong>
+                <span className="muted">Pending Balance:</span>
+                <strong style={{ color: isPaid ? '#10b981' : '#ef4444' }}>Rs. {pendingTotal}</strong>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
-                <span className="muted">Total Amount Already Paid:</span>
-                <strong style={{ color: '#10b981' }}>Rs. {totalPaid}</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '4px', fontSize: '1.1rem' }}>
-                <span className="muted">Remaining Payable Amount:</span>
-                <strong style={{ color: remainingPayable > 0 ? '#ef4444' : '#10b981' }}>Rs. {remainingPayable}</strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '4px' }}>
+                <span className="muted">Payment Status:</span>
+                <span className={`badge badge-${isPaid ? 'approved' : 'pending'}`}>
+                  {students.length === 0 ? 'No Students' : isPaid ? '✓ Confirmed by Desk' : paidCount > 0 ? 'Partially Paid' : 'Pending'}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Payment History List */}
-          {payments.length > 0 && (
-            <div className="card" style={{ padding: '24px' }}>
-              <h3 style={{ marginTop: 0, marginBottom: '16px', color: 'var(--accent)', fontSize: '1.15rem' }}>Previous Payments</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {payments.map(p => (
-                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <div>
-                      <strong style={{ display: 'block', color: '#10b981' }}>Rs. {p.amount}</strong>
-                      <span className="muted" style={{ fontSize: '0.85rem' }}>{new Date(p.paid_at || p.created_at).toLocaleDateString()} via {p.payment_mode}</span>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <span className="muted" style={{ fontSize: '0.85rem', display: 'block' }}>Receipt: {p.receipt_no}</span>
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Collected by: {p.collected_by || 'Accountant Desk'}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* QR Code Card if not paid */}
-          {!isFullyPaid && (
+          {/* QR Code Card — only show if not yet paid */}
+          {!isPaid && students.length > 0 && (
             <div className="card" style={{ padding: '24px', textAlign: 'center' }}>
               <h3 style={{ marginTop: 0, marginBottom: '16px', color: 'var(--accent)', fontSize: '1.15rem' }}>Scan to Pay</h3>
               <p className="muted" style={{ fontSize: '0.9rem', marginBottom: '20px', lineHeight: '1.6' }}>
-                Scan the Google Pay / UPI QR Code below using any payment app (GPay, PhonePe, Paytm) to transfer the amount.
+                Scan the Google Pay / UPI QR Code below to transfer the pending balance of <strong>Rs. {pendingTotal}</strong>.
               </p>
 
               {paymentQrUrl ? (
@@ -200,10 +185,9 @@ export default function Payment() {
                 </div>
               )}
 
-              {/* Share to WhatsApp action */}
               <div style={{ marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '20px' }}>
                 <p className="muted" style={{ fontSize: '0.9rem', marginBottom: '15px', lineHeight: '1.5' }}>
-                  After making the payment, please click the button below to open the WhatsApp Group and send your payment receipt screenshot. Our coordinators will verify the transaction and approve your registration immediately.
+                  After making the payment, click below to open the WhatsApp Group and share your payment screenshot. Our coordinators will verify and confirm your payment at the desk.
                 </p>
                 {whatsappLink ? (
                   <a
@@ -232,11 +216,36 @@ export default function Payment() {
               </div>
 
               <p className="muted" style={{ fontSize: '0.85rem', marginTop: '20px', lineHeight: '1.5' }}>
-                * After making the payment, please present the payment screenshot in the WhatsApp group. Verification will be handled by the desk team.
+                * After payment, present your receipt at the payment desk. The desk operator will confirm your payment status here.
               </p>
             </div>
           )}
-          
+
+          {/* Payment Log History */}
+          <div className="card" style={{ padding: '24px' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '8px', color: 'var(--accent)', fontSize: '1.15rem' }}>Receipt History</h3>
+            <p className="muted" style={{ fontSize: '0.85rem', marginBottom: '16px' }}>
+              Detailed history of payment transactions cleared at the desk.
+            </p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {myLogs.map((log) => (
+                <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.88rem' }}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Cleared +{log.students_count || 0} student(s)</div>
+                    <span className="muted" style={{ fontSize: '0.78rem' }}>{new Date(log.created_at).toLocaleString()} ({log.poll_name})</span>
+                  </div>
+                  <strong style={{ color: '#10b981' }}>Rs. {log.amount || 0}</strong>
+                </div>
+              ))}
+              {myLogs.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  No payment receipts recorded yet.
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
       )}
     </div>

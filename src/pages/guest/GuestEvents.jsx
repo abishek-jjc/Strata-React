@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { TABLES } from '../../supabase/tables'
 import GuestLayout from '../../components/layout/GuestLayout'
+import { useAuth } from '../../auth/AuthContext'
 import { 
   Code2, 
   Monitor, 
@@ -48,6 +49,7 @@ const getEventIcon = (name) => {
 
 export default function GuestEvents() {
   const navigate = useNavigate()
+  const { role } = useAuth()
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeIndex, setActiveIndex] = useState(0)
@@ -204,7 +206,7 @@ export default function GuestEvents() {
                   <div className="guest-btn-cta-row">
                     <button 
                       className="guest-btn guest-btn-primary" 
-                      onClick={() => navigate('/register', { state: { preselectedEventId: activeEvent.id } })}
+                      onClick={() => navigate(role === 'leader' ? '/leader/register' : '/register', { state: { preselectedEventId: activeEvent.id } })}
                     >
                       Register For This Event
                     </button>

@@ -34,9 +34,13 @@ export default function CertificateDownload() {
     loadSettings()
   }, [])
 
+  // Filter certificates to only those belonging to this leader's students
+  const myStudentIds = new Set((students || []).map(s => s.id))
+  const myCertificates = (certificates || []).filter(c => myStudentIds.has(c.student_id))
+
   // 1. Participation Certificates mapping (list all students of this leader)
   const participationList = (students || []).map(student => {
-    const cert = certificates?.find(c => c.student_id === student.id && (c.position === 'Participation' || !c.position))
+    const cert = myCertificates.find(c => c.student_id === student.id && (c.position === 'Participation' || !c.position))
     return {
       student,
       issued: !!cert,
@@ -45,7 +49,7 @@ export default function CertificateDownload() {
   })
 
   // Filter only issued participation certs for bulk download
-  const participationCerts = participationList.filter(item => item.issued).map(item => item.cert)
+  const participationCerts = participationList.filter(item => item.issued && item.cert).map(item => item.cert)
 
   // 2. Winner Certificates mapping (resolved from winners table)
   const winnerList = []
@@ -67,7 +71,7 @@ export default function CertificateDownload() {
         // Students from my college registered in this event
         const collegeStudents = students.filter(s => s.event_id === w.event_id)
         collegeStudents.forEach(student => {
-          const cert = certificates.find(c => c.student_id === student.id && c.position === place)
+          const cert = myCertificates.find(c => c.student_id === student.id && c.position === place)
           winnerList.push({
             student,
             winnerPlace: place,
@@ -81,7 +85,7 @@ export default function CertificateDownload() {
   }
 
   // Filter only issued winner certs for bulk download
-  const winnerCerts = winnerList.filter(item => item.issued).map(item => item.cert)
+  const winnerCerts = winnerList.filter(item => item.issued && item.cert).map(item => item.cert)
 
   const getStudentName = (studentId) => students?.find((s) => s.id === studentId)?.student_name || 'Unknown Student'
   const getEventName = (eventId) => events?.find((e) => e.id === eventId)?.event_name || 'Unknown Event'
@@ -159,25 +163,34 @@ export default function CertificateDownload() {
         const eName = getEventName(student.event_id) || ''
         const placeVal = cert.position || ''
 
+        // Draw text centered at the anchor point (matches admin generateBulkPdf logic)
         if (layout.student_name) {
-          const x = (layout.student_name.x / 100) * width
+          const size = Number(layout.student_name.fontSize) || 24
+          const textWidth = font.widthOfTextAtSize(sName, size)
+          const x = (layout.student_name.x / 100) * width - textWidth / 2
           const y = height - (layout.student_name.y / 100) * height
-          page.drawText(sName, { x, y, size: Number(layout.student_name.fontSize) || 24, font, color: rgb(0.1, 0.1, 0.1) })
+          page.drawText(sName, { x, y, size, font, color: rgb(0.1, 0.1, 0.1) })
         }
         if (layout.college_name) {
-          const x = (layout.college_name.x / 100) * width
+          const size = Number(layout.college_name.fontSize) || 16
+          const textWidth = font.widthOfTextAtSize(cName, size)
+          const x = (layout.college_name.x / 100) * width - textWidth / 2
           const y = height - (layout.college_name.y / 100) * height
-          page.drawText(cName, { x, y, size: Number(layout.college_name.fontSize) || 16, font, color: rgb(0.2, 0.2, 0.2) })
+          page.drawText(cName, { x, y, size, font, color: rgb(0.2, 0.2, 0.2) })
         }
         if (layout.event_name) {
-          const x = (layout.event_name.x / 100) * width
+          const size = Number(layout.event_name.fontSize) || 18
+          const textWidth = font.widthOfTextAtSize(eName, size)
+          const x = (layout.event_name.x / 100) * width - textWidth / 2
           const y = height - (layout.event_name.y / 100) * height
-          page.drawText(eName, { x, y, size: Number(layout.event_name.fontSize) || 18, font, color: rgb(0.2, 0.2, 0.2) })
+          page.drawText(eName, { x, y, size, font, color: rgb(0.2, 0.2, 0.2) })
         }
-        if (layout.place && placeVal !== 'Participation') {
-          const x = (layout.place.x / 100) * width
+        if (layout.place && placeVal && placeVal !== 'Participation') {
+          const size = Number(layout.place.fontSize) || 20
+          const textWidth = font.widthOfTextAtSize(placeVal, size)
+          const x = (layout.place.x / 100) * width - textWidth / 2
           const y = height - (layout.place.y / 100) * height
-          page.drawText(placeVal, { x, y, size: Number(layout.place.fontSize) || 20, font, color: rgb(0.85, 0.3, 0.1) })
+          page.drawText(placeVal, { x, y, size, font, color: rgb(0.85, 0.3, 0.1) })
         }
       }
 

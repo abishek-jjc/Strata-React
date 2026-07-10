@@ -68,12 +68,13 @@ export default function Food() {
       const col = colleges?.find(c => c.id === cStat.collegeId)
       return {
         collegeId: cStat.collegeId,
-        collegeName: col ? (col.department ? `${col.college} (${col.department})` : col.college) : 'Unknown College',
+        collegeName: col ? col.college : 'Unknown College',
+        department: col ? (col.department || '—') : '—',
         veg: cVeg,
         nonveg: cNonVeg,
         total: cVeg + cNonVeg
       }
-    }).sort((a, b) => a.collegeName.localeCompare(b.collegeName))
+    }).sort((a, b) => a.collegeName.localeCompare(b.collegeName) || a.department.localeCompare(b.department))
 
     return { veg, nonveg, total, list }
   }, [activeStudents, colleges])
@@ -117,6 +118,7 @@ export default function Food() {
             <thead>
               <tr>
                 <th>College</th>
+                <th>Department</th>
                 <th style={{ textAlign: 'center' }}>Veg</th>
                 <th style={{ textAlign: 'center' }}>Non-Veg</th>
                 <th style={{ textAlign: 'center' }}>Total</th>
@@ -126,6 +128,7 @@ export default function Food() {
               {stats.list.map(col => (
                 <tr key={col.collegeId}>
                   <td>{col.collegeName}</td>
+                  <td>{col.department}</td>
                   <td style={{ textAlign: 'center', fontWeight: 'bold', color: '#34d399' }}>{col.veg}</td>
                   <td style={{ textAlign: 'center', fontWeight: 'bold', color: '#ef4444' }}>{col.nonveg}</td>
                   <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{col.total}</td>
@@ -133,7 +136,7 @@ export default function Food() {
               ))}
               {stats.list.length === 0 && (
                 <tr>
-                  <td colSpan="4" className="muted" style={{ textAlign: 'center' }}>No food requirements registered yet.</td>
+                  <td colSpan="5" className="muted" style={{ textAlign: 'center' }}>No food requirements registered yet.</td>
                 </tr>
               )}
             </tbody>

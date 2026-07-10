@@ -41,8 +41,8 @@ export default function Dashboard() {
             </span>
           </div>
         ) : (
-          <p style={{ color: 'var(--text-muted)', margin: '10px 0 0 0', fontSize: '0.95rem' }}>
-            Waiting for admin to allocate lot. Lots are assigned automatically after successful registration verification.
+          <p style={{ color: 'var(--text-muted)', margin: '10px 0 0 0', fontSize: '0.95rem', lineHeight: '1.6' }}>
+            🎟️ Your lot will be <strong style={{ color: '#fff' }}>automatically assigned</strong> once your college registers at least one participant in a <strong style={{ color: 'var(--accent)' }}>technical event</strong>. Head to <em>Registration & Teams</em> to get started.
           </p>
         )}
       </div>

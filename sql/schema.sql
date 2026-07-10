@@ -161,6 +161,7 @@ ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS email              text;
 ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS address            text;
 ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS status             text NOT NULL DEFAULT 'active';
 ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS is_paid            boolean NOT NULL DEFAULT false;
+ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS paid_student_count  int     NOT NULL DEFAULT 0;
 ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS payment_screenshot text;
 ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS qr_code            text;
 ALTER TABLE public.colleges ADD COLUMN IF NOT EXISTS qr_image_data_url   text;
@@ -271,6 +272,135 @@ CREATE TABLE IF NOT EXISTS public.certificates (
 );
 ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
 
+-- Ensure required columns exist on certificates
+ALTER TABLE public.certificates ADD COLUMN IF NOT EXISTS event_id            uuid REFERENCES public.events(id) ON DELETE SET NULL;
+ALTER TABLE public.certificates ADD COLUMN IF NOT EXISTS position            text;   -- 'Participation', '1st Place', '2nd Place'
+ALTER TABLE public.certificates ADD COLUMN IF NOT EXISTS certificate_number  text;
+ALTER TABLE public.certificates ADD COLUMN IF NOT EXISTS created_at          timestamptz DEFAULT now();
+
+-- ============================================================================
+-- PHASE 2z: Row Level Security Policies
+-- Open read access to all authenticated users and anon (Supabase client uses
+-- anon key for all browser requests). Writes are protected to service_role/admin.
+-- ============================================================================
+
+-- Allow anyone to read (anon key is used in the browser)
+DO $$ BEGIN
+  -- settings: anyone reads
+  DROP POLICY IF EXISTS "settings_read_all" ON public.settings;
+  CREATE POLICY "settings_read_all" ON public.settings FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "settings_write_admin" ON public.settings;
+  CREATE POLICY "settings_write_admin" ON public.settings FOR ALL USING (true);
+
+  -- leaders: anyone reads
+  DROP POLICY IF EXISTS "leaders_read_all" ON public.leaders;
+  CREATE POLICY "leaders_read_all" ON public.leaders FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "leaders_write_admin" ON public.leaders;
+  CREATE POLICY "leaders_write_admin" ON public.leaders FOR ALL USING (true);
+
+  -- rules: anyone reads
+  DROP POLICY IF EXISTS "rules_read_all" ON public.rules;
+  CREATE POLICY "rules_read_all" ON public.rules FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "rules_write_admin" ON public.rules;
+  CREATE POLICY "rules_write_admin" ON public.rules FOR ALL USING (true);
+
+  -- venues: anyone reads
+  DROP POLICY IF EXISTS "venues_read_all" ON public.venues;
+  CREATE POLICY "venues_read_all" ON public.venues FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "venues_write_admin" ON public.venues;
+  CREATE POLICY "venues_write_admin" ON public.venues FOR ALL USING (true);
+
+  -- profiles: anyone reads, authenticated writes
+  DROP POLICY IF EXISTS "profiles_read_all" ON public.profiles;
+  CREATE POLICY "profiles_read_all" ON public.profiles FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "profiles_write_all" ON public.profiles;
+  CREATE POLICY "profiles_write_all" ON public.profiles FOR ALL USING (true);
+
+  -- admins: anyone reads
+  DROP POLICY IF EXISTS "admins_read_all" ON public.admins;
+  CREATE POLICY "admins_read_all" ON public.admins FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "admins_write_admin" ON public.admins;
+  CREATE POLICY "admins_write_admin" ON public.admins FOR ALL USING (true);
+
+  -- accountants: anyone reads
+  DROP POLICY IF EXISTS "accountants_read_all" ON public.accountants;
+  CREATE POLICY "accountants_read_all" ON public.accountants FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "accountants_write_admin" ON public.accountants;
+  CREATE POLICY "accountants_write_admin" ON public.accountants FOR ALL USING (true);
+
+  -- incharges: anyone reads
+  DROP POLICY IF EXISTS "incharges_read_all" ON public.incharges;
+  CREATE POLICY "incharges_read_all" ON public.incharges FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "incharges_write_admin" ON public.incharges;
+  CREATE POLICY "incharges_write_admin" ON public.incharges FOR ALL USING (true);
+
+  -- events: anyone reads
+  DROP POLICY IF EXISTS "events_read_all" ON public.events;
+  CREATE POLICY "events_read_all" ON public.events FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "events_write_admin" ON public.events;
+  CREATE POLICY "events_write_admin" ON public.events FOR ALL USING (true);
+
+  -- colleges: anyone reads
+  DROP POLICY IF EXISTS "colleges_read_all" ON public.colleges;
+  CREATE POLICY "colleges_read_all" ON public.colleges FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "colleges_write_admin" ON public.colleges;
+  CREATE POLICY "colleges_write_admin" ON public.colleges FOR ALL USING (true);
+
+  -- student_leaders: anyone reads
+  DROP POLICY IF EXISTS "student_leaders_read_all" ON public.student_leaders;
+  CREATE POLICY "student_leaders_read_all" ON public.student_leaders FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "student_leaders_write_admin" ON public.student_leaders;
+  CREATE POLICY "student_leaders_write_admin" ON public.student_leaders FOR ALL USING (true);
+
+  -- lots: anyone reads
+  DROP POLICY IF EXISTS "lots_read_all" ON public.lots;
+  CREATE POLICY "lots_read_all" ON public.lots FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "lots_write_admin" ON public.lots;
+  CREATE POLICY "lots_write_admin" ON public.lots FOR ALL USING (true);
+
+  -- registrations: anyone reads
+  DROP POLICY IF EXISTS "registrations_read_all" ON public.registrations;
+  CREATE POLICY "registrations_read_all" ON public.registrations FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "registrations_write_all" ON public.registrations;
+  CREATE POLICY "registrations_write_all" ON public.registrations FOR ALL USING (true);
+
+  -- students: anyone reads
+  DROP POLICY IF EXISTS "students_read_all" ON public.students;
+  CREATE POLICY "students_read_all" ON public.students FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "students_write_all" ON public.students;
+  CREATE POLICY "students_write_all" ON public.students FOR ALL USING (true);
+
+  -- certificates: anyone reads (leaders need this to check issued status)
+  DROP POLICY IF EXISTS "certificates_read_all" ON public.certificates;
+  CREATE POLICY "certificates_read_all" ON public.certificates FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "certificates_write_admin" ON public.certificates;
+  CREATE POLICY "certificates_write_admin" ON public.certificates FOR ALL USING (true);
+
+  -- payments: anyone reads
+  DROP POLICY IF EXISTS "payments_read_all" ON public.payments;
+  CREATE POLICY "payments_read_all" ON public.payments FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "payments_write_admin" ON public.payments;
+  CREATE POLICY "payments_write_admin" ON public.payments FOR ALL USING (true);
+
+  -- payment_polls: anyone reads (desk login requires this)
+  DROP POLICY IF EXISTS "payment_polls_read_all" ON public.payment_polls;
+  CREATE POLICY "payment_polls_read_all" ON public.payment_polls FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "payment_polls_write_admin" ON public.payment_polls;
+  CREATE POLICY "payment_polls_write_admin" ON public.payment_polls FOR ALL USING (true);
+
+  -- payment_logs: anyone reads
+  DROP POLICY IF EXISTS "payment_logs_read_all" ON public.payment_logs;
+  CREATE POLICY "payment_logs_read_all" ON public.payment_logs FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "payment_logs_write_admin" ON public.payment_logs;
+  CREATE POLICY "payment_logs_write_admin" ON public.payment_logs FOR ALL USING (true);
+
+  -- winners: anyone reads
+  DROP POLICY IF EXISTS "winners_read_all" ON public.winners;
+  CREATE POLICY "winners_read_all" ON public.winners FOR SELECT USING (true);
+  DROP POLICY IF EXISTS "winners_write_admin" ON public.winners;
+  CREATE POLICY "winners_write_admin" ON public.winners FOR ALL USING (true);
+END $$;
+
 -- 2p. payments
 CREATE TABLE IF NOT EXISTS public.payments (
   id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -298,6 +428,8 @@ CREATE TABLE IF NOT EXISTS public.payment_logs (
   created_at   timestamptz DEFAULT now()
 );
 ALTER TABLE public.payment_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payment_logs ADD COLUMN IF NOT EXISTS amount         numeric NOT NULL DEFAULT 0;
+ALTER TABLE public.payment_logs ADD COLUMN IF NOT EXISTS students_count int NOT NULL DEFAULT 0;
 
 -- 2s. winners
 CREATE TABLE IF NOT EXISTS public.winners (
@@ -526,9 +658,14 @@ DECLARE
   v_reg_id      uuid;
   v_participant jsonb;
   v_names       text[];
+  v_roll_nos    text[];
+  v_event_prelim time;
+  v_event_mains  time;
+  v_conflicting_event_name text;
 BEGIN
-  SELECT minimum_participants, maximum_participants
-    INTO v_min, v_max
+  -- Load target event details & schedule
+  SELECT minimum_participants, maximum_participants, preliminary, mains
+    INTO v_min, v_max, v_event_prelim, v_event_mains
     FROM public.events WHERE id = p_event_id;
 
   IF v_min IS NULL THEN
@@ -543,6 +680,7 @@ BEGIN
     RAISE EXCEPTION 'Maximum % participants allowed — currently %.', v_max, v_count;
   END IF;
 
+  -- Extract and verify names
   SELECT array_agg(lower(trim(elem->>'studentName')))
     INTO v_names
     FROM jsonb_array_elements(p_participants) elem;
@@ -550,6 +688,45 @@ BEGIN
   IF array_length(v_names, 1) <> (SELECT count(distinct x) FROM unnest(v_names) x) THEN
     RAISE EXCEPTION 'Two participants in this team have the same name.';
   END IF;
+
+  -- Extract and verify roll numbers uniqueness within the submission
+  SELECT array_agg(lower(trim(elem->>'rollNo')))
+    INTO v_roll_nos
+    FROM jsonb_array_elements(p_participants) elem;
+
+  IF array_length(v_roll_nos, 1) <> (SELECT count(distinct x) FROM unnest(v_roll_nos) x) THEN
+    RAISE EXCEPTION 'Two participants in this team have the same roll number.';
+  END IF;
+
+  -- Verify roll number uniqueness and schedule conflicts against existing college students
+  FOR v_participant IN SELECT * FROM jsonb_array_elements(p_participants) LOOP
+    -- Check if student is already in this exact event
+    IF EXISTS (
+      SELECT 1 FROM public.students 
+       WHERE college_id = p_college_id 
+         AND event_id = p_event_id
+         AND lower(trim(roll_no)) = lower(trim(v_participant->>'rollNo'))
+    ) THEN
+      RAISE EXCEPTION 'Participant with roll number "%" is already registered in this event.', v_participant->>'rollNo';
+    END IF;
+
+    -- Check schedule conflict
+    SELECT e.event_name INTO v_conflicting_event_name
+      FROM public.students s
+      JOIN public.events e ON s.event_id = e.id
+     WHERE s.college_id = p_college_id
+       AND lower(trim(s.roll_no)) = lower(trim(v_participant->>'rollNo'))
+       AND (
+         (e.preliminary IS NOT NULL AND v_event_prelim IS NOT NULL AND e.preliminary = v_event_prelim) OR
+         (e.mains IS NOT NULL AND v_event_mains IS NOT NULL AND e.mains = v_event_mains)
+       )
+     LIMIT 1;
+
+    IF v_conflicting_event_name IS NOT NULL THEN
+      RAISE EXCEPTION 'Schedule conflict! Roll number "%" is already registered in "%" at the same time.', 
+        v_participant->>'rollNo', v_conflicting_event_name;
+    END IF;
+  END LOOP;
 
   INSERT INTO public.registrations (college_id, leader_id, event_id, status)
   VALUES (p_college_id, p_leader_id, p_event_id, 'pending')
@@ -643,6 +820,66 @@ CREATE TRIGGER trg_sync_profile_on_leader_change
   AFTER INSERT OR UPDATE ON public.student_leaders
   FOR EACH ROW EXECUTE FUNCTION public.sync_profile_on_leader_change();
 
+-- SECURITY DEFINER RPC to pre-register a leader profile bypassing auth check
+CREATE OR REPLACE FUNCTION public.pre_register_leader(
+  p_leader_name  text,
+  p_email        text,
+  p_phone        text,
+  p_department   text,
+  p_college_name text
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_college_id uuid;
+  v_leader_id uuid;
+BEGIN
+  -- 1. Find or create college
+  SELECT id INTO v_college_id
+    FROM public.colleges
+   WHERE lower(trim(college)) = lower(trim(p_college_name))
+     AND lower(trim(department)) = lower(trim(p_department))
+   LIMIT 1;
+
+  IF v_college_id IS NULL THEN
+    INSERT INTO public.colleges (college, department, status)
+    VALUES (p_college_name, p_department, 'active')
+    RETURNING id INTO v_college_id;
+  END IF;
+
+  -- 2. Check if a student leader is already registered for this college department
+  SELECT id INTO v_leader_id
+    FROM public.student_leaders
+   WHERE college_id = v_college_id
+     AND status = 'active'
+   LIMIT 1;
+
+  IF v_leader_id IS NOT NULL THEN
+    RAISE EXCEPTION 'A student leader has already been registered for this college and department.';
+  END IF;
+
+  -- 3. Check if email is already registered
+  SELECT id INTO v_leader_id
+    FROM public.student_leaders
+   WHERE lower(trim(email)) = lower(trim(p_email))
+     AND status = 'active'
+   LIMIT 1;
+
+  IF v_leader_id IS NOT NULL THEN
+    RAISE EXCEPTION 'This email is already registered as a student leader.';
+  END IF;
+
+  -- 4. Insert student leader
+  INSERT INTO public.student_leaders (name, phone, email, department, college_id, status)
+  VALUES (p_leader_name, p_phone, p_email, p_department, v_college_id, 'active')
+  RETURNING id INTO v_leader_id;
+
+  RETURN v_leader_id;
+END;
+$$;
+
 -- SECURITY DEFINER RPC to configure a leader profile securely bypassing RLS
 CREATE OR REPLACE FUNCTION public.configure_leader_profile(
   p_user_id      uuid,
@@ -720,6 +957,152 @@ BEGIN
    WHERE id = p_registration_id;
 END;
 $$;
+
+-- 3f-1. verify_payment_desk_key — authenticate a payment poll keycode
+-- Returns the matching payment_polls row or NULL if invalid
+DROP FUNCTION IF EXISTS public.verify_payment_desk_key(text);
+CREATE OR REPLACE FUNCTION public.verify_payment_desk_key(p_keycode text)
+RETURNS public.payment_polls
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_poll public.payment_polls;
+BEGIN
+  SELECT * INTO v_poll
+    FROM public.payment_polls
+   WHERE upper(trim(poll_key)) = upper(trim(p_keycode))
+   LIMIT 1;
+  RETURN v_poll;
+END;
+$$;
+
+-- 3f-2. clear_college_payment_with_key — atomically mark a college as paid/unpaid
+-- • Updates colleges.is_paid and colleges.paid_student_count
+-- • Inserts a payment_logs audit row with amount and students count
+-- • Advances all registrations for that college to 'paid' status (when marking as PAID)
+DROP FUNCTION IF EXISTS public.clear_college_payment_with_key(uuid, text, boolean);
+CREATE OR REPLACE FUNCTION public.clear_college_payment_with_key(
+  p_college_id uuid,
+  p_keycode    text,
+  p_is_paid    boolean
+)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_poll             public.payment_polls;
+  v_college          public.colleges;
+  v_cname            text;
+  v_current_students int;
+  v_new_students     int;
+  v_amt              numeric;
+BEGIN
+  -- 1. Verify the poll keycode
+  SELECT * INTO v_poll
+    FROM public.payment_polls
+   WHERE upper(trim(poll_key)) = upper(trim(p_keycode))
+   LIMIT 1;
+
+  IF v_poll IS NULL THEN
+    RAISE EXCEPTION 'Invalid payment poll key.';
+  END IF;
+
+  -- 2. Fetch college row
+  SELECT * INTO v_college
+    FROM public.colleges
+   WHERE id = p_college_id;
+
+  IF v_college IS NULL THEN
+    RAISE EXCEPTION 'College not found.';
+  END IF;
+
+  -- 3. Build display name
+  IF v_college.department IS NOT NULL AND trim(v_college.department) <> '' THEN
+    v_cname := v_college.college || ' (' || v_college.department || ')';
+  ELSE
+    v_cname := v_college.college;
+  END IF;
+
+  -- Count currently registered students
+  SELECT count(*) INTO v_current_students
+    FROM public.students
+   WHERE college_id = p_college_id;
+
+  -- 5. If marking as PAID:
+  IF p_is_paid THEN
+    v_new_students := v_current_students - v_college.paid_student_count;
+    
+    -- Only log and count if there are actual unpaid students
+    IF v_new_students > 0 THEN
+      v_amt := v_new_students * 236; -- Rs. 200 + 18% GST = 236
+      
+      INSERT INTO public.payment_logs (poll_id, poll_name, college_name, amount, students_count)
+      VALUES (v_poll.id, v_poll.poll_name, v_cname, v_amt, v_new_students);
+    END IF;
+
+    UPDATE public.colleges
+       SET is_paid = true,
+           paid_student_count = v_current_students
+     WHERE id = p_college_id;
+
+    UPDATE public.registrations
+       SET status = 'paid'
+     WHERE college_id = p_college_id
+       AND status = 'lot_assigned';
+  ELSE
+    -- If marking as UNPAID: reset both paid_student_count and is_paid
+    UPDATE public.colleges
+       SET is_paid = false,
+           paid_student_count = 0
+     WHERE id = p_college_id;
+
+    -- Roll registrations back from 'paid' → 'lot_assigned'
+    UPDATE public.registrations
+       SET status = 'lot_assigned'
+     WHERE college_id = p_college_id
+       AND status = 'paid';
+  END IF;
+END;
+$$;
+
+-- Trigger to automatically set is_paid = false when students count exceeds paid_student_count
+CREATE OR REPLACE FUNCTION public.check_incremental_payment_status()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_current_count int;
+  v_paid_count int;
+  v_col_id uuid;
+BEGIN
+  v_col_id := COALESCE(NEW.college_id, OLD.college_id);
+
+  -- Fetch current count of students for this college
+  SELECT count(*) INTO v_current_count 
+    FROM public.students 
+   WHERE college_id = v_col_id;
+
+  -- Fetch how many students have been paid for
+  SELECT paid_student_count INTO v_paid_count 
+    FROM public.colleges 
+   WHERE id = v_col_id;
+
+  -- If we have more students than paid for, set is_paid to false
+  IF v_current_count > v_paid_count THEN
+    UPDATE public.colleges 
+       SET is_paid = false 
+     WHERE id = v_col_id;
+  ELSE
+    -- If students count is less than or equal to paid_student_count, mark as paid
+    UPDATE public.colleges 
+       SET is_paid = true 
+     WHERE id = v_col_id;
+  END IF;
+
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_check_incremental_payment_status ON public.students;
+CREATE TRIGGER trg_check_incremental_payment_status
+  AFTER INSERT OR UPDATE OR DELETE ON public.students
+  FOR EACH ROW EXECUTE FUNCTION public.check_incremental_payment_status();
 
 -- 3f. register_guest_team RPC function
 DROP FUNCTION IF EXISTS public.register_guest_team(text,text,text,text,text,text,text,text,text,integer,integer,jsonb);

@@ -6,113 +6,114 @@ import { TABLES } from '../../supabase/tables'
 export default function Profile() {
   const { profile, user } = useAuth()
   const [collegeName, setCollegeName] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
+  const [leaderDetails, setLeaderDetails] = useState(null)
 
   useEffect(() => {
-    async function loadCollege() {
+    async function loadDetails() {
       if (!profile?.college_id) return
-      const { data } = await supabase
+      const { data: college } = await supabase
         .from(TABLES.COLLEGES)
         .select('college, department')
         .eq('id', profile.college_id)
         .maybeSingle()
-      if (data) {
-        setCollegeName(data.department ? `${data.college} (${data.department})` : data.college)
+      if (college) {
+        setCollegeName(college.department ? `${college.college} (${college.department})` : college.college)
+      }
+
+      if (profile?.ref_id) {
+        const { data: leader } = await supabase
+          .from(TABLES.STUDENT_LEADERS)
+          .select('name, phone, department, email')
+          .eq('id', profile.ref_id)
+          .maybeSingle()
+        if (leader) setLeaderDetails(leader)
       }
     }
-    loadCollege()
+    loadDetails()
   }, [profile])
 
-  async function handleUpdatePassword(e) {
-    e.preventDefault()
-    setError('')
-    setMessage('')
-
-    if (password.length < 6) {
-      return setError('Password must be at least 6 characters long.')
-    }
-    if (password !== confirmPassword) {
-      return setError('Passwords do not match.')
-    }
-
-    setLoading(true)
-    try {
-      const { error: authError } = await supabase.auth.updateUser({
-        password: password
-      })
-      if (authError) throw authError
-      setMessage('Password updated successfully!')
-      setPassword('')
-      setConfirmPassword('')
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-      <h2>My Profile</h2>
-      
-      <div className="card" style={{ marginBottom: '24px', padding: '24px' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '16px', color: 'var(--accent)' }}>Account Details</h3>
-        <div className="profile-details-grid">
-          <span className="muted">Name:</span>
-          <strong>{profile?.name || '-'}</strong>
-          
-          <span className="muted">Email:</span>
-          <span>{user?.email || '-'}</span>
+    <div style={{ maxWidth: '680px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div>
+        <h2 style={{ marginBottom: '4px' }}>My Profile</h2>
+        <p className="muted" style={{ fontSize: '0.9rem' }}>Your account information as a registered student leader.</p>
+      </div>
 
-          <span className="muted">Role:</span>
-          <span style={{ textTransform: 'capitalize' }}>{profile?.role || '-'}</span>
-
-          <span className="muted">College:</span>
-          <strong>{collegeName || 'Loading...'}</strong>
+      {/* Avatar + Name Card */}
+      <div className="card" style={{ padding: '28px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div style={{
+          width: '64px', height: '64px', minWidth: '64px',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, var(--accent), #7c4dff)',
+          color: '#fff',
+          fontWeight: 'bold',
+          fontSize: '1.6rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 0 20px rgba(0,229,255,0.2)',
+        }}>
+          {profile?.name?.charAt(0).toUpperCase() || '?'}
+        </div>
+        <div>
+          <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#fff' }}>{profile?.name || '—'}</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'capitalize', marginTop: '2px' }}>
+            {profile?.role} · Student Leader Coordinator
+          </div>
         </div>
       </div>
 
-      <form onSubmit={handleUpdatePassword} className="card" style={{ padding: '24px' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '16px', color: 'var(--accent)' }}>Change Password</h3>
-        
-        <label className="field">
-          <span>New Password</span>
-          <input
-            type="password"
-            required
-            placeholder="Min 6 characters"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
+      {/* Account Details */}
+      <div className="card" style={{ padding: '28px' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '20px', color: 'var(--accent)', fontSize: '1rem' }}>Account Details</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', rowGap: '14px', columnGap: '12px', alignItems: 'center' }}>
+          <span className="muted" style={{ fontSize: '0.85rem' }}>Full Name</span>
+          <strong style={{ color: '#fff' }}>{profile?.name || '—'}</strong>
 
-        <label className="field">
-          <span>Confirm New Password</span>
-          <input
-            type="password"
-            required
-            placeholder="Confirm new password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
-        </label>
+          <span className="muted" style={{ fontSize: '0.85rem' }}>Google Email (Auth)</span>
+          <span style={{ wordBreak: 'break-all' }}>{user?.email || leaderDetails?.email || '—'}</span>
 
-        {error && <p className="error" style={{ margin: '12px 0 0 0' }}>{error}</p>}
-        {message && <p className="success" style={{ margin: '12px 0 0 0' }}>{message}</p>}
+          <span className="muted" style={{ fontSize: '0.85rem' }}>Mobile Phone</span>
+          <span>{leaderDetails?.phone || '—'}</span>
 
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={loading || !password}
-          style={{ marginTop: '20px', width: '100%' }}
-        >
-          {loading ? 'Updating...' : 'Update Password'}
-        </button>
-      </form>
+          <span className="muted" style={{ fontSize: '0.85rem' }}>Department</span>
+          <span>{leaderDetails?.department || '—'}</span>
+
+          <span className="muted" style={{ fontSize: '0.85rem' }}>College</span>
+          <strong style={{ color: '#fff' }}>{collegeName || 'Loading...'}</strong>
+
+          <span className="muted" style={{ fontSize: '0.85rem' }}>Role</span>
+          <span style={{ textTransform: 'capitalize' }}>
+            <span style={{
+              display: 'inline-block',
+              padding: '2px 10px',
+              background: 'rgba(0, 229, 255, 0.1)',
+              color: 'var(--accent)',
+              borderRadius: '20px',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+            }}>
+              {profile?.role || '—'}
+            </span>
+          </span>
+        </div>
+      </div>
+
+      {/* Auth info note */}
+      <div className="card" style={{ padding: '20px', background: 'rgba(0, 229, 255, 0.03)', border: '1px solid rgba(0, 229, 255, 0.12)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+          <span style={{ fontSize: '1.4rem' }}>🔐</span>
+          <div>
+            <div style={{ fontWeight: 600, color: '#fff', marginBottom: '6px' }}>Google Authentication</div>
+            <div className="muted" style={{ fontSize: '0.85rem', lineHeight: '1.6' }}>
+              Your account is secured with Google Sign-In. Password management is handled through your Google account at{' '}
+              <a href="https://myaccount.google.com" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>
+                myaccount.google.com
+              </a>.
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../auth/AuthContext'
 
 const NAV = {
   admin: [
@@ -24,10 +25,9 @@ const NAV = {
   ],
   leader: [
     ['/leader', 'Dashboard'],
-    ['/leader/register', 'Team Registration'],
-    ['/leader/students', 'Student List'],
+    ['/leader/register', 'Registration & Teams'],
+    ['/leader/rules', 'Event Rules'],
     ['/leader/certificates', 'Certificates'],
-    ['/leader/profile', 'Profile / Password'],
     ['/leader/payment', 'Payment'],
     ['/leader/whatsapp', 'WhatsApp Group'],
   ],
@@ -44,6 +44,24 @@ const ROLE_ICON = {
 
 export default function Sidebar({ role, isOpen, onClose }) {
   const items = NAV[role] || []
+  const navigate = useNavigate()
+  const { profile, logout } = useAuth()
+
+  const isLeader = role === 'leader'
+
+  const handleProfileClick = () => {
+    if (isLeader) {
+      navigate('/leader/profile')
+      onClose()
+    }
+  }
+
+  async function handleLogout() {
+    await logout()
+    navigate('/login')
+    onClose()
+  }
+
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       {/* Logo */}
@@ -74,6 +92,83 @@ export default function Sidebar({ role, isOpen, onClose }) {
           </NavLink>
         ))}
       </nav>
+
+      <div className="sidebar-divider" style={{ marginTop: '15px', marginBottom: '15px' }} />
+
+      {/* Sidebar Footer: Profile info & Logout */}
+      <div className="sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: '10px', paddingBottom: '10px' }}>
+        {profile?.name && (
+          <div 
+            onClick={handleProfileClick}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '10px', 
+              cursor: isLeader ? 'pointer' : 'default', 
+              padding: '8px', 
+              borderRadius: '10px',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              transition: 'all 0.2s'
+            }}
+            className={isLeader ? 'sidebar-profile-card clickable' : 'sidebar-profile-card'}
+          >
+            <div className="topbar-avatar" style={{ 
+              margin: 0, 
+              width: '32px', 
+              height: '32px', 
+              minWidth: '32px', 
+              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, var(--accent), #7c4dff)',
+              color: '#fff',
+              fontWeight: 'bold'
+            }}>
+              {profile.name.charAt(0).toUpperCase()}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', textAlign: 'left' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {profile.name}
+              </span>
+              {isLeader && (
+                <span style={{ fontSize: '0.7rem', color: 'var(--accent)' }}>
+                  View Profile
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+        <button 
+          onClick={handleLogout} 
+          className="topbar-logout-btn" 
+          style={{ 
+            width: '100%', 
+            justifyContent: 'center', 
+            background: 'rgba(255, 23, 68, 0.08)', 
+            border: '1px solid rgba(255, 23, 68, 0.25)', 
+            color: '#ff1744',
+            padding: '10px 12px',
+            borderRadius: '10px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '0.85rem',
+            fontWeight: '600',
+            transition: 'all 0.2s'
+          }}
+        >
+          <span>Sign out</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+        </button>
+      </div>
 
       {/* Bottom glow accent */}
       <div className="sidebar-glow-bottom" />

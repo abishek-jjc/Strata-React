@@ -5,7 +5,7 @@ import { useAuth } from '../../auth/AuthContext'
 import GuestLayout from '../../components/layout/GuestLayout'
 import '../../styles/guest.css'
 
-const REDIRECT = { admin: '/admin', leader: '/leader', incharge: '/incharge' }
+const REDIRECT = { admin: '/admin', leader: '/leader/register', incharge: '/incharge' }
 
 export default function Login() {
   const navigate = useNavigate()

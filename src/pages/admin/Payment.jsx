@@ -9,7 +9,9 @@ export default function Payment() {
   const [lots, setLots] = useState([])
   const [students, setStudents] = useState([])
   const [settings, setSettings] = useState([])
+  const [paymentLogs, setPaymentLogs] = useState([])
   const [loadingData, setLoadingData] = useState(true)
+  const [refreshCount, setRefreshCount] = useState(0)
 
   // Poll authentication state
   const [enteredKey, setEnteredKey] = useState('')
@@ -54,6 +56,12 @@ export default function Payment() {
 
         const { data: sets } = await supabase.from(TABLES.SETTINGS).select('*')
         if (sets) setSettings(sets)
+
+        const { data: logs } = await supabase
+          .from(TABLES.PAYMENT_LOGS)
+          .select('*')
+          .order('created_at', { ascending: false })
+        if (logs) setPaymentLogs(logs)
       } catch (err) {
         console.error('Failed to load data:', err)
       } finally {
@@ -61,7 +69,7 @@ export default function Payment() {
       }
     }
     loadData()
-  }, [activePoll])
+  }, [activePoll, refreshCount])
 
   const feeBase = 200
   const gstRate = 0.18
@@ -131,23 +139,19 @@ export default function Payment() {
     setEditPaid(!!college.is_paid)
   }
 
-  async function handleSave(e) {
-    e.preventDefault()
+  async function handleUpdateStatus(markPaid) {
     setSaving(true)
     try {
       // Clear payment and write trace log securely in a single transaction RPC
       const { error: rpcError } = await supabase.rpc('clear_college_payment_with_key', {
         p_college_id: editingCollege.id,
         p_keycode: activePoll.poll_key,
-        p_is_paid: editPaid
+        p_is_paid: markPaid
       })
 
       if (rpcError) throw rpcError
 
-      // Update local state without full reload
-      setColleges((prev) =>
-        prev.map((c) => (c.id === editingCollege.id ? { ...c, is_paid: editPaid } : c))
-      )
+      setRefreshCount(prev => prev + 1)
       setEditingCollege(null)
     } catch (err) {
       alert('Failed to update payment status: ' + err.message)
@@ -240,9 +244,11 @@ export default function Payment() {
                 <tr>
                   <th>College Name</th>
                   <th>Lot Name</th>
-                  <th>Registered Students</th>
-                  <th>Amount Payable</th>
-                  <th>Payment Status</th>
+                  <th>Total Students</th>
+                  <th>Paid For</th>
+                  <th>New (Unpaid)</th>
+                  <th>Pending Amount</th>
+                  <th>Status</th>
                   <th style={{ width: '100px' }}>Actions</th>
                 </tr>
               </thead>
@@ -251,17 +257,33 @@ export default function Payment() {
                   const cName = c.department ? `${c.college} (${c.department})` : c.college
                   const collegeLot = lots.find((l) => l.assigned_college === cName)
                   const studentCount = students.filter((s) => s.college_id === c.id).length
-                  const payableAmount = studentCount * feePerStudent
+                  const paidCount = c.paid_student_count || 0
+                  const unpaidCount = Math.max(0, studentCount - paidCount)
+                  const pendingAmount = unpaidCount * feePerStudent
+                  const statusIsPaid = studentCount > 0 && unpaidCount === 0
+
                   return (
                     <tr key={c.id}>
                       <td><strong>{cName}</strong></td>
                       <td>{collegeLot ? <strong>{collegeLot.lot_name}</strong> : <span className="muted">—</span>}</td>
                       <td>{studentCount} student(s)</td>
-                      <td><strong>Rs. {payableAmount}</strong> <span className="muted" style={{ fontSize: '0.8rem' }}>(Rs. {feePerStudent}/std)</span></td>
+                      <td style={{ color: '#10b981', fontWeight: 600 }}>{paidCount} paid</td>
+                      <td style={{ color: unpaidCount > 0 ? '#ef4444' : 'var(--text-secondary)', fontWeight: unpaidCount > 0 ? 600 : 400 }}>{unpaidCount} unpaid</td>
                       <td>
-                        <span className={`badge badge-${c.is_paid ? 'approved' : 'pending'}`}>
-                          {c.is_paid ? 'Paid' : 'Unpaid'}
-                        </span>
+                        {unpaidCount > 0 ? (
+                          <strong style={{ color: '#ef4444' }}>Rs. {pendingAmount}</strong>
+                        ) : (
+                          <span style={{ color: '#10b981' }}>Rs. 0</span>
+                        )}
+                      </td>
+                      <td>
+                        {studentCount === 0 ? (
+                          <span className="badge badge-pending">No Students</span>
+                        ) : (
+                          <span className={`badge badge-${statusIsPaid ? 'approved' : 'pending'}`}>
+                            {statusIsPaid ? 'Paid' : 'Unpaid'}
+                          </span>
+                        )}
                       </td>
                       <td>
                         <button className="link" onClick={() => openEdit(c)}>
@@ -329,35 +351,120 @@ export default function Payment() {
       )}
 
       {/* Edit Payment Status Modal */}
-      {editingCollege && (
-        <div className="modal-backdrop" onClick={() => setEditingCollege(null)}>
-          <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSave}>
-            <h3>Update Payment Status</h3>
-            <p className="muted" style={{ fontSize: '0.9rem' }}>
-              College: <strong>{editingCollege.department ? `${editingCollege.college} (${editingCollege.department})` : editingCollege.college}</strong>
-            </p>
+      {editingCollege && (() => {
+        const studentCount = students.filter((s) => s.college_id === editingCollege.id).length;
+        const paidCount = editingCollege.paid_student_count || 0;
+        const unpaidCount = Math.max(0, studentCount - paidCount);
+        const pendingAmount = unpaidCount * feePerStudent;
 
-            <label className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
-              <input
-                type="checkbox"
-                checked={editPaid}
-                onChange={(e) => setEditPaid(e.target.checked)}
-                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-              />
-              <span style={{ fontSize: '0.95rem', userSelect: 'none', cursor: 'pointer' }}>Mark College Registration as Paid</span>
-            </label>
+        return (
+          <div className="modal-backdrop" onClick={() => setEditingCollege(null)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px', width: '100%', padding: '24px' }}>
+              <h3 style={{ margin: '0 0 10px 0' }}>Update Payment Status</h3>
+              <p className="muted" style={{ fontSize: '0.9rem', marginBottom: '20px' }}>
+                College: <strong>{editingCollege.department ? `${editingCollege.college} (${editingCollege.department})` : editingCollege.college}</strong>
+              </p>
 
-            <div className="modal-actions" style={{ marginTop: '20px' }}>
-              <button type="button" className="btn" onClick={() => setEditingCollege(null)}>
-                Cancel
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? 'Updating…' : 'Save'}
-              </button>
+              {/* Status details */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.95rem', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="muted">Total Students:</span>
+                  <strong>{studentCount} student(s)</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="muted">Already Paid For:</span>
+                  <span style={{ color: '#10b981', fontWeight: 600 }}>{paidCount} student(s)</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
+                  <span className="muted">Unpaid (Remaining):</span>
+                  <span style={{ color: unpaidCount > 0 ? '#ef4444' : 'var(--text-secondary)', fontWeight: 600 }}>{unpaidCount} student(s)</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span className="muted">Net Balance to Collect:</span>
+                  <strong style={{ color: unpaidCount > 0 ? '#ef4444' : '#10b981', fontSize: '1.05rem' }}>Rs. {pendingAmount}</strong>
+                </div>
+              </div>
+
+              {/* Actions row */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={unpaidCount === 0 || saving}
+                  onClick={() => handleUpdateStatus(true)}
+                  style={{ width: '100%', padding: '12px', background: unpaidCount === 0 ? 'rgba(255,255,255,0.05)' : 'var(--accent)', color: unpaidCount === 0 ? 'var(--text-muted)' : '#000' }}
+                >
+                  {saving ? 'Processing...' : unpaidCount === 0 ? 'All Registered Students Paid' : `Clear Balance (Collect Rs. ${pendingAmount})`}
+                </button>
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    disabled={saving}
+                    onClick={() => {
+                      if (confirm('Are you sure you want to reset all payment records for this institution? This resets their paid count to 0.')) {
+                        handleUpdateStatus(false);
+                      }
+                    }}
+                    style={{ flex: 1, padding: '10px' }}
+                  >
+                    Reset & Mark Unpaid
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setEditingCollege(null)}
+                    style={{ flex: 1, padding: '10px' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             </div>
-          </form>
+          </div>
+        );
+      })()}
+
+      {/* Payment logs audit history */}
+      <div className="card" style={{ marginTop: '35px', padding: '24px' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '8px' }}>Payment Logs Audit Trail</h3>
+        <p className="muted" style={{ fontSize: '0.85rem', marginBottom: '18px' }}>
+          Realtime logs of all clearance entries completed at the payment desk.
+        </p>
+
+        <div className="table-responsive" style={{ maxHeight: '280px' }}>
+          <table className="data-table" style={{ fontSize: '0.88rem' }}>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Institution</th>
+                <th>Students Paid</th>
+                <th>Amount Collected</th>
+                <th>Active Poll / Operator</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paymentLogs.map((log) => (
+                <tr key={log.id}>
+                  <td className="muted">{new Date(log.created_at).toLocaleString()}</td>
+                  <td><strong>{log.college_name}</strong></td>
+                  <td style={{ color: '#10b981', fontWeight: 600 }}>+{log.students_count || 0} student(s)</td>
+                  <td><strong style={{ color: '#10b981' }}>Rs. {log.amount || 0}</strong></td>
+                  <td><span className="badge badge-approved">{log.poll_name}</span></td>
+                </tr>
+              ))}
+              {paymentLogs.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="muted" style={{ textAlign: 'center', padding: '15px' }}>
+                    No payment logs recorded yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
     </div>
   )
 }

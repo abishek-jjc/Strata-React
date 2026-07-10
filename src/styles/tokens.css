@@ -599,7 +599,7 @@ select option {
 
 .app-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
   position: relative;
   overflow: hidden;
 }
@@ -683,7 +683,7 @@ select option {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-right: 1px solid rgba(255,255,255,0.07);
-  padding: 24px 16px;
+  padding: 24px 16px 0 16px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -691,6 +691,11 @@ select option {
   box-shadow: 4px 0 40px rgba(0,0,0,0.25);
   position: relative;
   overflow: hidden;
+  height: 100vh;
+  /* Enable vertical scrolling on the full sidebar as fallback */
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.08) transparent;
 }
 
 /* Brand */
@@ -757,10 +762,32 @@ select option {
   gap: 2px;
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  /* Independent vertical scrollbar for nav */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
 }
 
 .sidebar nav::-webkit-scrollbar { width: 3px; }
-.sidebar nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+.sidebar nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+/* Sidebar footer with profile card and sign out */
+.sidebar-footer {
+  padding: 12px 0 16px 0;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+.sidebar-profile-card {
+  user-select: none;
+}
+.sidebar-profile-card.clickable:hover {
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  transform: translateX(2px);
+}
 
 .sidebar nav a {
   color: rgba(255,255,255,0.52);
@@ -1142,6 +1169,18 @@ select option {
 @media (max-width: 768px) {
   .app-shell {
     display: block;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+  .app-shell .app-main {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+  .app-shell .app-content {
+    overflow: visible;
+    height: auto;
   }
   .sidebar-toggle-btn {
     display: flex !important;
@@ -1233,6 +1272,75 @@ select option {
   .profile-details-grid {
     grid-template-columns: 1fr !important;
     gap: 6px !important;
+  }
+}
+
+/* Extra small screens — phones */
+@media (max-width: 480px) {
+  .app-content {
+    padding: 12px 10px !important;
+  }
+
+  /* Registration cards: single column on phone */
+  [style*="minmax(280px"] {
+    grid-template-columns: 1fr !important;
+  }
+  [style*="minmax(300px"] {
+    grid-template-columns: 1fr !important;
+  }
+  [style*="minmax(320px"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Topbar compaction */
+  .topbar {
+    padding: 8px 12px !important;
+  }
+  .topbar-logo-mini span {
+    display: none;
+  }
+
+  /* Dashboard card layout */
+  .card {
+    padding: 16px !important;
+  }
+
+  h2 {
+    font-size: 1.4rem !important;
+  }
+}
+
+/* Prevent horizontal overflow on mobile */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+  .app-main {
+    min-width: 0;
+    overflow-x: hidden;
+  }
+  .app-content {
+    overflow-x: hidden;
+  }
+
+  /* Payment/profile wide containers collapse */
+  [style*="maxWidth: '600px'"],
+  [style*="max-width: 600px"] {
+    max-width: 100% !important;
+  }
+  [style*="maxWidth: '680px'"],
+  [style*="max-width: 680px"] {
+    max-width: 100% !important;
+  }
+
+  /* Form row layout — stack on mobile */
+  .guest-form-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Info grids */
+  [style*="minmax(240px"] {
+    grid-template-columns: 1fr !important;
   }
 }
 

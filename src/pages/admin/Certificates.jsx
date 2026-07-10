@@ -879,26 +879,67 @@ export default function Certificates() {
               {/* Right Column: Properties panel */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div className="card" style={{ padding: '20px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '10px' }}>
-                  <h4 style={{ marginTop: 0, marginBottom: '15px' }}>Element Text Sizes</h4>
+                  <h4 style={{ marginTop: 0, marginBottom: '6px' }}>Element Properties</h4>
+                  <p className="muted" style={{ fontSize: '0.8rem', marginBottom: '15px', lineHeight: '1.4' }}>
+                    Drag tags on the canvas, or enter exact values below.<br />
+                    <strong>X/Y are % of page width/height.</strong> Text is center-anchored at the X position.
+                  </p>
                   {modalLayout && Object.keys(modalLayout).map((key) => {
                     const item = modalLayout[key]
                     if (!item) return null
+                    const labelColors = { student_name: '#00e5ff', college_name: '#f9c20a', event_name: '#a78bfa', place: '#ff1744' }
+                    const color = labelColors[key] || '#f9c20a'
                     return (
-                      <label className="field" key={key} style={{ marginBottom: '15px' }}>
-                        <span style={{ fontSize: '0.82rem' }}>{key.toUpperCase().replace('_', ' ')} Font Size</span>
-                        <input
-                          type="number"
-                          value={item.fontSize || 18}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value) || 18
-                            setModalLayout(prev => ({
-                              ...prev,
-                              [key]: { ...prev[key], fontSize: val }
-                            }))
-                          }}
-                          style={{ padding: '6px', width: '100%' }}
-                        />
-                      </label>
+                      <div key={key} style={{ marginBottom: '18px', borderLeft: `3px solid ${color}`, paddingLeft: '10px' }}>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          {key.replace(/_/g, ' ')}
+                        </div>
+
+                        {/* X and Y row */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                          <label className="field" style={{ margin: 0 }}>
+                            <span style={{ fontSize: '0.75rem' }}>X Position (%)</span>
+                            <input
+                              type="number"
+                              min="0" max="100" step="0.5"
+                              value={Math.round(item.x * 10) / 10}
+                              onChange={(e) => {
+                                const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0))
+                                setModalLayout(prev => ({ ...prev, [key]: { ...prev[key], x: val } }))
+                              }}
+                              style={{ padding: '6px 8px', width: '100%', fontSize: '0.85rem' }}
+                            />
+                          </label>
+                          <label className="field" style={{ margin: 0 }}>
+                            <span style={{ fontSize: '0.75rem' }}>Y Position (%)</span>
+                            <input
+                              type="number"
+                              min="0" max="100" step="0.5"
+                              value={Math.round(item.y * 10) / 10}
+                              onChange={(e) => {
+                                const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0))
+                                setModalLayout(prev => ({ ...prev, [key]: { ...prev[key], y: val } }))
+                              }}
+                              style={{ padding: '6px 8px', width: '100%', fontSize: '0.85rem' }}
+                            />
+                          </label>
+                        </div>
+
+                        {/* Font size */}
+                        <label className="field" style={{ margin: 0 }}>
+                          <span style={{ fontSize: '0.75rem' }}>Font Size (pt)</span>
+                          <input
+                            type="number"
+                            min="8" max="72" step="1"
+                            value={item.fontSize || 18}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value) || 18
+                              setModalLayout(prev => ({ ...prev, [key]: { ...prev[key], fontSize: val } }))
+                            }}
+                            style={{ padding: '6px 8px', width: '100%', fontSize: '0.85rem' }}
+                          />
+                        </label>
+                      </div>
                     )
                   })}
                 </div>

@@ -41,7 +41,7 @@ import InchargeDashboard from './pages/incharge/Dashboard'
 // Student Leader Portal
 import LeaderDashboard from './pages/leader/Dashboard'
 import TeamRegistration from './pages/leader/TeamRegistration'
-import StudentList from './pages/leader/StudentList'
+import EventRules from './pages/leader/EventRules'
 import CertificateDownload from './pages/leader/CertificateDownload'
 import LeaderProfile from './pages/leader/Profile'
 import LeaderPayment from './pages/leader/Payment'
@@ -93,7 +93,7 @@ export default function App() {
           {/* Student leader */}
           <Route path="/leader" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderDashboard />)}</ProtectedRoute>} />
           <Route path="/leader/register" element={<ProtectedRoute allow={['leader']}>{withShell(<TeamRegistration />)}</ProtectedRoute>} />
-          <Route path="/leader/students" element={<ProtectedRoute allow={['leader']}>{withShell(<StudentList />)}</ProtectedRoute>} />
+          <Route path="/leader/rules" element={<ProtectedRoute allow={['leader']}>{withShell(<EventRules />)}</ProtectedRoute>} />
           <Route path="/leader/certificates" element={<ProtectedRoute allow={['leader']}>{withShell(<CertificateDownload />)}</ProtectedRoute>} />
           <Route path="/leader/profile" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderProfile />)}</ProtectedRoute>} />
           <Route path="/leader/payment" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderPayment />)}</ProtectedRoute>} />
