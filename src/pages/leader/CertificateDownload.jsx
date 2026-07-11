@@ -8,8 +8,9 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 
 export default function CertificateDownload() {
   const { profile } = useAuth()
+  // Fetch ALL students for this leader's college (college_id match, not leader_id)
   const { data: students } = useTable(TABLES.STUDENTS, [
-    ['leader_id', 'eq', profile?.ref_id],
+    ['college_id', 'eq', profile?.college_id],
   ])
   const { data: certificates } = useTable(TABLES.CERTIFICATES)
   const { data: events } = useTable(TABLES.EVENTS)
@@ -71,6 +72,7 @@ export default function CertificateDownload() {
         // Students from my college registered in this event
         const collegeStudents = students.filter(s => s.event_id === w.event_id)
         collegeStudents.forEach(student => {
+          // Check certificates table by student_id + exact place — do NOT use certificate_status flag
           const cert = myCertificates.find(c => c.student_id === student.id && c.position === place)
           winnerList.push({
             student,

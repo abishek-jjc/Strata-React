@@ -519,77 +519,69 @@ export default function Certificates() {
     } catch (err) {
       alert(err.message || 'Failed to issue winner certificate.')
     }
-  }
-
-  // Bulk Issue All Participants
-  async function issueAllParticipants() {
-    const unissued = filteredParticipation.filter(s => 
-      !certificates.some(c => c.student_id === s.id && c.position === 'Participation')
-    )
-    
-    if (unissued.length === 0) {
-      alert('All eligible participants have already been issued certificates!')
-      return
-    }
-
-    if (!confirm(`Are you sure you want to issue certificates in the database for all ${unissued.length} unissued participants?`)) return
-    
-    setLoadingBulk(true)
-    try {
-      for (const student of unissued) {
-        const certNumber = `CERT-PART-${Date.now()}`
-        await supabase.from(TABLES.CERTIFICATES).insert({
-          student_id: student.id,
-          event_id: student.event_id,
-          certificate_number: certNumber,
-          position: 'Participation',
-        })
-        await supabase
-          .from(TABLES.STUDENTS)
-          .update({ certificate_status: 'issued' })
-          .eq('id', student.id)
+  }  // Unified Issue All — works for both participation and winner tabs
+  async function issueAll() {
+    if (activeTab === 'participation') {
+      const unissued = filteredParticipation.filter(
+        (s) => !certificates.some((c) => c.student_id === s.id && c.position === 'Participation')
+      )
+      if (unissued.length === 0) {
+        alert('All eligible participants have already been issued certificates!')
+        return
       }
-      alert('Successfully issued certificates in the database!')
-    } catch (err) {
-      alert('Bulk issue failed: ' + err.message)
-    } finally {
-      setLoadingBulk(false)
-    }
-  }
+      if (!confirm(`Issue participation certificates in the database for all ${unissued.length} unissued participants?`)) return
 
-  // Bulk Issue All Winners
-  async function issueAllWinners() {
-    const unissued = filteredWinners.filter(s => 
-      !certificates.some(c => c.student_id === s.id && c.position === s.winnerPlace)
-    )
-
-    if (unissued.length === 0) {
-      alert('All winners have already been issued certificates!')
-      return
-    }
-
-    if (!confirm(`Are you sure you want to issue certificates in the database for all ${unissued.length} unissued winners?`)) return
-    
-    setLoadingBulk(true)
-    try {
-      for (const student of unissued) {
-        const certNumber = `CERT-WIN-${Date.now()}`
-        await supabase.from(TABLES.CERTIFICATES).insert({
-          student_id: student.id,
-          event_id: student.event_id,
-          certificate_number: certNumber,
-          position: student.winnerPlace,
-        })
-        await supabase
-          .from(TABLES.STUDENTS)
-          .update({ certificate_status: 'issued' })
-          .eq('id', student.id)
+      setLoadingBulk(true)
+      try {
+        for (const student of unissued) {
+          const certNumber = `CERT-PART-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+          const { error: certErr } = await supabase.from(TABLES.CERTIFICATES).insert({
+            student_id: student.id,
+            event_id: student.event_id,
+            certificate_number: certNumber,
+            position: 'Participation',
+          })
+          if (certErr) throw certErr
+          await supabase.from(TABLES.STUDENTS).update({ certificate_status: 'issued' }).eq('id', student.id)
+        }
+        alert(`Successfully issued ${unissued.length} participation certificate(s) in the database!`)
+      } catch (err) {
+        alert('Bulk issue failed: ' + err.message)
+      } finally {
+        setLoadingBulk(false)
       }
-      alert('Successfully issued winner certificates in the database!')
-    } catch (err) {
-      alert('Bulk issue failed: ' + err.message)
-    } finally {
-      setLoadingBulk(false)
+
+    } else {
+      // Winners tab — check by student_id + exact winnerPlace position, never by certificate_status flag
+      const unissued = filteredWinners.filter(
+        (s) => !certificates.some((c) => c.student_id === s.id && c.position === s.winnerPlace)
+      )
+      if (unissued.length === 0) {
+        alert('All winners have already been issued certificates!')
+        return
+      }
+      if (!confirm(`Issue winner certificates in the database for all ${unissued.length} unissued winners?`)) return
+
+      setLoadingBulk(true)
+      try {
+        for (const student of unissued) {
+          const certNumber = `CERT-WIN-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+          const { error: certErr } = await supabase.from(TABLES.CERTIFICATES).insert({
+            student_id: student.id,
+            event_id: student.event_id,
+            certificate_number: certNumber,
+            position: student.winnerPlace,  // '1st Place' or '2nd Place'
+          })
+          if (certErr) throw certErr
+          // Do NOT set certificate_status='issued' here — that flag is for participation only
+          // Winners' issued status is determined by the certificates table row
+        }
+        alert(`Successfully issued ${unissued.length} winner certificate(s) in the database!`)
+      } catch (err) {
+        alert('Bulk issue failed: ' + err.message)
+      } finally {
+        setLoadingBulk(false)
+      }
     }
   }
 
@@ -983,17 +975,19 @@ export default function Certificates() {
           </button>
         </div>
 
-        {/* Bulk Action Buttons & Search */}
+        {/* Unified Bulk Issue Button + Search */}
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {activeTab === 'participation' ? (
-            <button className="btn btn-primary" onClick={issueAllParticipants} disabled={loadingBulk || !participationUrl}>
-              {loadingBulk ? 'Issuing…' : 'Issue All Participants'}
-            </button>
-          ) : (
-            <button className="btn btn-primary" onClick={issueAllWinners} disabled={loadingBulk || !winner1Url || !winner2Url}>
-              {loadingBulk ? 'Issuing…' : 'Issue All Winners'}
-            </button>
-          )}
+          <button
+            className="btn btn-primary"
+            onClick={issueAll}
+            disabled={
+              loadingBulk ||
+              (activeTab === 'participation' && !participationUrl) ||
+              (activeTab === 'winner' && (!winner1Url || !winner2Url))
+            }
+          >
+            {loadingBulk ? 'Issuing…' : activeTab === 'participation' ? 'Issue All Participants' : 'Issue All Winners'}
+          </button>
           
           <input
             className="input"
@@ -1107,7 +1101,9 @@ export default function Certificates() {
               </thead>
               <tbody>
                 {paginatedWinners.map((s, idx) => {
-                  const isIssued = s.certificate_status === 'issued' || certificates.some(
+                  // Only check certificates table by student_id + exact position
+                  // Do NOT use certificate_status flag — that's for participation only
+                  const isIssued = certificates.some(
                     (c) => c.student_id === s.id && c.position === s.winnerPlace
                   )
                   const hasTemplates = winner1Url && winner2Url
