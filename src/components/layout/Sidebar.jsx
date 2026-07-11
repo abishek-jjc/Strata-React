@@ -11,6 +11,7 @@ const NAV = {
     ['/admin/payment-polls', 'Payment Polls'],
     ['/admin/leaders', 'Student Leaders'],
     ['/admin/admins', 'Admin Management'],
+    ['/admin/accountants', 'Accountants'],
     ['/admin/participants', 'Participants'],
     ['/admin/registrations', 'Registrations'],
     ['/admin/lots', 'Lots'],
