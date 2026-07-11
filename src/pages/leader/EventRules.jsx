@@ -4,24 +4,39 @@ import { TABLES } from '../../supabase/tables'
 
 export default function EventRules() {
   const [events, setEvents] = useState([])
+  const [venues, setVenues] = useState([])
   const [activeEventId, setActiveEventId] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function loadEvents() {
-      const { data } = await supabase
-        .from(TABLES.EVENTS)
-        .select('*')
-        .eq('status', 'active')
-        .order('event_name', { ascending: true })
-      if (data) {
-        setEvents(data)
-        if (data.length > 0) setActiveEventId(data[0].id)
+    async function loadData() {
+      const [eventsRes, venuesRes] = await Promise.all([
+        supabase
+          .from(TABLES.EVENTS)
+          .select('*')
+          .eq('status', 'active')
+          .order('event_name', { ascending: true }),
+        supabase
+          .from(TABLES.VENUES)
+          .select('*')
+      ])
+      if (eventsRes.data) {
+        setEvents(eventsRes.data)
+        if (eventsRes.data.length > 0) setActiveEventId(eventsRes.data[0].id)
+      }
+      if (venuesRes.data) {
+        setVenues(venuesRes.data)
       }
       setLoading(false)
     }
-    loadEvents()
+    loadData()
   }, [])
+
+  const getVenueName = (venueId) => {
+    if (!venueId) return '—'
+    const venue = venues.find(v => v.id === venueId)
+    return venue ? venue.venue_name : '—'
+  }
 
   const activeEvent = events.find(e => e.id === activeEventId)
 
@@ -147,11 +162,11 @@ export default function EventRules() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.9rem' }}>
                     <div>
                       <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: '2px' }}>Prelims Venue</div>
-                      <div style={{ color: '#fff', fontWeight: 600 }}>{activeEvent.prelims_venue_name || activeEvent.prelims_venue || '—'}</div>
+                      <div style={{ color: '#fff', fontWeight: 600 }}>{getVenueName(activeEvent.prelims_venue)}</div>
                     </div>
                     <div>
                       <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: '2px' }}>Mains Venue</div>
-                      <div style={{ color: '#fff', fontWeight: 600 }}>{activeEvent.mains_venue_name || activeEvent.mains_venue || '—'}</div>
+                      <div style={{ color: '#fff', fontWeight: 600 }}>{getVenueName(activeEvent.mains_venue)}</div>
                     </div>
                   </div>
                 </div>

@@ -67,7 +67,7 @@ export default function CertificateDownload() {
       places.forEach(({ place, lotName }) => {
         if (!lotName || lotName === '-') return
         const lot = lots.find(l => l.lot_name === lotName)
-        if (!lot || lot.assigned_college !== myCollegeName) return
+        if (!lot || !lot.assigned_college || lot.assigned_college.toLowerCase().trim() !== myCollegeName.toLowerCase().trim()) return
 
         // Students from my college registered in this event
         const collegeStudents = students.filter(s => s.event_id === w.event_id)

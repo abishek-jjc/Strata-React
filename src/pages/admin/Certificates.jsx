@@ -980,11 +980,7 @@ export default function Certificates() {
           <button
             className="btn btn-primary"
             onClick={issueAll}
-            disabled={
-              loadingBulk ||
-              (activeTab === 'participation' && !participationUrl) ||
-              (activeTab === 'winner' && (!winner1Url || !winner2Url))
-            }
+            disabled={loadingBulk}
           >
             {loadingBulk ? 'Issuing…' : activeTab === 'participation' ? 'Issue All Participants' : 'Issue All Winners'}
           </button>
@@ -1011,6 +1007,7 @@ export default function Certificates() {
                   <th>College</th>
                   <th>Event</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1027,6 +1024,28 @@ export default function Certificates() {
                         <span className={isIssued ? 'success' : 'muted'}>
                           {isIssued ? '✓ Issued' : 'Not Issued'}
                         </span>
+                      </td>
+                      <td>
+                        {isIssued ? (
+                          <button
+                            onClick={() => {
+                              const cert = certificates.find(c => c.student_id === s.id && c.position === 'Participation')
+                              if (cert) downloadSingle(cert)
+                            }}
+                            className="link"
+                            disabled={!participationUrl}
+                          >
+                            Download PDF
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => issueParticipation(s)}
+                            className="link btn-primary-link"
+                            disabled={!participationUrl}
+                          >
+                            Issue PDF
+                          </button>
+                        )}
                       </td>
                     </tr>
                   )
@@ -1097,12 +1116,11 @@ export default function Certificates() {
                   <th>Event</th>
                   <th>Winner Place</th>
                   <th>Cert Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedWinners.map((s, idx) => {
-                  // Only check certificates table by student_id + exact position
-                  // Do NOT use certificate_status flag — that's for participation only
                   const isIssued = certificates.some(
                     (c) => c.student_id === s.id && c.position === s.winnerPlace
                   )
@@ -1122,12 +1140,34 @@ export default function Certificates() {
                           {isIssued ? '✓ Issued' : 'Not Issued'}
                         </span>
                       </td>
+                      <td>
+                        {isIssued ? (
+                          <button
+                            onClick={() => {
+                              const cert = certificates.find(c => c.student_id === s.id && c.position === s.winnerPlace)
+                              if (cert) downloadSingle(cert)
+                            }}
+                            className="link"
+                            disabled={!hasTemplates}
+                          >
+                            Download PDF
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => issueWinner(s)}
+                            className="link btn-primary-link"
+                            disabled={!hasTemplates}
+                          >
+                            Issue PDF
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   )
                 })}
                 {paginatedWinners.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="muted" style={{ textAlign: 'center' }}>
+                    <td colSpan={6} className="muted" style={{ textAlign: 'center' }}>
                       No winners assigned yet. Assign winners in the Winners page first.
                     </td>
                   </tr>
