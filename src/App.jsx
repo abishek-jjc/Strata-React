@@ -69,7 +69,7 @@ export default function App() {
 
           {/* Auth */}
           <Route path="/login" element={<Login />} />
-          <Route path="/payment" element={<Payment />} />
+          <Route path="/payment" element={<ProtectedRoute allow={['admin', 'accountant']}>{<Payment />}</ProtectedRoute>} />
 
           {/* Admin */}
           <Route path="/admin" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminDashboard />)}</ProtectedRoute>} />

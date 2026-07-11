@@ -35,12 +35,16 @@ const NAV = {
   incharge: [
     ['/incharge', 'Dashboard / Winners'],
   ],
+  accountant: [
+    ['/payment', 'Payment Desk'],
+  ],
 }
 
 const ROLE_ICON = {
   admin: '⚙️',
   leader: '🎓',
   incharge: '🏆',
+  accountant: '💳',
 }
 
 export default function Sidebar({ role, isOpen, onClose }) {
