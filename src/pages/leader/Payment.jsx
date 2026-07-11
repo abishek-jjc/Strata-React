@@ -17,9 +17,8 @@ export default function Payment() {
     ['leader_id', 'eq', profile?.ref_id]
   ])
   const { data: settings, loading: setLoading } = useTable(TABLES.SETTINGS)
-  const { data: logs, loading: logsLoading } = useTable(TABLES.PAYMENT_LOGS)
 
-  const loading = colLoading || stdLoading || regLoading || setLoading || logsLoading
+  const loading = colLoading || stdLoading || regLoading || setLoading
   const myCollege = colleges[0]
 
   if (loading) return <p className="muted">Loading payment details...</p>
@@ -41,7 +40,6 @@ export default function Payment() {
   const isPaid = students.length > 0 && unpaidCount === 0
 
   const myCollegeName = myCollege?.department ? `${myCollege.college} (${myCollege.department})` : myCollege?.college
-  const myLogs = logs.filter(l => l.college_name === myCollegeName)
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto' }}>
@@ -221,30 +219,7 @@ export default function Payment() {
             </div>
           )}
 
-          {/* Payment Log History */}
-          <div className="card" style={{ padding: '24px' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '8px', color: 'var(--accent)', fontSize: '1.15rem' }}>Receipt History</h3>
-            <p className="muted" style={{ fontSize: '0.85rem', marginBottom: '16px' }}>
-              Detailed history of payment transactions cleared at the desk.
-            </p>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {myLogs.map((log) => (
-                <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.88rem' }}>
-                  <div>
-                    <div style={{ fontWeight: 600 }}>Cleared +{log.students_count || 0} student(s)</div>
-                    <span className="muted" style={{ fontSize: '0.78rem' }}>{new Date(log.created_at).toLocaleString()} ({log.poll_name})</span>
-                  </div>
-                  <strong style={{ color: '#10b981' }}>Rs. {log.amount || 0}</strong>
-                </div>
-              ))}
-              {myLogs.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '15px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  No payment receipts recorded yet.
-                </div>
-              )}
-            </div>
-          </div>
+
 
         </div>
       )}
