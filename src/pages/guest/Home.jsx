@@ -5,6 +5,7 @@ import { TABLES } from '../../supabase/tables'
 import GuestLayout from '../../components/layout/GuestLayout'
 import { Html5Qrcode } from 'html5-qrcode'
 import { decryptCollegePayload } from '../../utils/qrCrypto'
+import { Superscript } from 'lucide-react'
 
 export default function Home() {
   const navigate = useNavigate()
@@ -14,7 +15,7 @@ export default function Home() {
   const [invBody, setInvBody] = useState('')
   const [invPdfUrl, setInvPdfUrl] = useState('')
   const [eventCount, setEventCount] = useState(6)
-  
+
   // Countdown state
   const [timeLeft, setTimeLeft] = useState({ days: '00', hours: '00', minutes: '00', seconds: '00' })
 
@@ -67,12 +68,12 @@ export default function Home() {
     }
 
     const config = { fps: 10 }
-    
+
     qrScanner.start(
       { facingMode: "environment" },
       config,
       qrCodeSuccessCallback,
-      () => {}
+      () => { }
     ).catch((err) => {
       console.error("Camera start error:", err)
       let msg = "Failed to start camera scanner. Please ensure camera permissions are granted."
@@ -181,7 +182,7 @@ export default function Home() {
       <section className="guest-hero">
         <p className="guest-college-info">Ayya Nadar Janaki Ammal College</p>
         <p className="guest-college-sub" style={{ textTransform: 'none', letterSpacing: 'normal', fontSize: '0.85rem', maxWidth: '800px', margin: '-10px auto 30px auto', lineHeight: '1.5' }}>
-          (Autonomous, Affiliated to Madurai Kamaraj University, Re-accredited (4th cycle) with ‘A+’ Grade (CGPA of 3.48 out of 4) by NAAC, recognized as College of Excellence and Mentor Institution by UGC, Star College by DBT and Ranked 72nd at National Level in NIRF 2025, DST-FIST(2024) supported and ISO 9001:2015 & ISO 21001:2018 Certified Institution), Sivakasi
+          (Autonomous, Affiliated to Madurai Kamaraj University, Re-accredited 4<sup>th</sup> cycle with ‘A+’ Grade (CGPA of 3.48 out of 4) by NAAC, recognized as College of Excellence and Mentor Institution by UGC, Star College by DBT and Ranked 72<sup>nd</sup> at National Level in NIRF 2025, DST-FIST(2024) supported and ISO 9001:2015 & ISO 21001:2018 Certified Institution), Sivakasi
         </p>
         <h1 className="guest-hero-title">STRATA 2K26</h1>
         <p className="guest-hero-tagline">
@@ -192,12 +193,12 @@ export default function Home() {
           <Link to="/login" className="guest-btn guest-btn-primary">
             Login Portal →
           </Link>
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={() => {
               setScanError('')
               setShowScanner(true)
-            }} 
+            }}
             className="guest-btn guest-btn-primary"
             style={{ cursor: 'pointer' }}
           >
@@ -234,7 +235,7 @@ export default function Home() {
         <div className="guest-glass-panel guest-invitation-container" style={{ margin: '0 auto' }}>
           <h2 className="guest-inv-title">{invTitle}</h2>
           <p className="guest-inv-tagline">{invTagline}</p>
-          
+
           <div className="guest-inv-body">
             {invBody.split('\n\n').map((para, i) => (
               <p key={i} style={{ marginBottom: '16px' }}>{para}</p>
@@ -247,17 +248,17 @@ export default function Home() {
               <strong>Dept. of Computer Science, ANJAC</strong>
             </div>
             <div style={{ display: 'flex', gap: '15px' }}>
-              <button 
-                onClick={handleDownloadInvitation} 
-                style={{ 
-                  padding: '12px 24px', 
-                  borderRadius: '50px', 
-                  border: '1px solid var(--g-glass-border)', 
-                  color: 'var(--g-secondary)', 
-                  background: 'none', 
-                  fontWeight: '600', 
+              <button
+                onClick={handleDownloadInvitation}
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: '50px',
+                  border: '1px solid var(--g-glass-border)',
+                  color: 'var(--g-secondary)',
+                  background: 'none',
+                  fontWeight: '600',
                   fontSize: '0.9rem',
-                  cursor: 'pointer' 
+                  cursor: 'pointer'
                 }}
               >
                 Download Invitation
@@ -281,13 +282,13 @@ export default function Home() {
               Scan the QR code printed on your official STRATA invitation letter to start the registration process.
             </p>
 
-            <div 
-              id="landing-reader" 
-              style={{ 
-                width: '100%', 
-                maxWidth: '320px', 
-                margin: '0 auto 25px auto', 
-                borderRadius: '16px', 
+            <div
+              id="landing-reader"
+              style={{
+                width: '100%',
+                maxWidth: '320px',
+                margin: '0 auto 25px auto',
+                borderRadius: '16px',
                 overflow: 'hidden',
                 border: '1px solid var(--g-glass-border)',
                 background: 'rgba(0,0,0,0.3)',

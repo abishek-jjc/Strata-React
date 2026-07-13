@@ -41,7 +41,7 @@ export default function ContactUs() {
           <p style={{ textAlign: 'center', color: 'var(--g-text-muted)' }}>Loading contact list...</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '30px', maxWidth: '1000px', margin: '0 auto' }}>
-            
+
             {/* Dynamic General Contacts */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
               <div className="guest-glass-panel" style={{ padding: '24px' }}>
@@ -66,7 +66,7 @@ export default function ContactUs() {
 
               {contactExtra && (
                 <div className="guest-glass-panel" style={{ padding: '24px' }}>
-                  <h4 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: 'var(--g-secondary)' }}>Coordinator</h4>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: 'var(--g-secondary)' }}>Convener</h4>
                   <p style={{ margin: '4px 0', color: 'var(--g-text)', fontSize: '1rem', fontWeight: '500', lineHeight: '1.4' }}>
                     {contactExtra}
                   </p>

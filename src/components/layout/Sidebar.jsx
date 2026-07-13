@@ -19,8 +19,6 @@ const NAV = {
     ['/admin/incharges', 'Incharges'],
     ['/admin/certificates', 'Certificates'],
     ['/admin/reports', 'Reports'],
-    ['/admin/rules', 'Common Rules'],
-    ['/admin/homepage-leaders', 'Greetings / Leaders'],
     ['/admin/settings', 'Page Settings'],
     ['/payment', 'Payment Desk'],
   ],

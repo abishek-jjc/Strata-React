@@ -6,6 +6,61 @@ import { TABLES } from '../../supabase/tables'
 import { generateCertificatePdf } from '../../utils/pdfCertificate'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 
+const defaultLayouts = {
+  participation: {
+    student_name: { x: 50, y: 40, fontSize: 24, font: 'Helvetica-Bold', enabled: true, color: '#00e5ff' },
+    college_name: { x: 50, y: 52, fontSize: 16, font: 'Helvetica-Bold', enabled: true, color: '#f9c20a' },
+    event_name: { x: 50, y: 64, fontSize: 18, font: 'Helvetica-Bold', enabled: true, color: '#a78bfa' }
+  },
+  winner1: {
+    student_name: { x: 50, y: 40, fontSize: 24, font: 'Helvetica-Bold', enabled: true, color: '#00e5ff' },
+    college_name: { x: 25, y: 55, fontSize: 16, font: 'Helvetica-Bold', enabled: true, color: '#f9c20a' },
+    event_name: { x: 75, y: 55, fontSize: 18, font: 'Helvetica-Bold', enabled: true, color: '#a78bfa' },
+    place: { x: 50, y: 75, fontSize: 20, font: 'Helvetica-Bold', enabled: true, color: '#ff1744' }
+  },
+  winner2: {
+    student_name: { x: 50, y: 40, fontSize: 24, font: 'Helvetica-Bold', enabled: true, color: '#00e5ff' },
+    college_name: { x: 25, y: 55, fontSize: 16, font: 'Helvetica-Bold', enabled: true, color: '#f9c20a' },
+    event_name: { x: 75, y: 55, fontSize: 18, font: 'Helvetica-Bold', enabled: true, color: '#a78bfa' },
+    place: { x: 50, y: 75, fontSize: 20, font: 'Helvetica-Bold', enabled: true, color: '#ff1744' }
+  }
+}
+
+function mergeDefaultLayout(layoutKey, savedLayout) {
+  const merged = {}
+  const defaultLayout = defaultLayouts[layoutKey]
+  Object.keys(defaultLayout).forEach((key) => {
+    merged[key] = {
+      ...defaultLayout[key],
+      ...(savedLayout?.[key] || {})
+    }
+    if (merged[key].color && !merged[key].color.startsWith('#')) {
+      merged[key].color = '#' + merged[key].color
+    }
+  })
+  return merged
+}
+
+function getPdfLibFont(fontKey) {
+  switch (fontKey) {
+    case 'Helvetica': return StandardFonts.Helvetica
+    case 'Helvetica-Bold': return StandardFonts.HelveticaBold
+    case 'Times-Roman': return StandardFonts.TimesRoman
+    case 'Times-Bold': return StandardFonts.TimesRomanBold
+    case 'Courier': return StandardFonts.Courier
+    case 'Courier-Bold': return StandardFonts.CourierBold
+    default: return StandardFonts.HelveticaBold
+  }
+}
+
+function hexToRgb(hex) {
+  const h = (hex || '#000000').replace('#', '')
+  const r = parseInt(h.substring(0, 2), 16) / 255
+  const g = parseInt(h.substring(2, 4), 16) / 255
+  const b = parseInt(h.substring(4, 6), 16) / 255
+  return rgb(r, g, b)
+}
+
 export default function CertificateDownload() {
   const { profile } = useAuth()
   // Fetch ALL students for this leader's college (college_id match, not leader_id)
@@ -123,12 +178,21 @@ export default function CertificateDownload() {
       const w1Bytes = w1Url ? await fetch(w1Url).then(r => r.arrayBuffer()) : null
       const w2Bytes = w2Url ? await fetch(w2Url).then(r => r.arrayBuffer()) : null
 
-      const getLayout = (key) => {
-        try { return JSON.parse(settings[key] || '{}') } catch { return {} }
+      const getLayout = (key, layoutName) => {
+        try { return mergeDefaultLayout(layoutName, JSON.parse(settings[key] || '{}')) } catch { return defaultLayouts[layoutName] }
       }
-      const pLayout = getLayout('participation_cert_layout')
-      const w1Layout = getLayout('winner_cert_1_layout')
-      const w2Layout = getLayout('winner_cert_2_layout')
+      const pLayout = getLayout('participation_cert_layout', 'participation')
+      const w1Layout = getLayout('winner_cert_1_layout', 'winner1')
+      const w2Layout = getLayout('winner_cert_2_layout', 'winner2')
+
+      const fontCache = {}
+      const getEmbeddedFont = async (fontName) => {
+        if (!fontCache[fontName]) {
+          const fontRef = getPdfLibFont(fontName)
+          fontCache[fontName] = await combinedDoc.embedFont(fontRef)
+        }
+        return fontCache[fontName]
+      }
 
       for (const cert of certs) {
         const student = students.find((s) => s.id === cert.student_id)
@@ -158,41 +222,34 @@ export default function CertificateDownload() {
         
         const page = combinedDoc.getPages()[combinedDoc.getPageCount() - 1]
         const { width, height } = page.getSize()
-        const font = await combinedDoc.embedFont(StandardFonts.HelveticaBold)
 
         const sName = student.student_name || ''
         const cName = getCollegeName(student.id) || ''
         const eName = getEventName(student.event_id) || ''
         const placeVal = cert.position || ''
 
-        // Draw text centered at the anchor point (matches admin generateBulkPdf logic)
-        if (layout.student_name) {
-          const size = Number(layout.student_name.fontSize) || 24
-          const textWidth = font.widthOfTextAtSize(sName, size)
-          const x = (layout.student_name.x / 100) * width - textWidth / 2
-          const y = height - (layout.student_name.y / 100) * height
-          page.drawText(sName, { x, y, size, font, color: rgb(0.1, 0.1, 0.1) })
+        const drawElement = async (elemLayout, value) => {
+          if (!elemLayout || elemLayout.enabled === false || !value) return
+
+          const size = Number(elemLayout.fontSize) || 18
+          const fontName = elemLayout.font || 'Helvetica-Bold'
+          const font = await getEmbeddedFont(fontName)
+
+          const textWidth = font.widthOfTextAtSize(value, size)
+          const x = (elemLayout.x / 100) * width - textWidth / 2
+          const y = height - (elemLayout.y / 100) * height
+
+          const hexColor = elemLayout.color || '#000000'
+          const colorVal = hexToRgb(hexColor)
+
+          page.drawText(value, { x, y, size, font, color: colorVal })
         }
-        if (layout.college_name) {
-          const size = Number(layout.college_name.fontSize) || 16
-          const textWidth = font.widthOfTextAtSize(cName, size)
-          const x = (layout.college_name.x / 100) * width - textWidth / 2
-          const y = height - (layout.college_name.y / 100) * height
-          page.drawText(cName, { x, y, size, font, color: rgb(0.2, 0.2, 0.2) })
-        }
-        if (layout.event_name) {
-          const size = Number(layout.event_name.fontSize) || 18
-          const textWidth = font.widthOfTextAtSize(eName, size)
-          const x = (layout.event_name.x / 100) * width - textWidth / 2
-          const y = height - (layout.event_name.y / 100) * height
-          page.drawText(eName, { x, y, size, font, color: rgb(0.2, 0.2, 0.2) })
-        }
-        if (layout.place && placeVal && placeVal !== 'Participation') {
-          const size = Number(layout.place.fontSize) || 20
-          const textWidth = font.widthOfTextAtSize(placeVal, size)
-          const x = (layout.place.x / 100) * width - textWidth / 2
-          const y = height - (layout.place.y / 100) * height
-          page.drawText(placeVal, { x, y, size, font, color: rgb(0.85, 0.3, 0.1) })
+
+        await drawElement(layout.student_name, sName)
+        await drawElement(layout.college_name, cName)
+        await drawElement(layout.event_name, eName)
+        if (placeVal && placeVal !== 'Participation') {
+          await drawElement(layout.place, placeVal)
         }
       }
 

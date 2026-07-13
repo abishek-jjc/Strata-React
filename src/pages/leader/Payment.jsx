@@ -3,9 +3,11 @@ import { supabase } from '../../supabase/client'
 import { useAuth } from '../../auth/AuthContext'
 import { TABLES } from '../../supabase/tables'
 import { useTable } from '../../hooks/useTable'
+import QRCode from 'qrcode'
 
 export default function Payment() {
   const { profile } = useAuth()
+  const [qrCodeUrl, setQrCodeUrl] = useState('')
 
   const { data: colleges, loading: colLoading } = useTable(TABLES.COLLEGES, [
     ['id', 'eq', profile?.college_id]
@@ -21,9 +23,6 @@ export default function Payment() {
   const loading = colLoading || stdLoading || regLoading || setLoading
   const myCollege = colleges[0]
 
-  if (loading) return <p className="muted">Loading payment details...</p>
-
-  const paymentQrUrl = settings.find(s => s.key_name === 'payment_qr_url')?.value || ''
   const whatsappLink = settings.find(s => s.key_name === 'whatsapp_group_link')?.value || ''
 
   // Per person: 200 + 18% GST = Rs. 236
@@ -40,6 +39,23 @@ export default function Payment() {
   const isPaid = students.length > 0 && unpaidCount === 0
 
   const myCollegeName = myCollege?.department ? `${myCollege.college} (${myCollege.department})` : myCollege?.college
+  const upiId = settings.find(s => s.key_name === 'upi_id')?.value || ''
+
+  useEffect(() => {
+    if (!loading && upiId && pendingTotal > 0) {
+      const payeeName = encodeURIComponent('STRATA 2K26')
+      const note = encodeURIComponent(`Fee for ${myCollegeName}`)
+      const upiLink = `upi://pay?pa=${upiId}&pn=${payeeName}&am=${pendingTotal}&cu=INR&tn=${note}`
+      
+      QRCode.toDataURL(upiLink, { width: 280, margin: 2 })
+        .then(url => setQrCodeUrl(url))
+        .catch(err => console.error('Failed to generate QR code:', err))
+    } else {
+      setQrCodeUrl('')
+    }
+  }, [loading, upiId, pendingTotal, myCollegeName])
+
+  if (loading) return <p className="muted">Loading payment details...</p>
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto' }}>
@@ -165,9 +181,9 @@ export default function Payment() {
                 Scan the Google Pay / UPI QR Code below to transfer the pending balance of <strong>Rs. {pendingTotal}</strong>.
               </p>
 
-              {paymentQrUrl ? (
+              {qrCodeUrl ? (
                 <div style={{ margin: '0 auto 20px', maxWidth: '280px', background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                  <img src={paymentQrUrl} alt="Payment QR" style={{ width: '100%', display: 'block' }} />
+                  <img src={qrCodeUrl} alt="Payment QR" style={{ width: '100%', display: 'block' }} />
                 </div>
               ) : (
                 <div style={{
@@ -179,7 +195,7 @@ export default function Payment() {
                   fontSize: '0.95rem',
                   marginBottom: '20px'
                 }}>
-                  QR Code not loaded yet by the administrator. Please visit the payment desk at the venue.
+                  {upiId ? 'Generating QR Code...' : 'UPI ID not configured by the administrator yet. Please visit the payment desk at the venue.'}
                 </div>
               )}
 

@@ -3,8 +3,10 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 import '../../styles/guest.css'
 import { Html5Qrcode } from 'html5-qrcode'
 import { decryptCollegePayload } from '../../utils/qrCrypto'
+import { useSettings } from '../../context/SettingsContext'
 
 export default function GuestLayout({ children }) {
+  const { settings } = useSettings()
   const navigate = useNavigate()
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark')
   const [scrolled, setScrolled] = useState(false)
@@ -143,6 +145,9 @@ export default function GuestLayout({ children }) {
               <li><NavLink to="/about" onClick={() => setMobileOpen(false)}>About Us</NavLink></li>
               <li><NavLink to="/events" onClick={() => setMobileOpen(false)}>Contests</NavLink></li>
               <li><NavLink to="/rules" onClick={() => setMobileOpen(false)}>Rules</NavLink></li>
+              {settings.show_winners_page === 'true' && (
+                <li><NavLink to="/winners" onClick={() => setMobileOpen(false)}>Winners</NavLink></li>
+              )}
               <li><NavLink to="/contact" onClick={() => setMobileOpen(false)}>Contact Us</NavLink></li>
               <li>
                 <button 

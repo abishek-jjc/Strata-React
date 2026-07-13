@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthContext'
 import { useTable } from '../../hooks/useTable'
 import { TABLES } from '../../supabase/tables'
 import { hasDuplicateNamesWithinTeam } from '../../utils/validators'
+import { useSettings } from '../../context/SettingsContext'
 
 const emptyParticipant = () => ({ 
   studentName: '', 
@@ -28,26 +29,17 @@ export default function TeamRegistration() {
   const [regError, setRegError] = useState('')
   const [regSuccess, setRegSuccess] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [whatsappLink, setWhatsappLink] = useState('')
 
   // Edit participant modal state
   const [editingStudent, setEditingStudent] = useState(null)
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
-  const loading = eventsLoading || regsLoading || studentsLoading
+  const { settings } = useSettings()
+  const isEventStarted = settings.event_started === 'true'
+  const whatsappLink = settings.whatsapp_group_link || ''
 
-  // ------ Load settings ------
-  useEffect(() => {
-    async function loadSettings() {
-      const { data } = await supabase.from(TABLES.SETTINGS).select('*')
-      if (data) {
-        const wa = data.find(s => s.key_name === 'whatsapp_group_link')?.value || ''
-        setWhatsappLink(wa)
-      }
-    }
-    loadSettings()
-  }, [])
+  const loading = eventsLoading || regsLoading || studentsLoading
 
   // Set first event as default active once loaded
   useEffect(() => {
@@ -126,6 +118,10 @@ export default function TeamRegistration() {
     e.preventDefault()
     setRegError('')
     setRegSuccess('')
+
+    if (isEventStarted) {
+      return setRegError('Registrations are locked because the event has started.')
+    }
 
     if (!activeEventId) return setRegError('Select an event.')
     if (!profile?.ref_id || !profile?.college_id) {
@@ -208,6 +204,10 @@ export default function TeamRegistration() {
   async function handleSaveEdit(e) {
     e.preventDefault()
     setEditError('')
+
+    if (isEventStarted) {
+      return setEditError('Participant updates are locked because the event has started.')
+    }
 
     if (!editingStudent.student_name || editingStudent.student_name.trim().length < 3) {
       return setEditError('Student name must be at least 3 characters.')
@@ -436,11 +436,13 @@ export default function TeamRegistration() {
                         </div>
                       </div>
 
-                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
-                        <button className="btn" onClick={() => openEdit(s)} style={{ padding: '6px 14px', fontSize: '0.82rem' }}>
-                          ✏️ Edit
-                        </button>
-                      </div>
+                      {!isEventStarted && (
+                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+                          <button className="btn" onClick={() => openEdit(s)} style={{ padding: '6px 14px', fontSize: '0.82rem' }}>
+                            ✏️ Edit
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -448,89 +450,111 @@ export default function TeamRegistration() {
             </div>
           )}
 
-          {/* ── If not registered: show registration form ── */}
+          {/* ── If not registered: show registration form or locked message ── */}
           {!isRegistered && (
             <div>
-              <h3 style={{ fontSize: '1rem', marginBottom: '16px', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                Register Team — {activeEvent.event_name}
-              </h3>
+              {isEventStarted ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  color: 'var(--text-secondary)',
+                  background: 'rgba(239, 68, 68, 0.04)',
+                  border: '1px dashed rgba(239, 68, 68, 0.2)',
+                  borderRadius: '12px',
+                  lineHeight: '1.6',
+                  maxWidth: '500px',
+                  margin: '20px auto'
+                }}>
+                  <span style={{ fontSize: '2rem', display: 'block', marginBottom: '10px' }}>🔒</span>
+                  <h4 style={{ margin: '0 0 8px 0', color: 'var(--danger)' }}>Registrations Locked</h4>
+                  <p style={{ margin: 0, fontSize: '0.9rem' }}>
+                    The event has started. New registrations are now locked. Please contact the admin desk if you need assistance.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <h3 style={{ fontSize: '1rem', marginBottom: '16px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    Register Team — {activeEvent.event_name}
+                  </h3>
 
-              <form onSubmit={handleSubmit}>
-                {regParticipants.length > 0 ? (
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                    gap: '18px',
-                    marginBottom: '20px'
-                  }}>
-                    {regParticipants.map((p, i) => (
-                      <div
-                        key={i}
-                        className="card"
-                        style={{
-                          padding: '20px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '12px',
-                          background: 'rgba(255,255,255,0.02)',
-                          border: '1px solid rgba(255,255,255,0.06)',
-                          borderRadius: '16px',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '8px' }}>
-                          <h4 style={{ margin: 0, color: 'var(--accent)', fontSize: '1rem', fontWeight: 700 }}>
-                            Participant #{i + 1}
-                          </h4>
-                        </div>
+                  <form onSubmit={handleSubmit}>
+                    {regParticipants.length > 0 ? (
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                        gap: '18px',
+                        marginBottom: '20px'
+                      }}>
+                        {regParticipants.map((p, i) => (
+                          <div
+                            key={i}
+                            className="card"
+                            style={{
+                              padding: '20px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '12px',
+                              background: 'rgba(255,255,255,0.02)',
+                              border: '1px solid rgba(255,255,255,0.06)',
+                              borderRadius: '16px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '8px' }}>
+                              <h4 style={{ margin: 0, color: 'var(--accent)', fontSize: '1rem', fontWeight: 700 }}>
+                                Participant #{i + 1}
+                              </h4>
+                            </div>
 
-                        <label className="field">
-                          <span>Name <span style={{ color: '#ef4444' }}>*</span></span>
-                          <input value={p.studentName} onChange={e => updateParticipant(i, 'studentName', e.target.value)} placeholder="Full name" required minLength={3} />
-                        </label>
+                            <label className="field">
+                              <span>Name <span style={{ color: '#ef4444' }}>*</span></span>
+                              <input value={p.studentName} onChange={e => updateParticipant(i, 'studentName', e.target.value)} placeholder="Full name" required minLength={3} />
+                            </label>
 
-                        <label className="field">
-                          <span>Roll Number <span style={{ color: '#ef4444' }}>*</span></span>
-                          <input value={p.rollNo || ''} onChange={e => updateParticipant(i, 'rollNo', e.target.value)} placeholder="Roll number" required />
-                        </label>
+                            <label className="field">
+                              <span>Roll Number <span style={{ color: '#ef4444' }}>*</span></span>
+                              <input value={p.rollNo || ''} onChange={e => updateParticipant(i, 'rollNo', e.target.value)} placeholder="Roll number" required />
+                            </label>
 
-                        <label className="field">
-                          <span>Food Choice</span>
-                          <select value={p.food || '-'} onChange={e => updateParticipant(i, 'food', e.target.value)} style={selectStyle}>
-                            <option value="-">—</option>
-                            <option value="Veg">Veg</option>
-                            <option value="Non-Veg">Non-Veg</option>
-                          </select>
-                        </label>
+                            <label className="field">
+                              <span>Food Choice</span>
+                              <select value={p.food || '-'} onChange={e => updateParticipant(i, 'food', e.target.value)} style={selectStyle}>
+                                <option value="-">—</option>
+                                <option value="Veg">Veg</option>
+                                <option value="Non-Veg">Non-Veg</option>
+                              </select>
+                            </label>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: '10px', marginBottom: '20px' }}>
-                    No participant slots available for this event.
-                  </div>
-                )}
-
-                {regError && <p className="error">{regError}</p>}
-
-                {regSuccess && (
-                  <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '10px', padding: '16px 20px', margin: '12px 0' }}>
-                    <p className="success" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent' }}>{regSuccess}</p>
-                    {whatsappLink && (
-                      <div style={{ marginTop: '10px' }}>
-                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.8rem', textDecoration: 'none', background: '#22c55e', borderColor: '#22c55e' }}>
-                          Join WhatsApp Group
-                        </a>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.08)', borderRadius: '10px', marginBottom: '20px' }}>
+                        No participant slots available for this event.
                       </div>
                     )}
-                  </div>
-                )}
 
-                {regParticipants.length > 0 && (
-                  <button type="submit" className="btn btn-primary" disabled={submitting} style={{ marginTop: '8px' }}>
-                    {submitting ? 'Submitting…' : `Submit Registration (${teamSize} participant${teamSize !== 1 ? 's' : ''})`}
-                  </button>
-                )}
-              </form>
+                    {regError && <p className="error">{regError}</p>}
+
+                    {regSuccess && (
+                      <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '10px', padding: '16px 20px', margin: '12px 0' }}>
+                        <p className="success" style={{ margin: 0, padding: 0, border: 'none', background: 'transparent' }}>{regSuccess}</p>
+                        {whatsappLink && (
+                          <div style={{ marginTop: '10px' }}>
+                            <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.8rem', textDecoration: 'none', background: '#22c55e', borderColor: '#22c55e' }}>
+                              Join WhatsApp Group
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {regParticipants.length > 0 && (
+                      <button type="submit" className="btn btn-primary" disabled={submitting} style={{ marginTop: '8px' }}>
+                        {submitting ? 'Submitting…' : `Submit Registration (${teamSize} participant${teamSize !== 1 ? 's' : ''})`}
+                      </button>
+                    )}
+                  </form>
+                </>
+              )}
             </div>
           )}
         </div>

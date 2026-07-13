@@ -168,7 +168,9 @@ export default function GuestEvents() {
 
                   {/* Pills row */}
                   <div className="guest-details-meta-row">
-                    <div className="guest-meta-pill">📍 Prelims Venue: <strong>{prelimsVenue}</strong></div>
+                    {activeEvent.prelims_venue && (
+                      <div className="guest-meta-pill">📍 Prelims Venue: <strong>{prelimsVenue}</strong></div>
+                    )}
                     {activeEvent.preliminary && (
                       <div className="guest-meta-pill">🕒 Prelims Time: <strong>{activeEvent.preliminary}</strong></div>
                     )}

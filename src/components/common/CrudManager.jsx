@@ -82,7 +82,13 @@ export default function CrudManager({
   }
 
   function openEdit(row) {
-    setForm(row)
+    const initialForm = { ...row }
+    fields.forEach((f) => {
+      if (f.name === 'has_prelims') {
+        initialForm.has_prelims = !!(row.prelims_venue || row.preliminary)
+      }
+    })
+    setForm(initialForm)
     setEditing(row)
     setError('')
     setModalOpen(true)
@@ -142,7 +148,8 @@ export default function CrudManager({
     e.preventDefault()
     setError('')
     for (const f of fields) {
-      if (f.required && !form[f.name] && form[f.name] !== 0) {
+      const isVisible = !f.showIf || f.showIf(form)
+      if (isVisible && f.required && !form[f.name] && form[f.name] !== 0) {
         setError(`${f.label} is required.`)
         return
       }
@@ -156,8 +163,17 @@ export default function CrudManager({
       fields.forEach((f) => {
         if (f.persist === false) return
         let val = form[f.name]
+
+        // Force prelims fields to null if has_prelims toggle is off
+        if (form.has_prelims === false && (f.name === 'prelims_venue' || f.name === 'preliminary')) {
+          val = null
+        }
+
         if (f.type === 'number' && val !== '' && val !== null && val !== undefined) {
           val = Number(val)
+        }
+        if (val === '') {
+          val = null
         }
         payload[f.name] = val
       })
@@ -345,7 +361,7 @@ export default function CrudManager({
         <div className="modal-backdrop" onClick={() => setModalOpen(false)}>
           <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSave}>
             <h3>{editing ? 'Edit' : 'Add'} {title}</h3>
-            {fields.map((f) => (
+            {fields.filter((f) => !f.showIf || f.showIf(form)).map((f) => (
               <label key={f.name} className="field">
                 <span>{f.label}{f.required ? ' *' : ''}</span>
                 {f.type === 'textarea' ? (
@@ -402,11 +418,15 @@ export default function CrudManager({
                     ))}
                   </select>
                 ) : f.type === 'toggle' ? (
-                  <input
-                    type="checkbox"
-                    checked={!!form[f.name]}
-                    onChange={(e) => setForm({ ...form, [f.name]: e.target.checked })}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                    <input
+                      type="checkbox"
+                      id={`toggle-${f.name}`}
+                      checked={!!form[f.name]}
+                      onChange={(e) => setForm({ ...form, [f.name]: e.target.checked })}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--accent, #f9c20a)' }}
+                    />
+                  </div>
                 ) : (
                   <input
                     type={f.type || 'text'}

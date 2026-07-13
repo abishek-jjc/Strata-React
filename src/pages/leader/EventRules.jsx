@@ -143,10 +143,12 @@ export default function EventRules() {
                     🕒 Schedule
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.9rem' }}>
-                    <div>
-                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: '2px' }}>Preliminaries</div>
-                      <div style={{ color: '#fff', fontWeight: 600 }}>{activeEvent.preliminary || '—'}</div>
-                    </div>
+                    {activeEvent.preliminary && (
+                      <div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: '2px' }}>Preliminaries</div>
+                        <div style={{ color: '#fff', fontWeight: 600 }}>{activeEvent.preliminary}</div>
+                      </div>
+                    )}
                     <div>
                       <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: '2px' }}>Mains / Finals</div>
                       <div style={{ color: '#fff', fontWeight: 600 }}>{activeEvent.mains || '—'}</div>
@@ -160,10 +162,12 @@ export default function EventRules() {
                     📍 Venues
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.9rem' }}>
-                    <div>
-                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: '2px' }}>Prelims Venue</div>
-                      <div style={{ color: '#fff', fontWeight: 600 }}>{getVenueName(activeEvent.prelims_venue)}</div>
-                    </div>
+                    {activeEvent.prelims_venue && (
+                      <div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: '2px' }}>Prelims Venue</div>
+                        <div style={{ color: '#fff', fontWeight: 600 }}>{getVenueName(activeEvent.prelims_venue)}</div>
+                      </div>
+                    )}
                     <div>
                       <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: '2px' }}>Mains Venue</div>
                       <div style={{ color: '#fff', fontWeight: 600 }}>{getVenueName(activeEvent.mains_venue)}</div>

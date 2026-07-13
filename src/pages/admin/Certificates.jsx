@@ -4,6 +4,61 @@ import { useTable } from '../../hooks/useTable'
 import { TABLES, REGISTRATION_STATUS } from '../../supabase/tables'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 
+const defaultLayouts = {
+  participation: {
+    student_name: { x: 50, y: 40, fontSize: 24, font: 'Helvetica-Bold', enabled: true, color: '#00e5ff' },
+    college_name: { x: 50, y: 52, fontSize: 16, font: 'Helvetica-Bold', enabled: true, color: '#f9c20a' },
+    event_name: { x: 50, y: 64, fontSize: 18, font: 'Helvetica-Bold', enabled: true, color: '#a78bfa' }
+  },
+  winner1: {
+    student_name: { x: 50, y: 40, fontSize: 24, font: 'Helvetica-Bold', enabled: true, color: '#00e5ff' },
+    college_name: { x: 25, y: 55, fontSize: 16, font: 'Helvetica-Bold', enabled: true, color: '#f9c20a' },
+    event_name: { x: 75, y: 55, fontSize: 18, font: 'Helvetica-Bold', enabled: true, color: '#a78bfa' },
+    place: { x: 50, y: 75, fontSize: 20, font: 'Helvetica-Bold', enabled: true, color: '#ff1744' }
+  },
+  winner2: {
+    student_name: { x: 50, y: 40, fontSize: 24, font: 'Helvetica-Bold', enabled: true, color: '#00e5ff' },
+    college_name: { x: 25, y: 55, fontSize: 16, font: 'Helvetica-Bold', enabled: true, color: '#f9c20a' },
+    event_name: { x: 75, y: 55, fontSize: 18, font: 'Helvetica-Bold', enabled: true, color: '#a78bfa' },
+    place: { x: 50, y: 75, fontSize: 20, font: 'Helvetica-Bold', enabled: true, color: '#ff1744' }
+  }
+}
+
+function mergeDefaultLayout(layoutKey, savedLayout) {
+  const merged = {}
+  const defaultLayout = defaultLayouts[layoutKey]
+  Object.keys(defaultLayout).forEach((key) => {
+    merged[key] = {
+      ...defaultLayout[key],
+      ...(savedLayout?.[key] || {})
+    }
+    if (merged[key].color && !merged[key].color.startsWith('#')) {
+      merged[key].color = '#' + merged[key].color
+    }
+  })
+  return merged
+}
+
+function getPdfLibFont(fontKey) {
+  switch (fontKey) {
+    case 'Helvetica': return StandardFonts.Helvetica
+    case 'Helvetica-Bold': return StandardFonts.HelveticaBold
+    case 'Times-Roman': return StandardFonts.TimesRoman
+    case 'Times-Bold': return StandardFonts.TimesRomanBold
+    case 'Courier': return StandardFonts.Courier
+    case 'Courier-Bold': return StandardFonts.CourierBold
+    default: return StandardFonts.HelveticaBold
+  }
+}
+
+function hexToRgb(hex) {
+  const h = (hex || '#000000').replace('#', '')
+  const r = parseInt(h.substring(0, 2), 16) / 255
+  const g = parseInt(h.substring(2, 4), 16) / 255
+  const b = parseInt(h.substring(4, 6), 16) / 255
+  return rgb(r, g, b)
+}
+
 export default function Certificates() {
   const { data: students, loading: studentsLoading } = useTable(TABLES.STUDENTS)
   const { data: registrations } = useTable(TABLES.REGISTRATIONS)
@@ -22,23 +77,9 @@ export default function Certificates() {
 
   // Master Layout configurations (in percentages)
   const [layouts, setLayouts] = useState({
-    participation: {
-      student_name: { x: 50, y: 40, fontSize: 24 },
-      college_name: { x: 50, y: 52, fontSize: 16 },
-      event_name: { x: 50, y: 64, fontSize: 18 }
-    },
-    winner1: {
-      student_name: { x: 50, y: 40, fontSize: 24 },
-      college_name: { x: 25, y: 55, fontSize: 16 },
-      event_name: { x: 75, y: 55, fontSize: 18 },
-      place: { x: 50, y: 75, fontSize: 20 }
-    },
-    winner2: {
-      student_name: { x: 50, y: 40, fontSize: 24 },
-      college_name: { x: 25, y: 55, fontSize: 16 },
-      event_name: { x: 75, y: 55, fontSize: 18 },
-      place: { x: 50, y: 75, fontSize: 20 }
-    }
+    participation: defaultLayouts.participation,
+    winner1: defaultLayouts.winner1,
+    winner2: defaultLayouts.winner2
   })
 
   // State for active popup template editor
@@ -75,13 +116,13 @@ export default function Certificates() {
           if (row.key_name === 'winner_cert_2_url') setWinner2Url(row.value)
           
           if (row.key_name === 'participation_cert_layout') {
-            try { setLayouts(prev => ({ ...prev, participation: JSON.parse(row.value) })) } catch (e) {}
+            try { setLayouts(prev => ({ ...prev, participation: mergeDefaultLayout('participation', JSON.parse(row.value)) })) } catch (e) {}
           }
           if (row.key_name === 'winner_cert_1_layout') {
-            try { setLayouts(prev => ({ ...prev, winner1: JSON.parse(row.value) })) } catch (e) {}
+            try { setLayouts(prev => ({ ...prev, winner1: mergeDefaultLayout('winner1', JSON.parse(row.value)) })) } catch (e) {}
           }
           if (row.key_name === 'winner_cert_2_layout') {
-            try { setLayouts(prev => ({ ...prev, winner2: JSON.parse(row.value) })) } catch (e) {}
+            try { setLayouts(prev => ({ ...prev, winner2: mergeDefaultLayout('winner2', JSON.parse(row.value)) })) } catch (e) {}
           }
         })
       }
@@ -413,6 +454,14 @@ export default function Certificates() {
     const templateBytes = await response.arrayBuffer()
 
     const combinedDoc = await PDFDocument.create()
+    const fontCache = {}
+    const getEmbeddedFont = async (fontName) => {
+      if (!fontCache[fontName]) {
+        const fontRef = getPdfLibFont(fontName)
+        fontCache[fontName] = await combinedDoc.embedFont(fontRef)
+      }
+      return fontCache[fontName]
+    }
 
     for (const student of studentsList) {
       const tempDoc = await PDFDocument.load(templateBytes)
@@ -421,40 +470,35 @@ export default function Certificates() {
       
       const page = combinedDoc.getPages()[combinedDoc.getPageCount() - 1]
       const { width, height } = page.getSize()
-      const font = await combinedDoc.embedFont(StandardFonts.HelveticaBold)
 
       const sName = student.student_name || ''
       const cName = student.winnerCollegeName || getCollegeName(student.college_id) || ''
       const eName = student.winnerEventName || getEventName(student.event_id) || ''
       const placeVal = student.winnerPlace || ''
 
-      if (layout.student_name) {
-        const size = Number(layout.student_name.fontSize) || 24
-        const textWidth = font.widthOfTextAtSize(sName, size)
-        const x = (layout.student_name.x / 100) * width - textWidth / 2
-        const y = height - (layout.student_name.y / 100) * height
-        page.drawText(sName, { x, y, size, font, color: rgb(0.1, 0.1, 0.1) })
+      const drawElement = async (elemKey, value) => {
+        const item = layout[elemKey]
+        if (!item || item.enabled === false || !value) return
+
+        const size = Number(item.fontSize) || 18
+        const fontName = item.font || 'Helvetica-Bold'
+        const font = await getEmbeddedFont(fontName)
+
+        const textWidth = font.widthOfTextAtSize(value, size)
+        const x = (item.x / 100) * width - textWidth / 2
+        const y = height - (item.y / 100) * height
+
+        const hexColor = item.color || '#000000'
+        const colorVal = hexToRgb(hexColor)
+
+        page.drawText(value, { x, y, size, font, color: colorVal })
       }
-      if (layout.college_name) {
-        const size = Number(layout.college_name.fontSize) || 16
-        const textWidth = font.widthOfTextAtSize(cName, size)
-        const x = (layout.college_name.x / 100) * width - textWidth / 2
-        const y = height - (layout.college_name.y / 100) * height
-        page.drawText(cName, { x, y, size, font, color: rgb(0.2, 0.2, 0.2) })
-      }
-      if (layout.event_name) {
-        const size = Number(layout.event_name.fontSize) || 18
-        const textWidth = font.widthOfTextAtSize(eName, size)
-        const x = (layout.event_name.x / 100) * width - textWidth / 2
-        const y = height - (layout.event_name.y / 100) * height
-        page.drawText(eName, { x, y, size, font, color: rgb(0.2, 0.2, 0.2) })
-      }
-      if (layout.place && placeVal) {
-        const size = Number(layout.place.fontSize) || 20
-        const textWidth = font.widthOfTextAtSize(placeVal, size)
-        const x = (layout.place.x / 100) * width - textWidth / 2
-        const y = height - (layout.place.y / 100) * height
-        page.drawText(placeVal, { x, y, size, font, color: rgb(0.85, 0.3, 0.1) })
+
+      await drawElement('student_name', sName)
+      await drawElement('college_name', cName)
+      await drawElement('event_name', eName)
+      if (placeVal) {
+        await drawElement('place', placeVal)
       }
     }
 
@@ -812,7 +856,7 @@ export default function Certificates() {
                     >
                       {modalLayout && Object.keys(modalLayout).map((key) => {
                         const item = modalLayout[key]
-                        if (!item) return null
+                        if (!item || item.enabled === false) return null
                         
                         let label = key.toUpperCase().replace('_', ' ')
                         let color = '#f9c20a' // yellow
@@ -883,54 +927,123 @@ export default function Certificates() {
                     const color = labelColors[key] || '#f9c20a'
                     return (
                       <div key={key} style={{ marginBottom: '18px', borderLeft: `3px solid ${color}`, paddingLeft: '10px' }}>
-                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          {key.replace(/_/g, ' ')}
-                        </div>
-
-                        {/* X and Y row */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-                          <label className="field" style={{ margin: 0 }}>
-                            <span style={{ fontSize: '0.75rem' }}>X Position (%)</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <div style={{ fontSize: '0.82rem', fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {key.replace(/_/g, ' ')}
+                          </div>
+                          
+                          {/* 2. Select Text checkbox to show/hide */}
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', margin: 0 }}>
                             <input
-                              type="number"
-                              min="0" max="100" step="0.5"
-                              value={Math.round(item.x * 10) / 10}
+                              type="checkbox"
+                              checked={item.enabled !== false}
                               onChange={(e) => {
-                                const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0))
-                                setModalLayout(prev => ({ ...prev, [key]: { ...prev[key], x: val } }))
+                                setModalLayout(prev => ({ ...prev, [key]: { ...prev[key], enabled: e.target.checked } }))
                               }}
-                              style={{ padding: '6px 8px', width: '100%', fontSize: '0.85rem' }}
+                              style={{ width: '14px', height: '14px' }}
                             />
-                          </label>
-                          <label className="field" style={{ margin: 0 }}>
-                            <span style={{ fontSize: '0.75rem' }}>Y Position (%)</span>
-                            <input
-                              type="number"
-                              min="0" max="100" step="0.5"
-                              value={Math.round(item.y * 10) / 10}
-                              onChange={(e) => {
-                                const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0))
-                                setModalLayout(prev => ({ ...prev, [key]: { ...prev[key], y: val } }))
-                              }}
-                              style={{ padding: '6px 8px', width: '100%', fontSize: '0.85rem' }}
-                            />
+                            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Show</span>
                           </label>
                         </div>
 
-                        {/* Font size */}
-                        <label className="field" style={{ margin: 0 }}>
-                          <span style={{ fontSize: '0.75rem' }}>Font Size (pt)</span>
-                          <input
-                            type="number"
-                            min="8" max="72" step="1"
-                            value={item.fontSize || 18}
-                            onChange={(e) => {
-                              const val = parseInt(e.target.value) || 18
-                              setModalLayout(prev => ({ ...prev, [key]: { ...prev[key], fontSize: val } }))
-                            }}
-                            style={{ padding: '6px 8px', width: '100%', fontSize: '0.85rem' }}
-                          />
-                        </label>
+                        {item.enabled !== false && (
+                          <>
+                            {/* X and Y row */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                              <label className="field" style={{ margin: 0 }}>
+                                <span style={{ fontSize: '0.72rem' }}>X Position (%)</span>
+                                <input
+                                  type="number"
+                                  min="0" max="100" step="0.5"
+                                  value={Math.round(item.x * 10) / 10}
+                                  onChange={(e) => {
+                                    const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0))
+                                    setModalLayout(prev => ({ ...prev, [key]: { ...prev[key], x: val } }))
+                                  }}
+                                  style={{ padding: '6px 8px', width: '100%', fontSize: '0.85rem' }}
+                                />
+                              </label>
+                              <label className="field" style={{ margin: 0 }}>
+                                <span style={{ fontSize: '0.72rem' }}>Y Position (%)</span>
+                                <input
+                                  type="number"
+                                  min="0" max="100" step="0.5"
+                                  value={Math.round(item.y * 10) / 10}
+                                  onChange={(e) => {
+                                    const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0))
+                                    setModalLayout(prev => ({ ...prev, [key]: { ...prev[key], y: val } }))
+                                  }}
+                                  style={{ padding: '6px 8px', width: '100%', fontSize: '0.85rem' }}
+                                />
+                              </label>
+                            </div>
+
+                            {/* Font size & font family row */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                              <label className="field" style={{ margin: 0 }}>
+                                <span style={{ fontSize: '0.72rem' }}>Font Size (pt)</span>
+                                <input
+                                  type="number"
+                                  min="8" max="72" step="1"
+                                  value={item.fontSize || 18}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value) || 18
+                                    setModalLayout(prev => ({ ...prev, [key]: { ...prev[key], fontSize: val } }))
+                                  }}
+                                  style={{ padding: '6px 8px', width: '100%', fontSize: '0.85rem' }}
+                                />
+                              </label>
+                              {/* 1. Select Font dropdown menu */}
+                              <label className="field" style={{ margin: 0 }}>
+                                <span style={{ fontSize: '0.72rem' }}>Select Font</span>
+                                <select
+                                  value={item.font || 'Helvetica-Bold'}
+                                  onChange={(e) => {
+                                    setModalLayout(prev => ({ ...prev, [key]: { ...prev[key], font: e.target.value } }))
+                                  }}
+                                  style={{ padding: '6px 8px', width: '100%', fontSize: '0.85rem', height: '31px', borderRadius: '4px' }}
+                                >
+                                  <option value="Helvetica">Helvetica</option>
+                                  <option value="Helvetica-Bold">Helvetica Bold</option>
+                                  <option value="Times-Roman">Times Roman</option>
+                                  <option value="Times-Bold">Times Bold</option>
+                                  <option value="Courier">Courier</option>
+                                  <option value="Courier-Bold">Courier Bold</option>
+                                </select>
+                              </label>
+                            </div>
+
+                            {/* 3. Font color row */}
+                            <label className="field" style={{ margin: 0 }}>
+                              <span style={{ fontSize: '0.72rem', display: 'block', marginBottom: '4px' }}>Font Color</span>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <input
+                                  type="color"
+                                  value={item.color || '#000000'}
+                                  onChange={(e) => {
+                                    setModalLayout(prev => ({ ...prev, [key]: { ...prev[key], color: e.target.value } }))
+                                  }}
+                                  style={{
+                                    border: 'none',
+                                    background: 'none',
+                                    width: '30px',
+                                    height: '30px',
+                                    cursor: 'pointer',
+                                    padding: 0
+                                  }}
+                                />
+                                <input
+                                  type="text"
+                                  value={item.color || '#000000'}
+                                  onChange={(e) => {
+                                    setModalLayout(prev => ({ ...prev, [key]: { ...prev[key], color: e.target.value } }))
+                                  }}
+                                  style={{ padding: '6px 8px', fontSize: '0.85rem', width: '100px' }}
+                                />
+                              </div>
+                            </label>
+                          </>
+                        )}
                       </div>
                     )
                   })}

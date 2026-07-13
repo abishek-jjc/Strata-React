@@ -160,14 +160,21 @@ export default function Reports() {
     }
 
     if (active === TABLES.COLLEGES) {
-      return colleges.map((c) => ({
-        'College Name': c.college,
-        'Department': c.department || '—',
-        'Phone': c.phone || '—',
-        'Email': c.email || '—',
-        'Address': c.address || '—',
-        'Status': c.status,
-      }))
+      const activeCollegeIds = new Set(
+        registrations
+          .filter((r) => activeEventIds.has(r.event_id))
+          .map((r) => r.college_id)
+      )
+      return colleges
+        .filter((c) => activeCollegeIds.has(c.id))
+        .map((c) => ({
+          'College Name': c.college,
+          'Department': c.department || '—',
+          'Phone': c.phone || '—',
+          'Email': c.email || '—',
+          'Address': c.address || '—',
+          'Status': c.status,
+        }))
     }
 
     if (active === TABLES.STUDENT_LEADERS) {
@@ -311,7 +318,7 @@ export default function Reports() {
     })
   }
 
-  const isEventFilteredReport = ['students', 'lots', 'teams'].includes(active)
+  const isEventFilteredReport = ['students', 'lots', 'teams', TABLES.COLLEGES].includes(active)
 
   return (
     <div>
