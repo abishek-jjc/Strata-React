@@ -116,7 +116,7 @@ export default function StudentList() {
             >
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                  <h4 style={{ margin: 0, fontSize: '1.2rem', color: '#fff', fontWeight: 700 }}>
+                  <h4 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)', fontWeight: 700 }}>
                     {s.student_name}
                   </h4>
                   <span className={`badge badge-${s.certificate_status === 'Issued' ? 'approved' : 'pending'}`}>
@@ -127,24 +127,24 @@ export default function StudentList() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.9rem' }}>
                   <div>
                     <span style={{ color: 'var(--text-secondary)' }}>Roll Number:</span>{' '}
-                    <strong style={{ color: '#fff' }}>{s.roll_no || '—'}</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>{s.roll_no || '—'}</strong>
                   </div>
                   <div>
                     <span style={{ color: 'var(--text-secondary)' }}>Event:</span>{' '}
-                    <strong style={{ color: '#fff' }}>{getEventName(s.event_id)}</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>{getEventName(s.event_id)}</strong>
                   </div>
                   <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px', marginTop: '4px' }}>
                     <div>
                       <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>Gender</span>
-                      <strong style={{ color: '#fff', fontSize: '0.85rem' }}>{s.gender || '—'}</strong>
+                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{s.gender || '—'}</strong>
                     </div>
                     <div>
                       <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>Department</span>
-                      <strong style={{ color: '#fff', fontSize: '0.85rem' }}>{s.department || '—'}</strong>
+                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{s.department || '—'}</strong>
                     </div>
                     <div>
                       <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>Year</span>
-                      <strong style={{ color: '#fff', fontSize: '0.85rem' }}>{s.year || '—'}</strong>
+                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{s.year || '—'}</strong>
                     </div>
                     <div>
                       <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>Food Choice</span>

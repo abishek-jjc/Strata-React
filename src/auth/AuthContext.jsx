@@ -22,12 +22,20 @@ export function AuthProvider({ children }) {
       .from(TABLES.PROFILES)
       .select('*')
       .eq('id', sessionUser.id)
-      .single()
+      .maybeSingle()
     if (data) {
       setRole(data.role)
       setProfile(data)
+    } else {
+      setRole(null)
+      setProfile(null)
     }
     setLoading(false)
+  }
+
+  async function refreshProfile() {
+    const { data: { session } } = await supabase.auth.getSession()
+    await loadProfile(session?.user || null)
   }
 
   useEffect(() => {
@@ -43,7 +51,7 @@ export function AuthProvider({ children }) {
   const logout = () => supabase.auth.signOut()
 
   return (
-    <AuthContext.Provider value={{ user, role, profile, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, role, profile, loading, login, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )

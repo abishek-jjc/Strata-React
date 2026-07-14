@@ -5,10 +5,12 @@ import { TABLES } from '../../supabase/tables'
 import GuestLayout from '../../components/layout/GuestLayout'
 import { Html5Qrcode } from 'html5-qrcode'
 import { decryptCollegePayload } from '../../utils/qrCrypto'
+import { useAuth } from '../../auth/AuthContext'
 
 export default function GuestRegister() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { refreshProfile } = useAuth()
   
   // App Config & Meta State
   const [loading, setLoading] = useState(true)
@@ -25,6 +27,7 @@ export default function GuestRegister() {
   // Google OAuth Session State
   const [sessionUser, setSessionUser] = useState(null)
   const [alreadyRegisteredLeader, setAlreadyRegisteredLeader] = useState('')
+  const [registeredCollegeInfo, setRegisteredCollegeInfo] = useState(null)
 
   // Leader Profile Inputs
   const [leaderName, setLeaderName] = useState('')
@@ -140,6 +143,17 @@ export default function GuestRegister() {
           if (leader) {
             // Already registered leader
             setAlreadyRegisteredLeader(leader.name)
+            const { data: regCol } = await supabase
+              .from(TABLES.COLLEGES)
+              .select('college, department')
+              .eq('id', leader.college_id)
+              .maybeSingle()
+            if (regCol) {
+              setRegisteredCollegeInfo({
+                college: regCol.college,
+                department: regCol.department
+              })
+            }
           } else {
             // Pre-fill email if they are already logged in but not registered
             setLeaderEmail(sessionUser.email)
@@ -283,8 +297,13 @@ export default function GuestRegister() {
 
       setSuccessMessage('Leader profile successfully registered!')
 
-      // 2. Auth handling - Registration complete, redirect to login page
-      navigate('/login')
+      // Refresh AuthContext profile so the new role ('leader') is loaded
+      if (refreshProfile) {
+        await refreshProfile()
+      }
+
+      // Redirect directly to the leader registration/dashboard
+      navigate('/leader/register')
     } catch (err) {
       setError(err.message || 'Failed to configure leader profile.')
       setSubmitting(false)
@@ -320,60 +339,129 @@ export default function GuestRegister() {
 
   // Already registered view (Login landing screen showing registered google id)
   if (alreadyRegisteredLeader && sessionUser) {
+    const pendingCol = sessionStorage.getItem('pending_college_name') || collegeName
+    const pendingDept = sessionStorage.getItem('pending_leader_dept') || leaderDept
+
+    const isDifferentCollege = pendingCol && registeredCollegeInfo && (
+      pendingCol.trim().toLowerCase() !== registeredCollegeInfo.college.trim().toLowerCase() ||
+      (pendingDept && pendingDept.trim().toLowerCase() !== registeredCollegeInfo.department.trim().toLowerCase())
+    )
+
     return (
       <GuestLayout>
         <section className="guest-section" style={{ padding: '40px 20px' }}>
           <div className="guest-section-header">
-            <span className="guest-section-tag">Portal Access</span>
-            <h2 className="guest-section-title">Login Status</h2>
+            <span className="guest-section-tag">
+              {isDifferentCollege ? 'Registration Mismatch' : 'Portal Access'}
+            </span>
+            <h2 className="guest-section-title">
+              {isDifferentCollege ? 'Registration Locked' : 'Login Status'}
+            </h2>
           </div>
 
           <div className="guest-glass-panel" style={{ padding: '40px', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
-            <span style={{ fontSize: '3rem', display: 'block', marginBottom: '20px' }}>🔐</span>
-            <h3 style={{ fontFamily: 'Syne, sans-serif', color: '#00e5ff', marginBottom: '15px' }}>
-              Logged In Successfully
-            </h3>
-            
-            <p style={{ color: 'var(--g-text-secondary)', fontSize: '0.95rem', marginBottom: '8px' }}>
-              Authenticated Google Account:
-            </p>
-            <div style={{
-              background: 'rgba(0, 229, 255, 0.05)',
-              border: '1px solid rgba(0, 229, 255, 0.2)',
-              borderRadius: '12px',
-              padding: '12px 20px',
-              fontWeight: 'bold',
-              color: '#00e5ff',
-              marginBottom: '20px',
-              display: 'inline-block',
-              fontSize: '1.1rem'
-            }}>
-              {sessionUser.email}
-            </div>
+            {isDifferentCollege ? (
+              <>
+                <span style={{ fontSize: '3rem', display: 'block', marginBottom: '20px' }}>⚠️</span>
+                <h3 style={{ fontFamily: 'Syne, sans-serif', color: 'var(--g-accent)', marginBottom: '15px' }}>
+                  Email Already Registered
+                </h3>
+                
+                <p style={{ color: 'var(--g-text-secondary)', fontSize: '0.95rem', marginBottom: '12px', lineHeight: '1.6' }}>
+                  Your Google account <strong>{sessionUser.email}</strong> is already registered for another college/department:
+                </p>
 
-            <p style={{ color: 'var(--g-text-muted)', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.6' }}>
-              Welcome back, <strong>{alreadyRegisteredLeader}</strong>!<br />
-              Your leader profile has already been verified. Click below to manage participants and team registrations.
-            </p>
+                <div style={{
+                  background: 'rgba(255, 23, 68, 0.05)',
+                  border: '1px solid rgba(255, 23, 68, 0.2)',
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                  fontWeight: 'bold',
+                  color: 'var(--g-accent)',
+                  marginBottom: '20px',
+                  display: 'inline-block',
+                  fontSize: '1.05rem',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box'
+                }}>
+                  {registeredCollegeInfo.college} <br />
+                  <span style={{ fontSize: '0.85rem', color: 'var(--g-text-muted)', fontWeight: 'normal' }}>
+                    ({registeredCollegeInfo.department} Department)
+                  </span>
+                </div>
 
-            <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', maxWidth: '400px', margin: '0 auto' }}>
-              <button 
-                type="button" 
-                onClick={() => navigate('/leader/register')} 
-                className="guest-btn guest-btn-primary" 
-                style={{ flex: 1 }}
-              >
-                Go to Team Registration
-              </button>
-              <button 
-                type="button" 
-                onClick={handleLogout} 
-                className="guest-btn guest-btn-secondary" 
-                style={{ flex: 1 }}
-              >
-                Change Account
-              </button>
-            </div>
+                <p style={{ color: 'var(--g-text-muted)', fontSize: '0.92rem', marginBottom: '25px', lineHeight: '1.6' }}>
+                  You cannot register for a different college (scanned: <strong>{pendingCol}</strong>).
+                </p>
+
+                <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', maxWidth: '400px', margin: '0 auto', flexWrap: 'wrap' }}>
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      sessionStorage.removeItem('pending_college_name')
+                      sessionStorage.removeItem('pending_leader_dept')
+                      window.location.href = '/'
+                    }} 
+                    className="guest-btn guest-btn-secondary" 
+                    style={{ flex: 1, minWidth: '150px' }}
+                  >
+                    Cancel & Go Home
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => navigate('/leader/register')} 
+                    className="guest-btn guest-btn-primary" 
+                    style={{ flex: 1, minWidth: '150px' }}
+                  >
+                    Go to My Team Portal
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: '3rem', display: 'block', marginBottom: '20px' }}>🔐</span>
+                <h3 style={{ fontFamily: 'Syne, sans-serif', color: '#00e5ff', marginBottom: '15px' }}>
+                  Logged In Successfully
+                </h3>
+                
+                <p style={{ color: 'var(--g-text-secondary)', fontSize: '0.95rem', marginBottom: '8px' }}>
+                  Authenticated Google Account:
+                </p>
+                <div style={{
+                  background: 'rgba(0, 229, 255, 0.05)',
+                  border: '1px solid rgba(0, 229, 255, 0.2)',
+                  borderRadius: '12px',
+                  padding: '12px 15px',
+                  fontWeight: 'bold',
+                  color: '#00e5ff',
+                  marginBottom: '20px',
+                  display: 'inline-block',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box',
+                  fontSize: '1rem',
+                  wordBreak: 'break-all',
+                  overflowWrap: 'break-word'
+                }}>
+                  {sessionUser.email}
+                </div>
+
+                <p style={{ color: 'var(--g-text-muted)', fontSize: '0.95rem', marginBottom: '25px', lineHeight: '1.6' }}>
+                  Welcome back, <strong>{alreadyRegisteredLeader}</strong>!<br />
+                  Your leader profile has already been verified. Click below to manage participants and team registrations.
+                </p>
+
+                <div style={{ display: 'flex', justifyContent: 'center', maxWidth: '400px', margin: '0 auto' }}>
+                  <button 
+                    type="button" 
+                    onClick={() => navigate('/leader/register')} 
+                    className="guest-btn guest-btn-primary" 
+                    style={{ width: '100%' }}
+                  >
+                    Go to Team Registration
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </section>
       </GuestLayout>
@@ -637,11 +725,13 @@ export default function GuestRegister() {
             </div>
           </div>
 
-          <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between', gap: '15px' }}>
-            <button type="button" className="guest-btn guest-btn-secondary" onClick={() => setIsDecrypted(false)}>
-              Back to Scanner
-            </button>
-            <button type="submit" className="guest-btn guest-btn-primary" disabled={submitting}>
+          <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'center' }}>
+            <button 
+              type="submit" 
+              className="guest-btn guest-btn-primary" 
+              disabled={submitting}
+              style={{ width: '100%', maxWidth: '400px' }}
+            >
               {submitting ? 'Registering...' : 'Register Leader & Go To Team Portal →'}
             </button>
           </div>

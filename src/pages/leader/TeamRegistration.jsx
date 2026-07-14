@@ -255,7 +255,7 @@ export default function TeamRegistration() {
 
   const selectStyle = {
     background: 'rgba(255,255,255,0.05)',
-    color: '#fff',
+    color: 'var(--text-primary)',
     border: '1px solid rgba(255,255,255,0.1)',
     borderRadius: '6px',
     width: '100%',
@@ -390,6 +390,30 @@ export default function TeamRegistration() {
             </div>
           </div>
 
+          {/* Event Description & Rules */}
+          {(activeEvent.description || activeEvent.rules) && (
+            <div className="card" style={{ padding: '24px', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {activeEvent.description && (
+                <div>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Description</h4>
+                  <p style={{ margin: 0, fontSize: '0.92rem', lineHeight: '1.6', color: 'var(--text-muted)' }}>
+                    {activeEvent.description}
+                  </p>
+                </div>
+              )}
+              {activeEvent.rules && (
+                <div>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Guidelines & Rules</h4>
+                  <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.92rem', lineHeight: '1.6', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {activeEvent.rules.split('\n').filter(r => r.trim() !== '').map((rule, idx) => (
+                      <li key={idx} style={{ listStyleType: 'disc' }}>{rule}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── If registered: show participant cards ── */}
           {isRegistered && (
             <div>
@@ -431,7 +455,7 @@ export default function TeamRegistration() {
                           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3px' }}>
                             Participant #{idx + 1}
                           </div>
-                          <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#fff', fontWeight: 700 }}>{s.student_name}</h4>
+                          <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)', fontWeight: 700 }}>{s.student_name}</h4>
                         </div>
                         <span className={`badge badge-${s.certificate_status === 'Issued' ? 'approved' : 'pending'}`}>
                           {s.certificate_status || 'Pending'}
@@ -441,7 +465,7 @@ export default function TeamRegistration() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.85rem' }}>
                         <div>
                           <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '2px' }}>Roll No.</div>
-                          <strong style={{ color: '#fff' }}>{s.roll_no || '—'}</strong>
+                          <strong style={{ color: 'var(--text-primary)' }}>{s.roll_no || '—'}</strong>
                         </div>
                         <div>
                           <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '2px' }}>Food Choice</div>

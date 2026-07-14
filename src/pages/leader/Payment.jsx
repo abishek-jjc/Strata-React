@@ -94,24 +94,71 @@ export default function Payment() {
               </div>
             </div>
           ) : isPaid ? (
-            <div style={{
-              background: 'rgba(16,185,129,0.08)',
-              border: '1px solid rgba(16,185,129,0.3)',
-              borderRadius: '12px',
-              padding: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '15px'
-            }}>
-              <span style={{ fontSize: '1.8rem', color: '#10b981' }}>✓</span>
-              <div>
-                <strong style={{ color: '#10b981', display: 'block', fontSize: '1.05rem', marginBottom: '4px' }}>
-                  Payment Fully Confirmed ✅
-                </strong>
-                <span className="muted" style={{ fontSize: '0.9rem' }}>
-                  All {students.length} registered students are paid for. Thank you!
-                </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{
+                background: 'rgba(16,185,129,0.08)',
+                border: '1px solid rgba(16,185,129,0.3)',
+                borderRadius: '12px',
+                padding: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '15px'
+              }}>
+                <span style={{ fontSize: '1.8rem', color: '#10b981' }}>✓</span>
+                <div>
+                  <strong style={{ color: '#10b981', display: 'block', fontSize: '1.05rem', marginBottom: '4px' }}>
+                    Payment Fully Confirmed ✅
+                  </strong>
+                  <span className="muted" style={{ fontSize: '0.9rem' }}>
+                    All {students.length} registered students are paid for. Thank you!
+                  </span>
+                </div>
               </div>
+
+              {whatsappLink && (
+                <div style={{
+                  background: 'rgba(37, 211, 102, 0.08)',
+                  border: '1px solid rgba(37, 211, 102, 0.3)',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '1.8rem' }}>💬</span>
+                    <strong style={{ color: '#25D366', fontSize: '1.05rem' }}>
+                      Notice: Join Official WhatsApp Group
+                    </strong>
+                  </div>
+                  <p className="muted" style={{ margin: 0, fontSize: '0.9rem', lineHeight: '1.5' }}>
+                    Your payment is confirmed. Please join the official STRATA WhatsApp group to receive critical announcements, scheduling changes, and updates:
+                  </p>
+                  <a
+                    href={whatsappLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn"
+                    style={{
+                      background: '#25D366',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '12px 20px',
+                      borderRadius: '8px',
+                      fontWeight: 'bold',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      alignSelf: 'flex-start',
+                      marginTop: '4px'
+                    }}
+                  >
+                    Join WhatsApp Group
+                  </a>
+                </div>
+              )}
             </div>
           ) : (
             <div style={{

@@ -322,7 +322,7 @@ export default function CertificateDownload() {
                 }}
               >
                 <div>
-                  <h4 style={{ margin: 0, color: '#fff', fontSize: '1.1rem', fontWeight: 700 }}>
+                  <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.1rem', fontWeight: 700 }}>
                     {item.student.student_name}
                   </h4>
                   <div style={{ fontSize: '0.85rem', color: 'var(--accent)', marginTop: '4px', fontWeight: 600 }}>
@@ -332,7 +332,7 @@ export default function CertificateDownload() {
                   <div style={{ marginTop: '12px', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div>
                       <span className="muted">Certificate No:</span>{' '}
-                      <strong style={{ color: '#fff' }}>{item.issued ? item.cert.certificate_number : '—'}</strong>
+                      <strong style={{ color: 'var(--text-primary)' }}>{item.issued ? item.cert.certificate_number : '—'}</strong>
                     </div>
                     <div>
                       <span className="muted">Status:</span>{' '}
@@ -398,7 +398,7 @@ export default function CertificateDownload() {
               >
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <h4 style={{ margin: 0, color: '#fff', fontSize: '1.1rem', fontWeight: 700 }}>
+                    <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.1rem', fontWeight: 700 }}>
                       {item.student.student_name}
                     </h4>
                     <span style={{
@@ -419,7 +419,7 @@ export default function CertificateDownload() {
                   <div style={{ marginTop: '12px', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div>
                       <span className="muted">Certificate No:</span>{' '}
-                      <strong style={{ color: '#fff' }}>{item.issued ? item.cert.certificate_number : '—'}</strong>
+                      <strong style={{ color: 'var(--text-primary)' }}>{item.issued ? item.cert.certificate_number : '—'}</strong>
                     </div>
                     <div>
                       <span className="muted">Status:</span>{' '}
