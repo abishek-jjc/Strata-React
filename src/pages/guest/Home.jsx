@@ -207,6 +207,14 @@ export default function Home() {
           <Link to="/events" className="guest-btn guest-btn-secondary">
             Explore Contests
           </Link>
+          <a
+            href="https://drive.google.com/file/d/1-d93aMC5PH5yswF-q0zDnMwAYjCa9KnS/view?usp=sharing"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="guest-btn guest-btn-secondary"
+          >
+            Click to Watch Demo Video
+          </a>
         </div>
 
         {/* Countdown */}
