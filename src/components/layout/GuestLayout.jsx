@@ -8,7 +8,7 @@ import { useSettings } from '../../context/SettingsContext'
 export default function GuestLayout({ children }) {
   const { settings } = useSettings()
   const navigate = useNavigate()
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark')
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light')
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 

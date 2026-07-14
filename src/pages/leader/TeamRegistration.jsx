@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../auth/AuthContext'
 import { useTable } from '../../hooks/useTable'
@@ -270,57 +271,53 @@ export default function TeamRegistration() {
         </p>
       </div>
 
-      {/* ── Horizontal Event Scroller ── */}
-      <div style={{
-        display: 'flex',
-        gap: '10px',
-        overflowX: 'auto',
-        paddingBottom: '10px',
-        paddingTop: '4px',
-        scrollbarWidth: 'thin',
-        scrollbarColor: 'rgba(255,255,255,0.15) transparent',
-      }}>
-        {events.map(ev => {
-          const reg = registrations.find(r => r.event_id === ev.id)
-          const isActive = ev.id === activeEventId
-          const isReg = !!reg
-          return (
-            <button
-              key={ev.id}
-              type="button"
-              onClick={() => setActiveEventId(ev.id)}
-              style={{
-                flexShrink: 0,
-                padding: '10px 20px',
-                borderRadius: '24px',
-                border: isActive
-                  ? '2px solid var(--accent)'
-                  : '1px solid rgba(255,255,255,0.1)',
-                background: isActive
-                  ? 'rgba(0, 229, 255, 0.12)'
-                  : 'rgba(255,255,255,0.03)',
-                color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
-                fontWeight: isActive ? 700 : 400,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {isReg && (
-                <span style={{
-                  width: '8px', height: '8px', borderRadius: '50%',
-                  background: reg.status === 'approved' ? '#10b981' : '#f59e0b',
-                  display: 'inline-block', flexShrink: 0
-                }} />
-              )}
-              {ev.event_name}
-            </button>
-          )
-        })}
+      {/* ── Event Selection Dropdown ── */}
+      <div style={{ maxWidth: '500px', width: '100%', position: 'relative' }}>
+        <select
+          id="event-select"
+          value={activeEventId}
+          onChange={(e) => setActiveEventId(e.target.value)}
+          className="input"
+          style={{
+            width: '100%',
+            padding: '12px 14px',
+            fontSize: '0.95rem',
+            background: 'var(--surface-raised)',
+            border: '1px solid var(--border-strong)',
+            color: 'var(--text-primary)',
+            borderRadius: 'var(--radius-md)',
+            cursor: 'pointer',
+            fontWeight: 600,
+            outline: 'none',
+            paddingRight: '36px',
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            MozAppearance: 'none',
+          }}
+        >
+          {events.map((ev) => {
+            const reg = registrations.find(r => r.event_id === ev.id)
+            const regText = reg ? ` (Registered: ${reg.status})` : ' (Not Registered)'
+            return (
+              <option key={ev.id} value={ev.id}>
+                {ev.event_name}{regText}
+              </option>
+            )
+          })}
+        </select>
+        <div style={{
+          position: 'absolute',
+          right: '14px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          pointerEvents: 'none',
+          color: 'var(--text-secondary)',
+          fontSize: '0.8rem',
+          display: 'flex',
+          alignItems: 'center',
+        }}>
+          ▼
+        </div>
       </div>
 
       {!activeEvent ? (
@@ -342,24 +339,42 @@ export default function TeamRegistration() {
             flexWrap: 'wrap',
           }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, color: '#fff', fontSize: '1.1rem' }}>{activeEvent.event_name}</div>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '1.1rem' }}>{activeEvent.event_name}</div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '3px' }}>
-                {activeEvent.category} · Team size: <strong style={{ color: '#fff' }}>{activeEvent.team_size}</strong>
+                {activeEvent.category} · Team size: <strong style={{ color: 'var(--text-primary)' }}>{activeEvent.team_size}</strong>
               </div>
             </div>
-            <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               {isRegistered ? (
-                <span style={{
-                  padding: '4px 14px',
-                  borderRadius: '20px',
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  color: '#10b981',
-                  fontSize: '0.82rem',
-                  fontWeight: 600
-                }}>
-                  ✓ Registered · {activeRegistration?.status}
-                </span>
+                <>
+                  <span style={{
+                    padding: '4px 14px',
+                    borderRadius: '20px',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    color: '#10b981',
+                    fontSize: '0.82rem',
+                    fontWeight: 600
+                  }}>
+                    ✓ Registered · {activeRegistration?.status}
+                  </span>
+                  <Link
+                    to="/leader/payment"
+                    className="btn btn-primary"
+                    style={{
+                      padding: '6px 16px',
+                      borderRadius: '20px',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    Make Payment
+                  </Link>
+                </>
               ) : (
                 <span style={{
                   padding: '4px 14px',

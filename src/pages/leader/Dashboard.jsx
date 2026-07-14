@@ -42,7 +42,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <p style={{ color: 'var(--text-muted)', margin: '10px 0 0 0', fontSize: '0.95rem', lineHeight: '1.6' }}>
-            🎟️ Your lot will be <strong style={{ color: '#fff' }}>automatically assigned</strong> once your college registers at least one participant in a <strong style={{ color: 'var(--accent)' }}>technical event</strong>. Head to <em>Registration & Teams</em> to get started.
+            🎟️ Your lot will be <strong style={{ color: 'var(--text-primary)' }}>automatically assigned</strong> once your college registers at least one participant in a <strong style={{ color: 'var(--accent)' }}>technical event</strong>. Head to <em>Registration & Teams</em> to get started.
           </p>
         )}
       </div>
@@ -55,8 +55,8 @@ export default function Dashboard() {
             textAlign: 'center',
             padding: '40px 20px',
             color: 'var(--text-secondary)',
-            background: 'rgba(255,255,255,0.02)',
-            border: '1px dashed rgba(255,255,255,0.08)',
+            background: 'var(--surface-raised)',
+            border: '1px dashed var(--border-strong)',
             borderRadius: '12px',
           }}>
             No contest registrations found yet.
@@ -81,15 +81,15 @@ export default function Dashboard() {
                     flexDirection: 'column',
                     justifyContent: 'space-between',
                     gap: '16px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
                     borderRadius: '16px',
                     transition: 'transform 0.2s, box-shadow 0.2s',
                   }}
                 >
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                      <h4 style={{ margin: 0, fontSize: '1.25rem', color: '#fff', fontWeight: 700 }}>
+                      <h4 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-primary)', fontWeight: 700 }}>
                         {event?.event_name || r.event_id}
                       </h4>
                       <span className={`badge badge-${r.status}`} style={{ textTransform: 'capitalize' }}>{r.status}</span>
@@ -111,15 +111,15 @@ export default function Dashboard() {
                     )}
  
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.9rem' }}>
-                      <div style={{ borderLeft: '3px solid rgba(255,255,255,0.1)', paddingLeft: '10px' }}>
+                      <div style={{ borderLeft: '3px solid var(--border-strong)', paddingLeft: '10px' }}>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600, marginBottom: '2px' }}>Preliminaries</div>
-                        <div>📍 <strong style={{ color: '#fff' }}>{prelimsVenue}</strong></div>
+                        <div>📍 <strong style={{ color: 'var(--text-primary)' }}>{prelimsVenue}</strong></div>
                         <div className="muted" style={{ fontSize: '0.85rem', marginTop: '2px' }}>🕒 {event?.preliminary || '—'}</div>
                       </div>
                       
                       <div style={{ borderLeft: '3px solid var(--accent)', paddingLeft: '10px' }}>
                         <div style={{ color: 'var(--accent)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600, marginBottom: '2px' }}>Mains</div>
-                        <div>📍 <strong style={{ color: '#fff' }}>{mainsVenue}</strong></div>
+                        <div>📍 <strong style={{ color: 'var(--text-primary)' }}>{mainsVenue}</strong></div>
                         <div className="muted" style={{ fontSize: '0.85rem', marginTop: '2px' }}>🕒 {event?.mains || '—'}</div>
                       </div>
                     </div>

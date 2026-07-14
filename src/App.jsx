@@ -56,47 +56,7 @@ function withShell(element) {
 }
 
 function GlobalWatermark() {
-  const { settings } = useSettings()
-  const logoUrl = settings.event_logo_url
-  if (!logoUrl) return null
-  return (
-    <>
-      <style>{`
-        .global-logo-watermark {
-          position: fixed;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          width: 500px;
-          height: 500px;
-          background-image: url("${logoUrl}");
-          background-size: 90% cover;
-          background-position: center;
-          background-repeat: no-repeat;
-          opacity: 0.25; /* Set to 25% opacity */
-          pointer-events: none;
-          z-index: 9999; /* Display overlay on top of all solid backgrounds but under clicks */
-          transition: opacity 0.3s ease;
-        }
-
-        .light-theme .global-logo-watermark {
-          opacity: 0.15; /* Measured opacity for light theme */
-        }
-
-        @media (max-width: 768px) {
-          .global-logo-watermark {
-            width: 360px;
-            height: 360px;
-            opacity: 0.25;
-          }
-          .light-theme .global-logo-watermark {
-            opacity: 0.15;
-          }
-        }
-      `}</style>
-      <div className="global-logo-watermark" />
-    </>
-  )
+  return null
 }
 
 function WinnersRoute() {
@@ -109,7 +69,7 @@ export default function App() {
     <BrowserRouter>
       <SettingsProvider>
         <AuthProvider>
-          <GlobalWatermark />
+          {/* <GlobalWatermark /> */}
           <Routes>
             {/* Guest Portal */}
             <Route path="/" element={<Home />} />

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import { useAuth } from '../../auth/AuthContext'
@@ -6,6 +6,21 @@ import { useAuth } from '../../auth/AuthContext'
 export default function AppShell({ children }) {
   const { role } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light')
+
+  // Manage theme classes on body
+  useEffect(() => {
+    if (theme === 'light') {
+      document.body.classList.add('light-theme')
+    } else {
+      document.body.classList.remove('light-theme')
+    }
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  function toggleTheme() {
+    setTheme(theme === 'dark' ? 'light' : 'dark')
+  }
 
   return (
     <div className={`app-shell role-${role} ${sidebarOpen ? 'sidebar-open' : ''}`}>
@@ -24,7 +39,11 @@ export default function AppShell({ children }) {
 
       <Sidebar role={role} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="app-main">
-        <Topbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+        <Topbar 
+          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} 
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
         <main className="app-content">{children}</main>
       </div>
     </div>
