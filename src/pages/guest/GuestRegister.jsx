@@ -95,7 +95,10 @@ export default function GuestRegister() {
       const { error: oAuthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin + '/register'
+          redirectTo: window.location.origin + '/register',
+          queryParams: {
+            prompt: 'select_account'
+          }
         }
       })
       if (oAuthError) {
