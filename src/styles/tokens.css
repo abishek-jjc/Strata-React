@@ -747,8 +747,8 @@ select option {
 /* Brand */
 .sidebar-brand {
   display: flex;
-  align-items: baseline;
-  gap: 5px;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 6px;
   padding: 0 4px;
 }
@@ -766,10 +766,16 @@ select option {
 
 .sidebar-brand-year {
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--accent);
-  opacity: 0.8;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  padding: 1px 5px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Role badge */
@@ -936,11 +942,23 @@ select option {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .topbar-logo-mini span {
   color: var(--accent);
   -webkit-text-fill-color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .topbar-sep {
@@ -1070,8 +1088,8 @@ select option {
 
 .login-brand {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
   justify-content: center;
 }
 
@@ -1088,9 +1106,16 @@ select option {
 
 .login-brand-year {
   font-family: 'Outfit', sans-serif;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--g-secondary);
+  border: 1.5px solid var(--g-secondary);
+  border-radius: 6px;
+  padding: 2px 8px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .login-subtitle {
@@ -1531,4 +1556,105 @@ body.light-theme .table-responsive {
 body.light-theme select option {
   background-color: #ffffff;
   color: #0f172a;
+}
+
+body.light-theme .login-brand-logo {
+  background: linear-gradient(135deg, #1d2745 30%, #464bbe 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+body.light-theme .login-glass-card {
+  background: var(--g-glass-bg, rgba(255, 255, 255, 0.65));
+  border-color: var(--g-glass-border, rgba(0, 0, 0, 0.09));
+  box-shadow: 
+    0 25px 60px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+body.light-theme .login-hint-box {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+body.light-theme .login-glass-card .field {
+  color: var(--text-secondary, #475569);
+}
+
+body.light-theme .login-glass-card .field input {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  color: var(--text-primary, #0f172a);
+}
+
+body.light-theme .login-glass-card .field input::placeholder {
+  color: rgba(0, 0, 0, 0.35);
+}
+
+body.light-theme .login-glass-card .field input:focus {
+  border-color: var(--g-primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+/* Global watermark override to ensure it's hidden everywhere */
+.global-logo-watermark {
+  opacity: 0 !important;
+  display: none !important;
+}
+
+/* Light theme overrides for App Shell sidebar and navigation to ensure high contrast */
+body.light-theme .sidebar-brand-logo,
+body.light-theme .sidebar-logo,
+body.light-theme .topbar-logo-mini {
+  background: linear-gradient(135deg, #1d2745 30%, #464bbe 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+body.light-theme .sidebar nav a {
+  color: var(--text-secondary, #475569) !important;
+}
+
+body.light-theme .sidebar nav a.active {
+  color: var(--accent) !important;
+}
+
+body.light-theme .sidebar nav a:hover:not(.active) {
+  color: var(--text-primary, #0f172a) !important;
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+body.light-theme .nav-dot {
+  background: rgba(0, 0, 0, 0.22) !important;
+}
+
+body.light-theme .sidebar-footer {
+  border-top-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+body.light-theme .sidebar-profile-card {
+  background: rgba(0, 0, 0, 0.03) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+body.light-theme .sidebar-profile-card.clickable:hover {
+  background: rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+body.light-theme .sidebar-profile-name {
+  color: var(--text-primary, #0f172a) !important;
+}
+
+body.light-theme .stat-num {
+  background: linear-gradient(135deg, var(--text-primary, #0f172a) 40%, var(--accent) 120%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+body.light-theme .stat:hover {
+  border-color: rgba(0, 0, 0, 0.12) !important;
 }

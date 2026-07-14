@@ -513,10 +513,6 @@ export default function GuestRegister() {
                 </svg>
                 Sign in with Google
               </button>
-
-              <button type="button" onClick={() => setIsDecrypted(false)} className="guest-btn guest-btn-secondary">
-                Back to Scanner
-              </button>
             </div>
           </div>
         </section>

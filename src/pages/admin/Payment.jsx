@@ -246,7 +246,7 @@ export default function Payment() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             {logoUrl && <img src={logoUrl} alt="Logo" style={{ width: '45px', height: '45px', objectFit: 'contain' }} />}
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.6rem', color: '#fff' }}>Payment Desk Portal</h2>
+              <h2 style={{ margin: 0, fontSize: '1.6rem', color: 'var(--text-primary)' }}>Payment Desk Portal</h2>
               <span className="badge badge-approved" style={{ marginTop: '4px', display: 'inline-block' }}>Active Poll: {activePoll.poll_name}</span>
             </div>
           </div>

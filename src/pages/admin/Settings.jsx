@@ -425,7 +425,7 @@ export default function Settings() {
           {/* TAB 1: Event Details */}
           {activeTab === 'event-details' && (
             <div>
-              <h3 style={{ marginBottom: '20px', color: '#fff' }}>Event Details & Media</h3>
+              <h3 style={{ marginBottom: '20px' }}>Event Details & Media</h3>
               <form onSubmit={handleSaveEvent} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <label className="field">
                   <span>Event Countdown Target Date & Time (YYYY-MM-DD HH:MM:SS)</span>
@@ -441,7 +441,7 @@ export default function Settings() {
                 <div className="field">
                   <span>Event Logo Image</span>
                   <p className="muted" style={{ fontSize: '0.8rem', marginTop: '2px', marginBottom: '8px' }}>
-                    Used as the dynamic browser favicon, title graphic, and background watermark.
+                    Used as the dynamic browser favicon and title graphic.
                   </p>
                   {eventLogoUrl ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px', background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
@@ -494,7 +494,7 @@ export default function Settings() {
           {/* TAB 2: Invitation */}
           {activeTab === 'invitation' && (
             <div>
-              <h3 style={{ marginBottom: '20px', color: '#fff' }}>Invitation Setup</h3>
+              <h3 style={{ marginBottom: '20px' }}>Invitation Setup</h3>
               <form onSubmit={handleSaveInvitation} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <label className="field">
                   <span>Invitation Title</span>
@@ -581,7 +581,7 @@ export default function Settings() {
           {/* TAB 3: Contact Us */}
           {activeTab === 'contact-us' && (
             <div>
-              <h3 style={{ marginBottom: '20px', color: '#fff' }}>Contact Us Page Setup</h3>
+              <h3 style={{ marginBottom: '20px' }}>Contact Us Page Setup</h3>
               <form onSubmit={handleSaveContact} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <label className="field">
                   <span>Contact Email Address</span>
@@ -636,7 +636,7 @@ export default function Settings() {
           {/* TAB 4: About Us */}
           {activeTab === 'about-us' && (
             <div>
-              <h3 style={{ marginBottom: '20px', color: '#fff' }}>About Institution & Department</h3>
+              <h3 style={{ marginBottom: '20px' }}>About Institution & Department</h3>
               <form onSubmit={handleSaveAboutUs} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 
                 {/* College Info Block */}

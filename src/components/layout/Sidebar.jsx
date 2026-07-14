@@ -110,8 +110,6 @@ export default function Sidebar({ role, isOpen, onClose }) {
               cursor: isLeader ? 'pointer' : 'default', 
               padding: '8px', 
               borderRadius: '10px',
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
               transition: 'all 0.2s'
             }}
             className={isLeader ? 'sidebar-profile-card clickable' : 'sidebar-profile-card'}
@@ -133,7 +131,7 @@ export default function Sidebar({ role, isOpen, onClose }) {
               {profile.name.charAt(0).toUpperCase()}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', textAlign: 'left' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span className="sidebar-profile-name" style={{ fontSize: '0.85rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {profile.name}
               </span>
               {isLeader && (

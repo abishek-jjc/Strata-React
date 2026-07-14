@@ -67,8 +67,8 @@ export default function Dashboard() {
       <div className="card" style={{ 
         padding: '24px', 
         marginBottom: '30px', 
-        background: 'rgba(255,255,255,0.02)',
-        border: '1px solid rgba(255,255,255,0.06)',
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
         borderRadius: '16px',
         display: 'flex',
         flexWrap: 'wrap',

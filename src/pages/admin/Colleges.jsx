@@ -536,7 +536,7 @@ export default function Colleges() {
                 style={{ width: '220px', height: '220px', display: 'block' }}
               />
             </div>
-            <h4 style={{ margin: '0 0 8px 0', fontSize: '1.1rem', color: '#fff' }}>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '1.1rem' }}>
               {selectedQrCollege.college || selectedQrCollege.college_name}
             </h4>
             <p className="muted" style={{ fontSize: '0.85rem', margin: '0 0 24px 0' }}>

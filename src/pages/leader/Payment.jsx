@@ -182,9 +182,17 @@ export default function Payment() {
               </p>
 
               {qrCodeUrl ? (
-                <div style={{ margin: '0 auto 20px', maxWidth: '280px', background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                  <img src={qrCodeUrl} alt="Payment QR" style={{ width: '100%', display: 'block' }} />
-                </div>
+                <>
+                  <div style={{ margin: '0 auto 15px', maxWidth: '280px', background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                    <img src={qrCodeUrl} alt="Payment QR" style={{ width: '100%', display: 'block' }} />
+                  </div>
+                  {upiId && (
+                    <div style={{ marginBottom: '20px', fontSize: '0.95rem' }}>
+                      <span className="muted">UPI ID: </span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{upiId}</strong>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div style={{
                   border: '1px dashed var(--border)',
@@ -195,7 +203,7 @@ export default function Payment() {
                   fontSize: '0.95rem',
                   marginBottom: '20px'
                 }}>
-                  {upiId ? 'Generating QR Code...' : 'UPI ID not configured by the administrator yet. Please visit the payment desk at the venue.'}
+                  {upiId ? `Generating QR Code for UPI ID: ${upiId}...` : 'UPI ID not configured by the administrator yet. Please visit the payment desk at the venue.'}
                 </div>
               )}
 
