@@ -194,7 +194,13 @@ export default function Home() {
 
         <HeartbeatVideoButton
           text="Click to Watch Demo Video"
-          onClick={function() { navigate('/watch-demo'); }}
+          onClick={function() {
+            if (demoVideoUrl && demoVideoUrl.trim() !== '') {
+              window.open(demoVideoUrl, '_blank');
+            } else {
+              alert('Demo video is not available yet.');
+            }
+          }}
         />
 
         <div className="guest-cta-container">
