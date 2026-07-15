@@ -1624,46 +1624,48 @@ body.light-theme .guest-modal-rules-list li {
   }
 }
 
-/* Red Blinking Demo Video Button */
+/* Colorful Glowing Demo Video Button */
 .guest-btn-video.blinking-red {
-  background: #ef4444 !important;
+  background: linear-gradient(135deg, #ef4444 0%, #d946ef 100%) !important;
   color: #ffffff !important;
-  border: 1.5px solid transparent !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.25) !important;
   box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4) !important;
-  animation: guest-red-outline-blink 0.4s infinite alternate ease-in-out !important;
-  transition: all 0.3s ease !important;
+  animation: guest-glow-color-pulse 4s infinite alternate ease-in-out !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .guest-btn-video.blinking-red:hover {
-  background: #dc2626 !important;
-  color: #ffffff !important;
-  border-color: transparent !important;
-  transform: translateY(-6px) scale(1.08) !important;
-  box-shadow: 0 0 0 4px #ffffff, 0 0 0 8px #ef4444, 0 15px 35px rgba(239, 68, 68, 0.8) !important;
-  animation: none !important;
+  transform: translateY(-5px) scale(1.06) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3), 0 0 30px rgba(217, 70, 239, 0.6), 0 10px 25px rgba(0, 0, 0, 0.3) !important;
+  animation-play-state: paused !important; /* Pause color shifting on hover for standard interactivity */
 }
 
-@keyframes guest-red-outline-blink {
+@keyframes guest-glow-color-pulse {
   0% {
-    background: #ef4444 !important;
-    box-shadow: 0 0 0 2px #ef4444, 0 4px 15px rgba(239, 68, 68, 0.45);
+    background: linear-gradient(135deg, #ef4444 0%, #ec4899 100%) !important;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.7), 0 0 20px rgba(236, 72, 153, 0.4), 0 4px 15px rgba(0, 0, 0, 0.2);
+  }
+  33% {
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%) !important;
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.7), 0 0 20px rgba(139, 92, 246, 0.4), 0 4px 15px rgba(0, 0, 0, 0.2);
+  }
+  66% {
+    background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%) !important;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.7), 0 0 20px rgba(59, 130, 246, 0.4), 0 4px 15px rgba(0, 0, 0, 0.2);
   }
   100% {
-    background: #dc2626 !important;
-    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.55), 0 4px 15px rgba(239, 68, 68, 0.45);
+    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%) !important;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.8), 0 0 25px rgba(239, 68, 68, 0.5), 0 4px 15px rgba(0, 0, 0, 0.2);
   }
 }
 
 body.light-theme .guest-btn-video.blinking-red {
-  background: #dc2626 !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 15px rgba(220, 38, 38, 0.35) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.3) !important;
 }
 
 body.light-theme .guest-btn-video.blinking-red:hover {
-  background: #b91c1c !important;
-  color: #ffffff !important;
-  box-shadow: 0 15px 35px rgba(220, 38, 38, 0.6) !important;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.6), 0 0 30px rgba(217, 70, 239, 0.5), 0 10px 25px rgba(0, 0, 0, 0.15) !important;
 }
 
 /* Static 20px Play/Video Icon */

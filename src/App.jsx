@@ -14,6 +14,7 @@ import GuestRules from './pages/guest/GuestRules'
 import GuestInvitation from './pages/guest/GuestInvitation'
 import GuestRegister from './pages/guest/GuestRegister'
 import GuestWinners from './pages/guest/GuestWinners'
+import WatchDemo from './pages/guest/WatchDemo'
 
 
 // Admin Portal
@@ -83,6 +84,7 @@ export default function App() {
             <Route path="/invitation" element={<GuestInvitation />} />
             <Route path="/register" element={<GuestRegister />} />
             <Route path="/winners" element={<WinnersRoute />} />
+            <Route path="/watch-demo" element={<WatchDemo />} />
 
             {/* Auth */}
             <Route path="/login" element={<Login />} />

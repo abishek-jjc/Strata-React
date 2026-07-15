@@ -23,6 +23,7 @@ export default function Settings() {
   const [eventLogoUrl, setEventLogoUrl] = useState('')
   const [paymentImageUrl, setPaymentImageUrl] = useState('')
   const [upiId, setUpiId] = useState('')
+  const [demoVideoUrl, setDemoVideoUrl] = useState('')
   
   // Invitation
   const [invTitle, setInvTitle] = useState('')
@@ -96,6 +97,7 @@ export default function Settings() {
               setPaymentImageUrl(row.value)
             }
             if (row.key_name === 'upi_id') setUpiId(row.value)
+            if (row.key_name === 'demo_video_url') setDemoVideoUrl(row.value)
             if (row.key_name === 'invitation_title') setInvTitle(row.value)
             if (row.key_name === 'invitation_tagline') setInvTagline(row.value)
             if (row.key_name === 'invitation_body') setInvBody(row.value)
@@ -206,10 +208,11 @@ export default function Settings() {
     try {
       const { error: err } = await supabase.from(TABLES.SETTINGS).upsert([
         { key_name: 'event_date', value: eventDate },
-        { key_name: 'upi_id', value: upiId }
+        { key_name: 'upi_id', value: upiId },
+        { key_name: 'demo_video_url', value: demoVideoUrl }
       ])
       if (err) throw err
-      setMessage('Event date saved successfully!')
+      setMessage('Event settings saved successfully!')
     } catch (err) {
       setError(err.message || 'Failed to save event details.')
     } finally {
@@ -484,8 +487,21 @@ export default function Settings() {
                   />
                 </label>
 
+                <label className="field">
+                  <span>Demo Video Link</span>
+                  <p className="muted" style={{ fontSize: '0.8rem', marginTop: '2px', marginBottom: '8px' }}>
+                    Provide the URL to the demo video (e.g. YouTube, Google Drive share link, or direct MP4 link).
+                  </p>
+                  <input
+                    type="url"
+                    placeholder="e.g. https://www.youtube.com/watch?v=... or https://drive.google.com/..."
+                    value={demoVideoUrl}
+                    onChange={(e) => setDemoVideoUrl(e.target.value)}
+                  />
+                </label>
+
                 <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-start' }} disabled={submitting}>
-                  {submitting ? 'Saving date...' : 'Save Countdown Date'}
+                  {submitting ? 'Saving settings...' : 'Save Event Settings'}
                 </button>
               </form>
             </div>

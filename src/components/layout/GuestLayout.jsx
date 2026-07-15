@@ -135,13 +135,13 @@ export default function GuestLayout({ children, hideHeaderFooter }) {
       {/* Header */}
       {!hideHeaderFooter && (
         <header className={`guest-header ${scrolled ? 'scrolled' : ''}`}>
-          <div className="guest-nav-container">
+          <div className="guest-nav-container" style={{ position: 'relative' }}>
             <Link to="/" className="guest-logo" style={{ textDecoration: 'none' }}>
               STRATA <span>2K26</span>
             </Link>
 
             <nav>
-              <ul className="guest-nav-links" style={mobileOpen ? { display: 'flex', flexDirection: 'column', position: 'absolute', top: '100%', right: 0, width: '200px', background: 'var(--g-bg)', padding: '20px', border: '1px solid var(--g-glass-border)', borderTop: 'none', borderRadius: '0 0 0 12px', gap: '15px', alignItems: 'flex-start' } : {}}>
+              <ul className="guest-nav-links" style={mobileOpen ? { display: 'flex', flexDirection: 'column', position: 'absolute', top: '100%', right: 0, width: '200px', background: 'var(--g-bg)', padding: '20px', border: '1px solid var(--g-glass-border)', borderTop: 'none', borderRadius: '0 0 0 12px', gap: '15px', alignItems: 'flex-start', zIndex: 1001 } : {}}>
                 <li><NavLink to="/" end onClick={() => setMobileOpen(false)}>Home</NavLink></li>
                 <li><NavLink to="/about" onClick={() => setMobileOpen(false)}>About Us</NavLink></li>
                 <li><NavLink to="/events" onClick={() => setMobileOpen(false)}>Contests</NavLink></li>

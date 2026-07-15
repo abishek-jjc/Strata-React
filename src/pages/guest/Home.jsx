@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { TABLES } from '../../supabase/tables'
 import GuestLayout from '../../components/layout/GuestLayout'
+import HeartbeatVideoButton from '../../components/common/HeartbeatVideoButton'
 import { Html5Qrcode } from 'html5-qrcode'
 import { decryptCollegePayload } from '../../utils/qrCrypto'
 import { Superscript, Video } from 'lucide-react'
@@ -15,6 +16,7 @@ export default function Home() {
   const [invBody, setInvBody] = useState('')
   const [invPdfUrl, setInvPdfUrl] = useState('')
   const [eventCount, setEventCount] = useState(6)
+  const [demoVideoUrl, setDemoVideoUrl] = useState('')
 
   // Countdown state
   const [timeLeft, setTimeLeft] = useState({ days: '00', hours: '00', minutes: '00', seconds: '00' })
@@ -131,6 +133,7 @@ export default function Home() {
         if (settingsMap.invitation_tagline) setInvTagline(settingsMap.invitation_tagline)
         if (settingsMap.invitation_body) setInvBody(settingsMap.invitation_body)
         if (settingsMap.invitation_pdf_url) setInvPdfUrl(settingsMap.invitation_pdf_url)
+        if (settingsMap.demo_video_url) setDemoVideoUrl(settingsMap.demo_video_url)
       }
 
       // Event Count
@@ -189,17 +192,10 @@ export default function Home() {
           State Level Intercollegiate Technical Meet organized by the <strong>Department of Computer Science</strong>
         </p>
 
-        <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
-          <a
-            href="https://drive.google.com/file/d/1-d93aMC5PH5yswF-q0zDnMwAYjCa9KnS/view?usp=sharing"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="guest-btn guest-btn-video blinking-red"
-          >
-            <Video size={20} />
-            Click to Watch Demo Video
-          </a>
-        </div>
+        <HeartbeatVideoButton
+          text="Click to Watch Demo Video"
+          onClick={function() { navigate('/watch-demo'); }}
+        />
 
         <div className="guest-cta-container">
           <Link to="/login" className="guest-btn guest-btn-primary">
