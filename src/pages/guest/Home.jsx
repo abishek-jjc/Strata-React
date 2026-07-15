@@ -192,6 +192,7 @@ export default function Home() {
           State Level Intercollegiate Technical Meet organized by the <strong>Department of Computer Science</strong>
         </p>
 
+<<<<<<< Updated upstream
         <HeartbeatVideoButton
           text="Click to Watch Demo Video"
           onClick={function() {
@@ -202,6 +203,17 @@ export default function Home() {
             }
           }}
         />
+=======
+        <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
+          <Link
+            to="/demo-video"
+            className="guest-btn guest-btn-video blinking-red"
+          >
+            <Video size={20} />
+            Click to Watch Demo Video
+          </Link>
+        </div>
+>>>>>>> Stashed changes
 
         <div className="guest-cta-container">
           <Link to="/login" className="guest-btn guest-btn-primary">

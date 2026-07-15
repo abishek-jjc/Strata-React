@@ -5,6 +5,7 @@ import { exportToExcel } from '../../utils/excelExport'
 import { supabase } from '../../supabase/client'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
+import { encryptCollegePayload } from '../../utils/qrCrypto'
 
 const REPORT_TYPES = [
   { key: 'students', label: 'Students' },
@@ -121,7 +122,9 @@ export default function Reports() {
           'Roll No': s.roll_no || '—',
           'Lot Name': collegeLot(s.college_id, s.registration_id),
           'College Name': colleges.find((col) => col.id === s.college_id)?.college || '—',
-          'Department Name': s.department || '—',
+          'Department': (s.department && s.department !== '-' && s.department !== '—') 
+            ? s.department 
+            : (colleges.find((col) => col.id === s.college_id)?.department || '—'),
         }))
     }
 
@@ -170,14 +173,24 @@ export default function Reports() {
       )
       return colleges
         .filter((c) => activeCollegeIds.has(c.id))
-        .map((c) => ({
-          'College Name': c.college,
-          'Department': c.department || '—',
-          'Phone': c.phone || '—',
-          'Email': c.email || '—',
-          'Address': c.address || '—',
-          'Status': c.status,
-        }))
+        .map((c) => {
+          const collegeVal = c.college || ''
+          const deptVal = c.department || ''
+          const encrypted = encryptCollegePayload({ college: collegeVal, department: deptVal })
+          const prefix = localStorage.getItem('qr_domain_prefix') || window.location.origin
+          const qrUrl = `${prefix}/register?payload=${encodeURIComponent(encrypted)}`
+
+          return {
+            'College Name': c.college,
+            'Department': c.department || '—',
+            'Phone': c.phone || '—',
+            'Email': c.email || '—',
+            'Address': c.address || '—',
+            'Status': c.status,
+            'QR Code Redirect URL': qrUrl,
+            'QR Image Data': c.qr_image_data_url || '—'
+          }
+        })
     }
 
     if (active === TABLES.STUDENT_LEADERS) {
@@ -238,6 +251,10 @@ export default function Reports() {
     })
   }, [filtered])
 
+  const visibleTableColumns = useMemo(() => {
+    return columns.filter((col) => col !== 'QR Code Redirect URL' && col !== 'QR Image Data')
+  }, [columns])
+
   const totalPages = Math.ceil(filtered.length / itemsPerPage)
 
   useEffect(() => {
@@ -260,7 +277,7 @@ export default function Reports() {
     const doc = new jsPDF({
       unit: 'pt',
       format: 'a4',
-      orientation: columns.length > 5 ? 'landscape' : 'portrait',
+      orientation: visibleTableColumns.length > 5 ? 'landscape' : 'portrait',
     })
 
     const title = `${active.charAt(0).toUpperCase() + active.slice(1)} Report`
@@ -291,8 +308,8 @@ export default function Reports() {
 
     doc.autoTable({
       startY: subtitle ? 95 : 80,
-      head: [columns],
-      body: filtered.map((row) => columns.map((col) => String(row[col] ?? '—'))),
+      head: [visibleTableColumns],
+      body: filtered.map((row) => visibleTableColumns.map((col) => String(row[col] ?? '—'))),
       theme: 'grid',
       headStyles: { fillColor: [217, 119, 6] },
       styles: { fontSize: 8.5 },
@@ -560,7 +577,7 @@ export default function Reports() {
             <table className="data-table">
               <thead>
                 <tr>
-                  {columns.map((c) => (
+                  {visibleTableColumns.map((c) => (
                     <th key={c}>{c}</th>
                   ))}
                 </tr>
@@ -568,7 +585,7 @@ export default function Reports() {
               <tbody>
                 {paginatedData.map((row, idx) => (
                   <tr key={idx}>
-                    {columns.map((c) => (
+                    {visibleTableColumns.map((c) => (
                       <td key={c}>
                         {c === 'Lot Name' && row[c] !== '—' ? (
                           <span
@@ -593,7 +610,7 @@ export default function Reports() {
                 ))}
                 {paginatedData.length === 0 && (
                   <tr>
-                    <td colSpan={columns.length || 1} className="muted" style={{ textAlign: 'center', padding: '24px' }}>
+                    <td colSpan={visibleTableColumns.length || 1} className="muted" style={{ textAlign: 'center', padding: '24px' }}>
                       {eventMode === 'many' && selectedEvents.size === 0
                         ? 'Please select one or more events to view reports.'
                         : 'No matching records found.'}

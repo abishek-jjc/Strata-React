@@ -212,7 +212,11 @@ export default function Settings() {
         { key_name: 'demo_video_url', value: demoVideoUrl }
       ])
       if (err) throw err
+<<<<<<< Updated upstream
       setMessage('Event settings saved successfully!')
+=======
+      setMessage('Event details saved successfully!')
+>>>>>>> Stashed changes
     } catch (err) {
       setError(err.message || 'Failed to save event details.')
     } finally {
@@ -488,6 +492,7 @@ export default function Settings() {
                 </label>
 
                 <label className="field">
+<<<<<<< Updated upstream
                   <span>Demo Video Link</span>
                   <p className="muted" style={{ fontSize: '0.8rem', marginTop: '2px', marginBottom: '8px' }}>
                     Provide the URL to the demo video (e.g. YouTube, Google Drive share link, or direct MP4 link).
@@ -495,13 +500,26 @@ export default function Settings() {
                   <input
                     type="url"
                     placeholder="e.g. https://www.youtube.com/watch?v=... or https://drive.google.com/..."
+=======
+                  <span>Demo Video URL (YouTube or Google Drive link)</span>
+                  <p className="muted" style={{ fontSize: '0.8rem', marginTop: '2px', marginBottom: '8px' }}>
+                    Enter a YouTube link (e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ) or a Google Drive link (e.g., https://drive.google.com/file/d/1-d93aMC5PH5yswF-q0zDnMwAYjCa9KnS/view?usp=sharing).
+                  </p>
+                  <input
+                    type="text"
+                    placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+>>>>>>> Stashed changes
                     value={demoVideoUrl}
                     onChange={(e) => setDemoVideoUrl(e.target.value)}
                   />
                 </label>
 
                 <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-start' }} disabled={submitting}>
+<<<<<<< Updated upstream
                   {submitting ? 'Saving settings...' : 'Save Event Settings'}
+=======
+                  {submitting ? 'Saving details...' : 'Save Event Details'}
+>>>>>>> Stashed changes
                 </button>
               </form>
             </div>

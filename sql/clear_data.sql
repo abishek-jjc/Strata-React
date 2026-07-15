@@ -17,7 +17,6 @@ TRUNCATE TABLE public.winners CASCADE;
 TRUNCATE TABLE public.payment_logs CASCADE;
 TRUNCATE TABLE public.payment_polls CASCADE;
 TRUNCATE TABLE public.student_leaders CASCADE;
-TRUNCATE TABLE public.leaders CASCADE;
 
 -- 2. Reset college payment statuses
 UPDATE public.colleges

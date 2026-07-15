@@ -14,7 +14,11 @@ import GuestRules from './pages/guest/GuestRules'
 import GuestInvitation from './pages/guest/GuestInvitation'
 import GuestRegister from './pages/guest/GuestRegister'
 import GuestWinners from './pages/guest/GuestWinners'
+<<<<<<< Updated upstream
 import WatchDemo from './pages/guest/WatchDemo'
+=======
+import DemoVideo from './pages/guest/DemoVideo'
+>>>>>>> Stashed changes
 
 
 // Admin Portal
@@ -84,7 +88,11 @@ export default function App() {
             <Route path="/invitation" element={<GuestInvitation />} />
             <Route path="/register" element={<GuestRegister />} />
             <Route path="/winners" element={<WinnersRoute />} />
+<<<<<<< Updated upstream
             <Route path="/watch-demo" element={<WatchDemo />} />
+=======
+            <Route path="/demo-video" element={<DemoVideo />} />
+>>>>>>> Stashed changes
 
             {/* Auth */}
             <Route path="/login" element={<Login />} />
