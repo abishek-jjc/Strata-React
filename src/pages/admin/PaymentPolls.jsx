@@ -42,8 +42,8 @@ export default function PaymentPolls() {
   // All time total
   const totalAmountClearedAllTime = useMemo(() => {
     if (!logs) return 0
-    return logs.reduce((sum, log) => sum + getAmountCleared(log.college_name), 0)
-  }, [logs, colleges, students, feePerStudent])
+    return logs.reduce((sum, log) => sum + Number(log.amount || 0), 0)
+  }, [logs])
 
   // Filtered logs
   const filteredLogs = useMemo(() => {
@@ -59,8 +59,8 @@ export default function PaymentPolls() {
 
   // Filtered total
   const filteredTotal = useMemo(() => {
-    return filteredLogs.reduce((sum, log) => sum + getAmountCleared(log.college_name), 0)
-  }, [filteredLogs, colleges, students, feePerStudent])
+    return filteredLogs.reduce((sum, log) => sum + Number(log.amount || 0), 0)
+  }, [filteredLogs])
 
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage)
 
@@ -325,12 +325,13 @@ export default function PaymentPolls() {
             </thead>
             <tbody>
               {paginatedLogs.map((log) => {
-                const amt = getAmountCleared(log.college_name)
+                const amt = Number(log.amount || 0)
+                const studentsClearedCount = log.students_count ? ` (${log.students_count} student${log.students_count > 1 ? 's' : ''})` : ''
                 return (
                   <tr key={log.id}>
                     <td><strong>{log.poll_name}</strong></td>
                     <td>
-                      <span className="badge badge-approved" style={{ fontSize: '0.85rem' }}>✓ {log.college_name}</span>
+                      <span className="badge badge-approved" style={{ fontSize: '0.85rem' }}>✓ {log.college_name}{studentsClearedCount}</span>
                     </td>
                     <td>
                       <strong>Rs. {amt.toLocaleString()}</strong>

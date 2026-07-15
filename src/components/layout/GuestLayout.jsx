@@ -5,7 +5,7 @@ import { Html5Qrcode } from 'html5-qrcode'
 import { decryptCollegePayload } from '../../utils/qrCrypto'
 import { useSettings } from '../../context/SettingsContext'
 
-export default function GuestLayout({ children }) {
+export default function GuestLayout({ children, hideHeaderFooter }) {
   const { settings } = useSettings()
   const navigate = useNavigate()
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light')
@@ -133,50 +133,52 @@ export default function GuestLayout({ children }) {
       <div className="guest-mesh-grid" />
 
       {/* Header */}
-      <header className={`guest-header ${scrolled ? 'scrolled' : ''}`}>
-        <div className="guest-nav-container">
-          <Link to="/" className="guest-logo" style={{ textDecoration: 'none' }}>
-            STRATA <span>2K26</span>
-          </Link>
+      {!hideHeaderFooter && (
+        <header className={`guest-header ${scrolled ? 'scrolled' : ''}`}>
+          <div className="guest-nav-container">
+            <Link to="/" className="guest-logo" style={{ textDecoration: 'none' }}>
+              STRATA <span>2K26</span>
+            </Link>
 
-          <nav>
-            <ul className="guest-nav-links" style={mobileOpen ? { display: 'flex', flexDirection: 'column', position: 'absolute', top: '100%', right: 0, width: '200px', background: 'var(--g-bg)', padding: '20px', border: '1px solid var(--g-glass-border)', borderTop: 'none', borderRadius: '0 0 0 12px', gap: '15px', alignItems: 'flex-start' } : {}}>
-              <li><NavLink to="/" end onClick={() => setMobileOpen(false)}>Home</NavLink></li>
-              <li><NavLink to="/about" onClick={() => setMobileOpen(false)}>About Us</NavLink></li>
-              <li><NavLink to="/events" onClick={() => setMobileOpen(false)}>Contests</NavLink></li>
-              <li><NavLink to="/rules" onClick={() => setMobileOpen(false)}>Rules</NavLink></li>
-              {settings.show_winners_page === 'true' && (
-                <li><NavLink to="/winners" onClick={() => setMobileOpen(false)}>Winners</NavLink></li>
-              )}
-              <li><NavLink to="/contact" onClick={() => setMobileOpen(false)}>Contact Us</NavLink></li>
-              <li>
-                <button 
-                  className="guest-nav-cta" 
-                  onClick={() => { 
-                    setMobileOpen(false); 
-                    setScanError('');
-                    setShowScanner(true); 
-                  }}
-                  style={{ marginRight: '10px' }}
-                >
-                  Register via QR
-                </button>
-              </li>
-              <li>
-                <button className="guest-nav-cta" onClick={() => { setMobileOpen(false); navigate('/login') }}>
-                  Login
-                </button>
-              </li>
-            </ul>
-          </nav>
+            <nav>
+              <ul className="guest-nav-links" style={mobileOpen ? { display: 'flex', flexDirection: 'column', position: 'absolute', top: '100%', right: 0, width: '200px', background: 'var(--g-bg)', padding: '20px', border: '1px solid var(--g-glass-border)', borderTop: 'none', borderRadius: '0 0 0 12px', gap: '15px', alignItems: 'flex-start' } : {}}>
+                <li><NavLink to="/" end onClick={() => setMobileOpen(false)}>Home</NavLink></li>
+                <li><NavLink to="/about" onClick={() => setMobileOpen(false)}>About Us</NavLink></li>
+                <li><NavLink to="/events" onClick={() => setMobileOpen(false)}>Contests</NavLink></li>
+                <li><NavLink to="/rules" onClick={() => setMobileOpen(false)}>Rules</NavLink></li>
+                {settings.show_winners_page === 'true' && (
+                  <li><NavLink to="/winners" onClick={() => setMobileOpen(false)}>Winners</NavLink></li>
+                )}
+                <li><NavLink to="/contact" onClick={() => setMobileOpen(false)}>Contact Us</NavLink></li>
+                <li>
+                  <button 
+                    className="guest-nav-cta" 
+                    onClick={() => { 
+                      setMobileOpen(false); 
+                      setScanError('');
+                      setShowScanner(true); 
+                    }}
+                    style={{ marginRight: '10px' }}
+                  >
+                    Register via QR
+                  </button>
+                </li>
+                <li>
+                  <button className="guest-nav-cta" onClick={() => { setMobileOpen(false); navigate('/login') }}>
+                    Login
+                  </button>
+                </li>
+              </ul>
+            </nav>
 
-          <button className="guest-menu-toggle" onClick={() => setMobileOpen(!mobileOpen)} style={{ background: 'none', border: 'none' }}>
-            <span style={{ display: 'block', width: '25px', height: '3px', background: 'var(--g-text)', marginBottom: '5px' }}></span>
-            <span style={{ display: 'block', width: '25px', height: '3px', background: 'var(--g-text)', marginBottom: '5px' }}></span>
-            <span style={{ display: 'block', width: '25px', height: '3px', background: 'var(--g-text)' }}></span>
-          </button>
-        </div>
-      </header>
+            <button className="guest-menu-toggle" onClick={() => setMobileOpen(!mobileOpen)} style={{ background: 'none', border: 'none' }}>
+              <span style={{ display: 'block', width: '25px', height: '3px', background: 'var(--g-text)', marginBottom: '5px' }}></span>
+              <span style={{ display: 'block', width: '25px', height: '3px', background: 'var(--g-text)', marginBottom: '5px' }}></span>
+              <span style={{ display: 'block', width: '25px', height: '3px', background: 'var(--g-text)' }}></span>
+            </button>
+          </div>
+        </header>
+      )}
 
       {/* Main Content */}
       <main style={{ position: 'relative', zIndex: 10 }}>
@@ -184,22 +186,26 @@ export default function GuestLayout({ children }) {
       </main>
 
       {/* Floating Theme Toggler */}
-      <button className="guest-theme-toggle" id="themeToggleBtn" onClick={toggleTheme}>
-        {theme === 'dark' ? '☀️' : '🌙'}
-      </button>
+      {!hideHeaderFooter && (
+        <button className="guest-theme-toggle" id="themeToggleBtn" onClick={toggleTheme}>
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+      )}
 
       {/* Footer */}
-      <footer className="guest-footer">
-        <div className="guest-footer-logo">STRATA <span>2K26</span></div>
-        <p className="guest-footer-text">
-          Department of Computer Science<br />
-          Ayya Nadar Janaki Ammal College (Autonomous), Sivakasi.<br />
-          Established in 1963.
-        </p>
-        <p className="guest-footer-credits">
-          Designed for STRATA 2K26. All rights reserved.
-        </p>
-      </footer>
+      {!hideHeaderFooter && (
+        <footer className="guest-footer">
+          <div className="guest-footer-logo">STRATA <span>2K26</span></div>
+          <p className="guest-footer-text">
+            Department of Computer Science<br />
+            Ayya Nadar Janaki Ammal College (Autonomous), Sivakasi.<br />
+            Established in 1963.
+          </p>
+          <p className="guest-footer-credits">
+            Designed for STRATA 2K26. All rights reserved.
+          </p>
+        </footer>
+      )}
 
       {/* QR Scanner Modal Overlay */}
       {showScanner && (

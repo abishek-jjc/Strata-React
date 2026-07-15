@@ -111,11 +111,13 @@ export default function Dashboard() {
                     )}
  
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.9rem' }}>
-                      <div style={{ borderLeft: '3px solid var(--border-strong)', paddingLeft: '10px' }}>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600, marginBottom: '2px' }}>Preliminaries</div>
-                        <div>📍 <strong style={{ color: 'var(--text-primary)' }}>{prelimsVenue}</strong></div>
-                        <div className="muted" style={{ fontSize: '0.85rem', marginTop: '2px' }}>🕒 {event?.preliminary || '—'}</div>
-                      </div>
+                      {!!(event?.prelims_venue || event?.preliminary) && (
+                        <div style={{ borderLeft: '3px solid var(--border-strong)', paddingLeft: '10px' }}>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600, marginBottom: '2px' }}>Preliminaries</div>
+                          <div>📍 <strong style={{ color: 'var(--text-primary)' }}>{prelimsVenue}</strong></div>
+                          <div className="muted" style={{ fontSize: '0.85rem', marginTop: '2px' }}>🕒 {event?.preliminary || '—'}</div>
+                        </div>
+                      )}
                       
                       <div style={{ borderLeft: '3px solid var(--accent)', paddingLeft: '10px' }}>
                         <div style={{ color: 'var(--accent)', fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600, marginBottom: '2px' }}>Mains</div>

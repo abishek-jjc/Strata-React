@@ -250,9 +250,7 @@ CREATE TABLE IF NOT EXISTS public.students (
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS student_name_normalized text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS roll_no                  text;
-ALTER TABLE public.students ADD COLUMN IF NOT EXISTS gender                  text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS department              text;
-ALTER TABLE public.students ADD COLUMN IF NOT EXISTS year                    text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS email                   text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS registration_id         uuid REFERENCES public.registrations(id) ON DELETE CASCADE;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS leader_id               uuid REFERENCES public.student_leaders(id) ON DELETE SET NULL;
@@ -738,16 +736,14 @@ BEGIN
   FOR v_participant IN SELECT * FROM jsonb_array_elements(p_participants) LOOP
     INSERT INTO public.students (
       student_name, student_name_normalized, roll_no, food_type,
-      gender, department, year,
+      department,
       registration_id, leader_id, college_id, event_id, certificate_status
     ) VALUES (
       v_participant->>'studentName',
       lower(trim(v_participant->>'studentName')),
       v_participant->>'rollNo',
       coalesce(v_participant->>'food', v_participant->>'foodType', '-'),
-      v_participant->>'gender',
       v_participant->>'department',
-      v_participant->>'year',
       v_reg_id, p_leader_id, p_college_id, p_event_id, 'not issued'
     );
   END LOOP;

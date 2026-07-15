@@ -611,132 +611,149 @@ export default function GuestRegister() {
     )
   }
 
-  // Step 3: QR Decrypted, Session user active, not yet registered - show leader profile creation form
+  // Step 3: QR Decrypted, Session user active, not yet registered - show leader profile creation form as a modal popup
   return (
-    <GuestLayout>
-      <section className="guest-section" style={{ padding: '40px 20px' }}>
-        <div className="guest-section-header">
-          <span className="guest-section-tag">Pre-registration</span>
-          <h2 className="guest-section-title">Configure Leader Profile</h2>
+    <GuestLayout hideHeaderFooter={true}>
+      <section className="guest-section" style={{ padding: '40px 20px', minHeight: '60vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ textAlign: 'center', color: 'var(--g-text-muted)' }}>
+          <p>Please complete your profile configuration in the pop-up modal to continue...</p>
         </div>
 
-        {error && (
-          <div className="guest-glass-panel" style={{ background: 'rgba(255, 23, 68, 0.08)', border: '1px solid rgba(255, 23, 68, 0.3)', color: 'var(--g-accent)', padding: '15px 25px', borderRadius: '12px', marginBottom: '30px', fontSize: '0.95rem', maxWidth: '800px', margin: '0 auto 30px auto' }}>
-            <strong>Error: </strong> {error}
-          </div>
-        )}
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(5, 7, 10, 0.85)',
+          backdropFilter: 'blur(10px)',
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          overflowY: 'auto'
+        }}>
+          <form onSubmit={handleSubmit} style={{ maxWidth: '600px', width: '100%', margin: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <div className="guest-glass-panel" style={{ padding: '30px' }}>
+              <h3 style={{ fontFamily: 'Syne, sans-serif', fontSize: '1.4rem', color: 'var(--g-secondary)', marginBottom: '20px', borderBottom: '1px solid var(--g-glass-border)', paddingBottom: '12px', textAlign: 'center' }}>
+                Complete Leader Registration
+              </h3>
 
-        <form onSubmit={handleSubmit} style={{ maxWidth: '800px', margin: '0 auto' }}>
-          <div className="guest-glass-panel" style={{ padding: '40px' }}>
-            <h3 style={{ fontFamily: 'Syne, sans-serif', fontSize: '1.4rem', color: 'var(--g-secondary)', marginBottom: '25px', borderBottom: '1px solid var(--g-glass-border)', paddingBottom: '12px' }}>
-              Student Leader Information
-            </h3>
-            
-            <div className="guest-form-row">
-              <label className="guest-field">
-                <span>Leader Full Name *</span>
-                <input 
-                  type="text" 
-                  required 
-                  value={leaderName}
-                  readOnly
-                  style={{ backgroundColor: 'rgba(255,255,255,0.02)', cursor: 'not-allowed', opacity: 0.8 }}
-                  placeholder="Pre-filled from Google login" 
-                />
-              </label>
-              <label className="guest-field">
-                <span>Mobile Phone Number *</span>
-                <input 
-                  type="text" 
-                  required 
-                  placeholder="10-digit mobile number" 
-                  value={leaderPhone}
-                  onChange={(e) => setLeaderPhone(e.target.value)}
-                />
-              </label>
-            </div>
+              {error && (
+                <div style={{ background: 'rgba(255, 23, 68, 0.08)', border: '1px solid rgba(255, 23, 68, 0.3)', color: 'var(--g-accent)', padding: '12px 18px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.88rem' }}>
+                  <strong>Error: </strong> {error}
+                </div>
+              )}
 
-            <div className="guest-form-row">
-              <label className="guest-field">
-                <span>Google Account Email (Auth Mail ID) *</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <label className="guest-field">
+                  <span>Leader Full Name *</span>
+                  <input 
+                    type="text" 
+                    required 
+                    value={leaderName}
+                    onChange={(e) => setLeaderName(e.target.value)}
+                    placeholder="Enter your full name" 
+                  />
+                </label>
+
+                <label className="guest-field">
+                  <span>Mobile Phone Number *</span>
+                  <input 
+                    type="text" 
+                    required 
+                    placeholder="10-digit mobile number" 
+                    value={leaderPhone}
+                    onChange={(e) => setLeaderPhone(e.target.value)}
+                  />
+                </label>
+
+                <label className="guest-field">
+                  <span>Google Account Email (Auth Mail ID) *</span>
+                  <input 
+                    type="email" 
+                    required
+                    readOnly
+                    style={{ backgroundColor: 'rgba(255,255,255,0.02)', cursor: 'not-allowed', opacity: 0.8 }}
+                    value={leaderEmail}
+                  />
+                </label>
+
+                <label className="guest-field">
+                  <span>Department</span>
+                  <input 
+                    type="text" 
+                    readOnly
+                    style={{ backgroundColor: 'rgba(255,255,255,0.02)', cursor: 'not-allowed', opacity: 0.8 }}
+                    value={leaderDept}
+                  />
+                </label>
+
+                <label className="guest-field">
+                  <span>College Name</span>
+                  <input 
+                    type="text" 
+                    readOnly
+                    style={{ backgroundColor: 'rgba(255,255,255,0.02)', cursor: 'not-allowed', opacity: 0.8 }}
+                    value={collegeName}
+                  />
+                </label>
+              </div>
+
+              {/* Rules Checkbox */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px', borderTop: '1px solid var(--g-glass-border)', paddingTop: '15px' }}>
                 <input 
-                  type="email" 
+                  type="checkbox" 
+                  id="agree-rules" 
+                  checked={agreeRules} 
+                  onChange={(e) => setAgreeRules(e.target.checked)}
                   required
-                  placeholder="Pre-filled from Google login"
-                  readOnly
-                  style={{ backgroundColor: 'rgba(255,255,255,0.02)', cursor: 'not-allowed', opacity: 0.8 }}
-                  value={leaderEmail}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--g-secondary)' }}
                 />
-              </label>
-              <label className="guest-field">
-                <span>Department</span>
-                <input 
-                  type="text" 
-                  readOnly
-                  style={{ backgroundColor: 'rgba(255,255,255,0.02)', cursor: 'not-allowed', opacity: 0.8 }}
-                  value={leaderDept}
-                />
-              </label>
-            </div>
+                <label htmlFor="agree-rules" style={{ color: 'var(--g-text-secondary)', fontSize: '0.88rem', cursor: 'pointer', userSelect: 'none' }}>
+                  I agree to the{' '}
+                  <button
+                    type="button"
+                    onClick={() => setShowRulesModal(true)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      color: 'var(--g-secondary)',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '0.88rem',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    Rules & Regulations
+                  </button>{' '}
+                  of STRATA 2K26
+                </label>
+              </div>
 
-            <div className="guest-form-row" style={{ marginBottom: '20px' }}>
-              <label className="guest-field" style={{ gridColumn: 'span 2' }}>
-                <span>College Name</span>
-                <input 
-                  type="text" 
-                  readOnly
-                  style={{ backgroundColor: 'rgba(255,255,255,0.02)', cursor: 'not-allowed', opacity: 0.8 }}
-                  value={collegeName}
-                />
-              </label>
-            </div>
-
-            {/* Rules Checkbox */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '24px', borderTop: '1px solid var(--g-glass-border)', paddingTop: '20px' }}>
-              <input 
-                type="checkbox" 
-                id="agree-rules" 
-                checked={agreeRules} 
-                onChange={(e) => setAgreeRules(e.target.checked)}
-                required
-                style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: 'var(--g-secondary)' }}
-              />
-              <label htmlFor="agree-rules" style={{ color: 'var(--g-text-secondary)', fontSize: '0.92rem', cursor: 'pointer', userSelect: 'none' }}>
-                I agree to the{' '}
-                <button
-                  type="button"
-                  onClick={() => setShowRulesModal(true)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    color: 'var(--g-secondary)',
-                    textDecoration: 'underline',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: '0.92rem',
-                    fontFamily: 'inherit'
-                  }}
+              <div style={{ marginTop: '24px', display: 'flex', gap: '12px' }}>
+                <button 
+                  type="button" 
+                  onClick={handleLogout} 
+                  className="guest-btn guest-btn-secondary" 
+                  style={{ flex: 1, padding: '12px' }}
                 >
-                  Rules & Regulations
-                </button>{' '}
-                of STRATA 2K26
-              </label>
+                  Cancel / Sign Out
+                </button>
+                <button 
+                  type="submit" 
+                  className="guest-btn guest-btn-primary" 
+                  disabled={submitting}
+                  style={{ flex: 2, padding: '12px' }}
+                >
+                  {submitting ? 'Registering...' : 'Save & Enter Portal →'}
+                </button>
+              </div>
             </div>
-          </div>
-
-          <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'center' }}>
-            <button 
-              type="submit" 
-              className="guest-btn guest-btn-primary" 
-              disabled={submitting}
-              style={{ width: '100%', maxWidth: '400px' }}
-            >
-              {submitting ? 'Registering...' : 'Register Leader & Go To Team Portal →'}
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
       </section>
+
 
       {/* Rules Modal Popup */}
       {showRulesModal && (

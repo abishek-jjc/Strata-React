@@ -1623,3 +1623,57 @@ body.light-theme .guest-modal-rules-list li {
     gap: 10px !important;
   }
 }
+
+/* Red Blinking Demo Video Button */
+.guest-btn-video.blinking-red {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+  border: 1.5px solid transparent !important;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4) !important;
+  animation: guest-red-outline-blink 0.4s infinite alternate ease-in-out !important;
+  transition: all 0.3s ease !important;
+}
+
+.guest-btn-video.blinking-red:hover {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+  transform: translateY(-6px) scale(1.08) !important;
+  box-shadow: 0 0 0 4px #ffffff, 0 0 0 8px #ef4444, 0 15px 35px rgba(239, 68, 68, 0.8) !important;
+  animation: none !important;
+}
+
+@keyframes guest-red-outline-blink {
+  0% {
+    background: #ef4444 !important;
+    box-shadow: 0 0 0 2px #ef4444, 0 4px 15px rgba(239, 68, 68, 0.45);
+  }
+  100% {
+    background: #dc2626 !important;
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.55), 0 4px 15px rgba(239, 68, 68, 0.45);
+  }
+}
+
+body.light-theme .guest-btn-video.blinking-red {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 15px rgba(220, 38, 38, 0.35) !important;
+}
+
+body.light-theme .guest-btn-video.blinking-red:hover {
+  background: #b91c1c !important;
+  color: #ffffff !important;
+  box-shadow: 0 15px 35px rgba(220, 38, 38, 0.6) !important;
+}
+
+/* Static 20px Play/Video Icon */
+.guest-btn-video.blinking-red svg {
+  width: 20px !important;
+  height: 20px !important;
+  transition: transform 0.3s ease !important;
+}
+
+/* Hover style overrides for the icon */
+.guest-btn-video.blinking-red:hover svg {
+  transform: scale(1.25) rotate(-10deg) !important;
+}

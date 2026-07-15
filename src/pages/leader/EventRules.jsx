@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
 import { TABLES } from '../../supabase/tables'
+import BackButton from '../../components/common/BackButton'
 
 export default function EventRules() {
   const [events, setEvents] = useState([])
   const [venues, setVenues] = useState([])
+  const [incharges, setIncharges] = useState([])
   const [activeEventId, setActiveEventId] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function loadData() {
-      const [eventsRes, venuesRes] = await Promise.all([
+      const [eventsRes, venuesRes, inchargesRes] = await Promise.all([
         supabase
           .from(TABLES.EVENTS)
           .select('*')
@@ -18,6 +20,9 @@ export default function EventRules() {
           .order('event_name', { ascending: true }),
         supabase
           .from(TABLES.VENUES)
+          .select('*'),
+        supabase
+          .from(TABLES.INCHARGES)
           .select('*')
       ])
       if (eventsRes.data) {
@@ -26,6 +31,9 @@ export default function EventRules() {
       }
       if (venuesRes.data) {
         setVenues(venuesRes.data)
+      }
+      if (inchargesRes.data) {
+        setIncharges(inchargesRes.data)
       }
       setLoading(false)
     }
@@ -39,16 +47,22 @@ export default function EventRules() {
   }
 
   const activeEvent = events.find(e => e.id === activeEventId)
+  const staffInchargeObj = activeEvent ? incharges.find(i => i.id === activeEvent.staff_incharge) : null
+  const staffName = staffInchargeObj ? staffInchargeObj.name : 'TBD'
+  const staffEmail = staffInchargeObj ? staffInchargeObj.email : null
 
   if (loading) return <p className="muted">Loading events...</p>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div>
-        <h2 style={{ marginBottom: '4px' }}>Event Rules</h2>
-        <p className="muted" style={{ fontSize: '0.9rem' }}>
-          View rules, guidelines, staff-in-charge, and venue details for each event.
-        </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <BackButton />
+        <div>
+          <h2 style={{ margin: 0 }}>Event Rules</h2>
+          <p className="muted" style={{ fontSize: '0.9rem', marginTop: '4px' }}>
+            View rules, guidelines, staff-in-charge, and venue details for each event.
+          </p>
+        </div>
       </div>
 
       {/* Horizontal event scroller */}
@@ -109,7 +123,7 @@ export default function EventRules() {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
                   <div>
-                    <div style={{ fontSize: '1.6rem', fontWeight: 800, fontFamily: 'Syne, sans-serif', color: '#fff', marginBottom: '6px' }}>
+                    <div style={{ fontSize: '1.6rem', fontWeight: 800, fontFamily: 'Syne, sans-serif', color: 'var(--text-primary)', marginBottom: '6px' }}>
                       {activeEvent.event_name}
                     </div>
                     {activeEvent.category && (
@@ -146,12 +160,12 @@ export default function EventRules() {
                     {activeEvent.preliminary && (
                       <div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: '2px' }}>Preliminaries</div>
-                        <div style={{ color: '#fff', fontWeight: 600 }}>{activeEvent.preliminary}</div>
+                        <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{activeEvent.preliminary}</div>
                       </div>
                     )}
                     <div>
                       <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: '2px' }}>Mains / Finals</div>
-                      <div style={{ color: '#fff', fontWeight: 600 }}>{activeEvent.mains || '—'}</div>
+                      <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{activeEvent.mains || '—'}</div>
                     </div>
                   </div>
                 </div>
@@ -165,12 +179,12 @@ export default function EventRules() {
                     {activeEvent.prelims_venue && (
                       <div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: '2px' }}>Prelims Venue</div>
-                        <div style={{ color: '#fff', fontWeight: 600 }}>{getVenueName(activeEvent.prelims_venue)}</div>
+                        <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{getVenueName(activeEvent.prelims_venue)}</div>
                       </div>
                     )}
                     <div>
                       <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: '2px' }}>Mains Venue</div>
-                      <div style={{ color: '#fff', fontWeight: 600 }}>{getVenueName(activeEvent.mains_venue)}</div>
+                      <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{getVenueName(activeEvent.mains_venue)}</div>
                     </div>
                   </div>
                 </div>
@@ -181,9 +195,9 @@ export default function EventRules() {
                     <div style={{ fontSize: '0.75rem', color: 'var(--accent)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '12px', letterSpacing: '0.08em' }}>
                       👤 Staff In-Charge
                     </div>
-                    <div style={{ color: '#fff', fontWeight: 600, fontSize: '1rem' }}>{activeEvent.staff_incharge}</div>
-                    {activeEvent.staff_contact && (
-                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '6px' }}>{activeEvent.staff_contact}</div>
+                    <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '1rem' }}>{staffName}</div>
+                    {staffEmail && (
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '6px' }}>{staffEmail}</div>
                     )}
                   </div>
                 )}

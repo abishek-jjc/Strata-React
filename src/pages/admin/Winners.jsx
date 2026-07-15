@@ -88,6 +88,13 @@ export default function Winners() {
   )
 
   const selectedEvent = events.find((e) => e.id === selectedEventId)
+  const hasPrelims = !!(selectedEvent?.prelims_venue || selectedEvent?.preliminary)
+
+  useEffect(() => {
+    if (selectedEvent && !hasPrelims && activeTab === 'prelims') {
+      setActiveTab('mains')
+    }
+  }, [selectedEvent, hasPrelims, activeTab])
 
   // Only show contestants that are registered for this event
   const eventRegs = selectedEventId
@@ -491,39 +498,41 @@ export default function Winners() {
         {selectedEvent ? (
           <div>
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', marginBottom: '24px' }}>
-              <button
-                type="button"
-                className={`btn ${activeTab === 'prelims' ? 'btn-primary' : ''}`}
-                onClick={() => setActiveTab('prelims')}
-                style={{
-                  borderBottomLeftRadius: 0,
-                  borderBottomRightRadius: 0,
-                  borderBottom: activeTab === 'prelims' ? '2px solid var(--accent)' : 'none',
-                  padding: '12px 20px',
-                  fontSize: '0.9rem',
-                }}
-              >
-                1. Preliminary Qualifiers
-              </button>
-              <button
-                type="button"
-                className={`btn ${activeTab === 'mains' ? 'btn-primary' : ''}`}
-                onClick={() => setActiveTab('mains')}
-                style={{
-                  borderBottomLeftRadius: 0,
-                  borderBottomRightRadius: 0,
-                  borderBottom: activeTab === 'mains' ? '2px solid var(--accent)' : 'none',
-                  padding: '12px 20px',
-                  fontSize: '0.9rem',
-                }}
-              >
-                2. Final Winners (Mains)
-              </button>
-            </div>
+            {hasPrelims && (
+              <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', marginBottom: '24px' }}>
+                <button
+                  type="button"
+                  className={`btn ${activeTab === 'prelims' ? 'btn-primary' : ''}`}
+                  onClick={() => setActiveTab('prelims')}
+                  style={{
+                    borderBottomLeftRadius: 0,
+                    borderBottomRightRadius: 0,
+                    borderBottom: activeTab === 'prelims' ? '2px solid var(--accent)' : 'none',
+                    padding: '12px 20px',
+                    fontSize: '0.9rem',
+                  }}
+                >
+                  1. Preliminary Qualifiers
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${activeTab === 'mains' ? 'btn-primary' : ''}`}
+                  onClick={() => setActiveTab('mains')}
+                  style={{
+                    borderBottomLeftRadius: 0,
+                    borderBottomRightRadius: 0,
+                    borderBottom: activeTab === 'mains' ? '2px solid var(--accent)' : 'none',
+                    padding: '12px 20px',
+                    fontSize: '0.9rem',
+                  }}
+                >
+                  2. Final Winners (Mains)
+                </button>
+              </div>
+            )}
 
             {/* TAB CONTENT: PRELIMS */}
-            {activeTab === 'prelims' && (
+            {hasPrelims && activeTab === 'prelims' && (
               <div className="card" style={{ padding: '24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <h3 style={{ margin: 0 }}>Configure Prelims Qualifiers</h3>

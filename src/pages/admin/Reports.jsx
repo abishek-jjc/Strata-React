@@ -27,6 +27,10 @@ export default function Reports() {
   const [isManyDropdownOpen, setIsManyDropdownOpen] = useState(false)
   const dropdownRef = useRef(null)
 
+  // Excel Export Column Selection states
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false)
+  const [selectedColumns, setSelectedColumns] = useState([])
+
   // Fetch all necessary tables reactively
   const { data: events, loading: eventsLoading } = useTable(TABLES.EVENTS)
   const { data: students, loading: studentsLoading } = useTable(TABLES.STUDENTS)
@@ -113,12 +117,11 @@ export default function Reports() {
         .filter((s) => activeEventIds.has(s.event_id))
         .map((s) => ({
           'Event Name': eventName(s.event_id),
-          'Student Name': s.student_name,
-          'Gender': s.gender || '—',
-          'Department': s.department || '—',
-          'Year': s.year || '—',
-          'College': collegeName(s.college_id),
+          'Participant Name': s.student_name,
+          'Roll No': s.roll_no || '—',
           'Lot Name': collegeLot(s.college_id, s.registration_id),
+          'College Name': colleges.find((col) => col.id === s.college_id)?.college || '—',
+          'Department Name': s.department || '—',
         }))
     }
 
@@ -299,14 +302,24 @@ export default function Reports() {
   }
 
   function handleExportExcel() {
+    if (filtered.length === 0) {
+      alert('No data to export.')
+      return
+    }
+    setSelectedColumns([...columns])
+    setIsExportModalOpen(true)
+  }
+
+  function confirmExportExcel() {
     const dataToExport = filtered.map((row) => {
       const newRow = {}
-      columns.forEach((col) => {
+      selectedColumns.forEach((col) => {
         newRow[col] = row[col]
       })
       return newRow
     })
     exportToExcel(dataToExport, `${active}_report`)
+    setIsExportModalOpen(false)
   }
 
   // Toggle selection for Multi-Event checklist
@@ -636,6 +649,87 @@ export default function Reports() {
             </div>
           )}
         </>
+      )}
+
+      {/* Excel Export Column Selection Modal */}
+      {isExportModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsExportModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: 'var(--accent, #f9c20a)', fontSize: '1.2rem' }}>
+              Select Columns to Export
+            </h3>
+            
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', borderBottom: '1px solid var(--border, #2a2d35)', paddingBottom: '10px' }}>
+              <button
+                type="button"
+                className="link"
+                style={{ fontSize: '0.8rem', background: 'none', border: 'none', color: 'var(--accent, #f9c20a)', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+                onClick={() => setSelectedColumns([...columns])}
+              >
+                Select All
+              </button>
+              <span style={{ color: 'var(--text-secondary, #888)' }}>|</span>
+              <button
+                type="button"
+                className="link danger"
+                style={{ fontSize: '0.8rem', background: 'none', border: 'none', color: 'var(--danger, #ef4444)', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+                onClick={() => setSelectedColumns([])}
+              >
+                Clear All
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto', marginBottom: '16px' }}>
+              {columns.map((col) => {
+                const isChecked = selectedColumns.includes(col)
+                return (
+                  <label
+                    key={col}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      color: isChecked ? 'var(--accent, #f9c20a)' : 'var(--text-primary, #fff)',
+                      background: isChecked ? 'rgba(249, 194, 10, 0.08)' : 'transparent',
+                      transition: 'all 0.15s ease',
+                      border: '1px solid ' + (isChecked ? 'rgba(249, 194, 10, 0.2)' : 'transparent')
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {
+                        setSelectedColumns((prev) =>
+                          prev.includes(col) ? prev.filter((c) => c !== col) : [...prev, col]
+                        )
+                      }}
+                      style={{ accentColor: 'var(--accent, #f9c20a)' }}
+                    />
+                    {col}
+                  </label>
+                )
+              })}
+            </div>
+
+            <div className="modal-actions" style={{ borderTop: '1px solid var(--border, #2a2d35)', paddingTop: '12px', marginTop: 0 }}>
+              <button type="button" className="btn" onClick={() => setIsExportModalOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={selectedColumns.length === 0}
+                onClick={confirmExportExcel}
+              >
+                Export Excel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

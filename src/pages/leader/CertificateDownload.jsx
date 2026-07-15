@@ -5,6 +5,8 @@ import { useTable } from '../../hooks/useTable'
 import { TABLES } from '../../supabase/tables'
 import { generateCertificatePdf } from '../../utils/pdfCertificate'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import BackButton from '../../components/common/BackButton'
+
 
 const defaultLayouts = {
   participation: {
@@ -281,8 +283,17 @@ export default function CertificateDownload() {
   }
 
   return (
-    <div>
-      <h2>Certificates Download</h2>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <BackButton />
+        <div>
+          <h2 style={{ margin: 0 }}>Certificates Download</h2>
+          <p className="muted" style={{ fontSize: '0.9rem', marginTop: '4px' }}>
+            Download participation and merit certificates for your college candidates.
+          </p>
+        </div>
+      </div>
+
 
       <div className="card" style={{ padding: '24px', marginBottom: '30px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>

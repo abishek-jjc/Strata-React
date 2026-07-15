@@ -49,6 +49,9 @@ import CertificateDownload from './pages/leader/CertificateDownload'
 import LeaderProfile from './pages/leader/Profile'
 import LeaderPayment from './pages/leader/Payment'
 import LeaderWhatsApp from './pages/leader/WhatsApp'
+import LeaderParticipants from './pages/leader/Participants'
+import LeaderMore from './pages/leader/More'
+
 
 
 function withShell(element) {
@@ -114,6 +117,9 @@ export default function App() {
             <Route path="/leader/profile" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderProfile />)}</ProtectedRoute>} />
             <Route path="/leader/payment" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderPayment />)}</ProtectedRoute>} />
             <Route path="/leader/whatsapp" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderWhatsApp />)}</ProtectedRoute>} />
+            <Route path="/leader/participants" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderParticipants />)}</ProtectedRoute>} />
+            <Route path="/leader/more" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderMore />)}</ProtectedRoute>} />
+
 
             {/* Incharge */}
             <Route path="/incharge" element={<ProtectedRoute allow={['incharge']}>{withShell(<InchargeDashboard />)}</ProtectedRoute>} />

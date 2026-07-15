@@ -189,6 +189,18 @@ export default function Home() {
           State Level Intercollegiate Technical Meet organized by the <strong>Department of Computer Science</strong>
         </p>
 
+        <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
+          <a
+            href="https://drive.google.com/file/d/1-d93aMC5PH5yswF-q0zDnMwAYjCa9KnS/view?usp=sharing"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="guest-btn guest-btn-video blinking-red"
+          >
+            <Video size={20} />
+            Click to Watch Demo Video
+          </a>
+        </div>
+
         <div className="guest-cta-container">
           <Link to="/login" className="guest-btn guest-btn-primary">
             Login Portal →
@@ -207,15 +219,6 @@ export default function Home() {
           <Link to="/events" className="guest-btn guest-btn-secondary">
             Explore Contests
           </Link>
-          <a
-            href="https://drive.google.com/file/d/1-d93aMC5PH5yswF-q0zDnMwAYjCa9KnS/view?usp=sharing"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="guest-btn guest-btn-video"
-          >
-            <Video size={18} />
-            Click to Watch Demo Video
-          </a>
         </div>
 
         {/* Countdown */}

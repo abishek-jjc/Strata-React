@@ -1,42 +1,116 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../auth/AuthContext'
 import { TABLES } from '../../supabase/tables'
+import BackButton from '../../components/common/BackButton'
 
 export default function Profile() {
-  const { profile, user } = useAuth()
+  const { profile, user, logout, refreshProfile } = useAuth()
+  const navigate = useNavigate()
+
   const [collegeName, setCollegeName] = useState('')
   const [leaderDetails, setLeaderDetails] = useState(null)
 
-  useEffect(() => {
-    async function loadDetails() {
-      if (!profile?.college_id) return
-      const { data: college } = await supabase
-        .from(TABLES.COLLEGES)
-        .select('college, department')
-        .eq('id', profile.college_id)
-        .maybeSingle()
-      if (college) {
-        setCollegeName(college.department ? `${college.college} (${college.department})` : college.college)
-      }
+  // Edit states
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [editError, setEditError] = useState('')
 
-      if (profile?.ref_id) {
-        const { data: leader } = await supabase
-          .from(TABLES.STUDENT_LEADERS)
-          .select('name, phone, department, email')
-          .eq('id', profile.ref_id)
-          .maybeSingle()
-        if (leader) setLeaderDetails(leader)
+  // Theme states & sync
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light')
+
+  useEffect(() => {
+    const handleThemeChange = (e) => {
+      setTheme(e.detail)
+    }
+    window.addEventListener('themechange', handleThemeChange)
+    return () => window.removeEventListener('themechange', handleThemeChange)
+  }, [])
+
+  function toggleTheme() {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(nextTheme)
+    localStorage.setItem('theme', nextTheme)
+    window.dispatchEvent(new CustomEvent('themechange', { detail: nextTheme }))
+  }
+
+
+  async function loadDetails() {
+    if (!profile?.college_id) return
+    const { data: college } = await supabase
+      .from(TABLES.COLLEGES)
+      .select('college, department')
+      .eq('id', profile.college_id)
+      .maybeSingle()
+    if (college) {
+      setCollegeName(college.department ? `${college.college} (${college.department})` : college.college)
+    }
+
+    if (profile?.ref_id) {
+      const { data: leader } = await supabase
+        .from(TABLES.STUDENT_LEADERS)
+        .select('name, phone, department, email')
+        .eq('id', profile.ref_id)
+        .maybeSingle()
+      if (leader) {
+        setLeaderDetails(leader)
+        setEditName(leader.name || '')
+        setEditPhone(leader.phone || '')
       }
     }
+  }
+
+  useEffect(() => {
     loadDetails()
   }, [profile])
 
+  async function handleLogout() {
+    await logout()
+    navigate('/login')
+  }
+
+  async function handleSaveEdit(e) {
+    e.preventDefault()
+    setEditError('')
+
+    if (!editName.trim() || editName.trim().length < 3) {
+      return setEditError('Name must contain at least 3 characters.')
+    }
+    if (!editPhone.trim() || editPhone.trim().length < 10) {
+      return setEditError('Please enter a valid 10-digit mobile number.')
+    }
+
+    setSaving(true)
+    try {
+      const { error } = await supabase.rpc('update_leader_profile_data', {
+        p_name: editName.trim(),
+        p_phone: editPhone.trim()
+      })
+      if (error) throw error
+
+      await refreshProfile()
+      await loadDetails()
+      setIsEditing(false)
+    } catch (err) {
+      setEditError(err.message || 'Failed to update profile details.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div style={{ maxWidth: '680px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div>
-        <h2 style={{ marginBottom: '4px' }}>My Profile</h2>
-        <p className="muted" style={{ fontSize: '0.9rem' }}>Your account information as a registered student leader.</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <BackButton />
+        <div>
+          <h2 style={{ margin: 0 }}>My Profile</h2>
+          <p className="muted" style={{ fontSize: '0.9rem', marginTop: '4px' }}>
+            Your account information and settings as a registered student leader.
+          </p>
+        </div>
       </div>
 
       {/* Avatar + Name Card */}
@@ -56,19 +130,30 @@ export default function Profile() {
           {profile?.name?.charAt(0).toUpperCase() || '?'}
         </div>
         <div>
-          <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#fff' }}>{profile?.name || '—'}</div>
+          <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)' }}>{profile?.name || '—'}</div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'capitalize', marginTop: '2px' }}>
             {profile?.role} · Student Leader Coordinator
           </div>
+
         </div>
       </div>
 
       {/* Account Details */}
       <div className="card" style={{ padding: '28px' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '20px', color: 'var(--accent)', fontSize: '1rem' }}>Account Details</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h3 style={{ margin: 0, color: 'var(--accent)', fontSize: '1rem' }}>Account Details</h3>
+          <button 
+            onClick={() => setIsEditing(true)} 
+            className="btn" 
+            style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+          >
+            ✏️ Edit Profile
+          </button>
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', rowGap: '14px', columnGap: '12px', alignItems: 'center' }}>
           <span className="muted" style={{ fontSize: '0.85rem' }}>Full Name</span>
-          <strong style={{ color: '#fff' }}>{profile?.name || '—'}</strong>
+          <strong style={{ color: 'var(--text-primary)' }}>{profile?.name || '—'}</strong>
 
           <span className="muted" style={{ fontSize: '0.85rem' }}>Google Email (Auth)</span>
           <span style={{ wordBreak: 'break-all' }}>{user?.email || leaderDetails?.email || '—'}</span>
@@ -80,7 +165,7 @@ export default function Profile() {
           <span>{leaderDetails?.department || '—'}</span>
 
           <span className="muted" style={{ fontSize: '0.85rem' }}>College</span>
-          <strong style={{ color: '#fff' }}>{collegeName || 'Loading...'}</strong>
+          <strong style={{ color: 'var(--text-primary)' }}>{collegeName || 'Loading...'}</strong>
 
           <span className="muted" style={{ fontSize: '0.85rem' }}>Role</span>
           <span style={{ textTransform: 'capitalize' }}>
@@ -104,7 +189,7 @@ export default function Profile() {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
           <span style={{ fontSize: '1.4rem' }}>🔐</span>
           <div>
-            <div style={{ fontWeight: 600, color: '#fff', marginBottom: '6px' }}>Google Authentication</div>
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>Google Authentication</div>
             <div className="muted" style={{ fontSize: '0.85rem', lineHeight: '1.6' }}>
               Your account is secured with Google Sign-In. Password management is handled through your Google account at{' '}
               <a href="https://myaccount.google.com" target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>
@@ -114,6 +199,100 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {/* Theme Settings Card */}
+      <div className="card" style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1rem' }}>Display Theme</h3>
+          <p className="muted" style={{ margin: '4px 0 0 0', fontSize: '0.85rem' }}>
+            Switch between light and dark visual modes.
+          </p>
+        </div>
+        
+        <button
+          onClick={toggleTheme}
+          className="btn"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 18px',
+            borderRadius: '10px',
+            fontSize: '0.88rem',
+            fontWeight: '600',
+            cursor: 'pointer'
+          }}
+        >
+          <span>{theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode'}</span>
+        </button>
+      </div>
+
+      {/* Logout button */}
+      <button 
+
+        onClick={handleLogout} 
+        className="btn"
+        style={{ 
+          width: '100%', 
+          justifyContent: 'center', 
+          background: 'rgba(255, 23, 68, 0.08)', 
+          border: '1px solid rgba(255, 23, 68, 0.25)', 
+          color: '#ff1744',
+          padding: '14px',
+          borderRadius: '12px',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontSize: '0.95rem',
+          fontWeight: '600',
+          transition: 'all 0.2s',
+          marginTop: '10px'
+        }}
+      >
+        <span>Sign Out / Log Out</span>
+      </button>
+
+      {/* Edit Profile Modal */}
+      {isEditing && (
+        <div className="modal-backdrop" onClick={() => setIsEditing(false)}>
+          <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSaveEdit} style={{ maxWidth: '500px', width: '100%' }}>
+            <h3>Edit Profile Details</h3>
+            
+            <label className="field">
+              <span>Full Name *</span>
+              <input
+                type="text"
+                required
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </label>
+
+            <label className="field">
+              <span>Mobile Phone *</span>
+              <input
+                type="text"
+                required
+                placeholder="10-digit mobile number"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+              />
+            </label>
+
+            {editError && <p className="error">{editError}</p>}
+
+            <div className="modal-actions">
+              <button type="button" className="btn" onClick={() => setIsEditing(false)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   )
 }

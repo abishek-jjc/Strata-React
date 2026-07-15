@@ -42,14 +42,8 @@ export default function StudentList() {
     if (!editingStudent.student_name || editingStudent.student_name.trim().length < 3) {
       return setError('Student name must contain at least 3 characters.')
     }
-    if (!editingStudent.gender) {
-      return setError('Please select a gender.')
-    }
     if (!editingStudent.department || !editingStudent.department.trim()) {
       return setError('Please enter a department.')
-    }
-    if (!editingStudent.year) {
-      return setError('Please select a year.')
     }
 
     setSaving(true)
@@ -60,9 +54,7 @@ export default function StudentList() {
         student_name: editingStudent.student_name,
         roll_no: editingStudent.roll_no || '',
         food_type: editingStudent.food_type || 'Veg',
-        gender: editingStudent.gender,
         department: editingStudent.department.trim(),
-        year: editingStudent.year
       })
       .eq('id', editingStudent.id)
 
@@ -135,16 +127,8 @@ export default function StudentList() {
                   </div>
                   <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px', marginTop: '4px' }}>
                     <div>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>Gender</span>
-                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{s.gender || '—'}</strong>
-                    </div>
-                    <div>
                       <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>Department</span>
                       <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{s.department || '—'}</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>Year</span>
-                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{s.year || '—'}</strong>
                     </div>
                     <div>
                       <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>Food Choice</span>
@@ -204,20 +188,7 @@ export default function StudentList() {
               </select>
             </label>
 
-            <label className="field">
-              <span>Gender</span>
-              <select
-                required
-                value={editingStudent.gender || ''}
-                onChange={(e) => setEditingStudent({ ...editingStudent, gender: e.target.value })}
-              >
-                <option value="">Select gender…</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-            </label>
-
-            <label className="field">
+             <label className="field">
               <span>Department</span>
               <input
                 type="text"
@@ -225,22 +196,6 @@ export default function StudentList() {
                 value={editingStudent.department || ''}
                 onChange={(e) => setEditingStudent({ ...editingStudent, department: e.target.value })}
               />
-            </label>
-
-            <label className="field">
-              <span>Year</span>
-              <select
-                required
-                value={editingStudent.year || ''}
-                onChange={(e) => setEditingStudent({ ...editingStudent, year: e.target.value })}
-              >
-                <option value="">Select year…</option>
-                <option value="I Year">I Year</option>
-                <option value="II Year">II Year</option>
-                <option value="III Year">III Year</option>
-                <option value="I PG">I PG</option>
-                <option value="II PG">II PG</option>
-              </select>
             </label>
 
             <label className="field">

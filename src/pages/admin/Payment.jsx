@@ -431,19 +431,6 @@ export default function Payment() {
                   <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
                     <button
                       type="button"
-                      className="btn btn-danger"
-                      disabled={saving}
-                      onClick={() => {
-                        if (confirm('Are you sure you want to reset all payment records for this institution? This resets their paid count to 0.')) {
-                          handleUpdateStatus(false);
-                        }
-                      }}
-                      style={{ flex: 1, padding: '10px' }}
-                    >
-                      Reset & Mark Unpaid
-                    </button>
-                    <button
-                      type="button"
                       className="btn btn-secondary"
                       onClick={() => setEditingCollege(null)}
                       style={{ flex: 1, padding: '10px' }}

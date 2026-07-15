@@ -1,5 +1,6 @@
 import { useTable } from '../../hooks/useTable'
 import { TABLES } from '../../supabase/tables'
+import BackButton from '../../components/common/BackButton'
 
 export default function WhatsApp() {
   const { data: settings, loading } = useTable(TABLES.SETTINGS)
@@ -9,8 +10,13 @@ export default function WhatsApp() {
   const whatsappLink = settings.find(s => s.key_name === 'whatsapp_group_link')?.value || ''
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-      <h2>WhatsApp Community</h2>
+    <div style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <BackButton />
+        <div>
+          <h2 style={{ margin: 0 }}>WhatsApp Community</h2>
+        </div>
+      </div>
       
       <div className="card" style={{ padding: '30px', textAlign: 'center' }}>
         <div style={{

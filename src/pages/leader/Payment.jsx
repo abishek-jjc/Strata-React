@@ -4,10 +4,13 @@ import { useAuth } from '../../auth/AuthContext'
 import { TABLES } from '../../supabase/tables'
 import { useTable } from '../../hooks/useTable'
 import QRCode from 'qrcode'
+import BackButton from '../../components/common/BackButton'
 
 export default function Payment() {
   const { profile } = useAuth()
   const [qrCodeUrl, setQrCodeUrl] = useState('')
+  const [clearingDeskName, setClearingDeskName] = useState('')
+
 
   const { data: colleges, loading: colLoading } = useTable(TABLES.COLLEGES, [
     ['id', 'eq', profile?.college_id]
@@ -41,25 +44,55 @@ export default function Payment() {
   const myCollegeName = myCollege?.department ? `${myCollege.college} (${myCollege.department})` : myCollege?.college
   const upiId = settings.find(s => s.key_name === 'upi_id')?.value || ''
 
+  const payeeNameEncoded = encodeURIComponent('STRATA 2K26')
+  const noteEncoded = encodeURIComponent(`Fee for ${myCollegeName || 'College'}`)
+  const upiLink = `upi://pay?pa=${upiId}&pn=${payeeNameEncoded}&am=${pendingTotal}&cu=INR&tn=${noteEncoded}`
+
   useEffect(() => {
     if (!loading && upiId && pendingTotal > 0) {
-      const payeeName = encodeURIComponent('STRATA 2K26')
-      const note = encodeURIComponent(`Fee for ${myCollegeName}`)
-      const upiLink = `upi://pay?pa=${upiId}&pn=${payeeName}&am=${pendingTotal}&cu=INR&tn=${note}`
-      
       QRCode.toDataURL(upiLink, { width: 280, margin: 2 })
         .then(url => setQrCodeUrl(url))
         .catch(err => console.error('Failed to generate QR code:', err))
     } else {
       setQrCodeUrl('')
     }
-  }, [loading, upiId, pendingTotal, myCollegeName])
+  }, [loading, upiId, pendingTotal, upiLink])
+
+  useEffect(() => {
+    async function loadClearingDesk() {
+      if (!isPaid || !myCollegeName) return
+      
+      try {
+        const { data, error } = await supabase
+          .from(TABLES.PAYMENT_LOGS)
+          .select('poll_name')
+          .eq('college_name', myCollegeName)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (!error && data) {
+          setClearingDeskName(data.poll_name || '')
+        }
+      } catch (err) {
+        console.error('Failed to load clearing desk:', err)
+      }
+    }
+    loadClearingDesk()
+  }, [isPaid, myCollegeName])
+
+
 
   if (loading) return <p className="muted">Loading payment details...</p>
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-      <h2>Payment Info</h2>
+    <div style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <BackButton />
+        <div>
+          <h2 style={{ margin: 0 }}>Payment Info</h2>
+        </div>
+      </div>
 
       {!hasRegistrations ? (
         <div className="card" style={{ padding: '30px', textAlign: 'center', border: '1px dashed var(--border)' }}>
@@ -109,11 +142,17 @@ export default function Payment() {
                   <strong style={{ color: '#10b981', display: 'block', fontSize: '1.05rem', marginBottom: '4px' }}>
                     Payment Fully Confirmed ✅
                   </strong>
-                  <span className="muted" style={{ fontSize: '0.9rem' }}>
+                  <span className="muted" style={{ fontSize: '0.9rem', display: 'block' }}>
                     All {students.length} registered students are paid for. Thank you!
                   </span>
+                  {clearingDeskName && (
+                    <span style={{ fontSize: '0.82rem', color: '#10b981', display: 'block', marginTop: '6px', fontWeight: 600 }}>
+                      Cleared at Desk: {clearingDeskName}
+                    </span>
+                  )}
                 </div>
               </div>
+
 
               {whatsappLink && (
                 <div style={{
@@ -239,7 +278,28 @@ export default function Payment() {
                       <strong style={{ color: 'var(--text-primary)' }}>{upiId}</strong>
                     </div>
                   )}
+                  <a
+                    href={upiLink}
+                    className="btn btn-primary"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      padding: '12px 24px',
+                      borderRadius: '8px',
+                      fontWeight: 'bold',
+                      textDecoration: 'none',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      boxShadow: '0 4px 15px rgba(0, 229, 255, 0.25)',
+                      marginBottom: '15px'
+                    }}
+                  >
+                    📱 Pay via UPI App (GPay/PhonePe)
+                  </a>
                 </>
+
               ) : (
                 <div style={{
                   border: '1px dashed var(--border)',

@@ -112,10 +112,9 @@ export default function Dashboard() {
     const q = search.toLowerCase()
     const nameMatch = s.student_name.toLowerCase().includes(q)
     const emailMatch = (s.email || '').toLowerCase().includes(q)
-    const classMatch = (s.year || '').toLowerCase().includes(q)
     const collegeName = colleges.find((c) => c.id === s.college_id)?.college || ''
     const collegeMatch = collegeName.toLowerCase().includes(q)
-    return nameMatch || emailMatch || classMatch || collegeMatch
+    return nameMatch || emailMatch || collegeMatch
   })
 
   const getCollegeName = (id) => colleges.find((c) => c.id === id)?.college || 'Loading…'
@@ -143,12 +142,14 @@ export default function Dashboard() {
               <div className="stat-label">Category</div>
               <div style={{ fontWeight: 'bold', marginTop: 5 }}>{event.category || 'N/A'}</div>
             </div>
-            <div className="stat" style={{ border: '1px solid var(--border)', background: 'var(--bg-muted)', padding: 10 }}>
-              <div className="stat-label">Prelims Time & Venue</div>
-              <div style={{ fontWeight: 'bold', marginTop: 5 }}>
-                {event.preliminary || 'N/A'} · {prelimsVenue}
-              </div>
-            </div>
+             {!!(event.preliminary || event.prelims_venue) && (
+               <div className="stat" style={{ border: '1px solid var(--border)', background: 'var(--bg-muted)', padding: 10 }}>
+                 <div className="stat-label">Prelims Time & Venue</div>
+                 <div style={{ fontWeight: 'bold', marginTop: 5 }}>
+                   {event.preliminary || 'N/A'} · {prelimsVenue}
+                 </div>
+               </div>
+             )}
             <div className="stat" style={{ border: '1px solid var(--border)', background: 'var(--bg-muted)', padding: 10 }}>
               <div className="stat-label">Mains Time & Venue</div>
               <div style={{ fontWeight: 'bold', marginTop: 5 }}>
@@ -187,7 +188,6 @@ export default function Dashboard() {
           <thead>
             <tr>
               <th>Student Name</th>
-              <th>Class (Year)</th>
               <th>Email</th>
               <th>College</th>
               <th>Winner Position</th>
@@ -198,7 +198,6 @@ export default function Dashboard() {
             {filteredStudents.map((s) => (
               <tr key={s.id}>
                 <td>{s.student_name}</td>
-                <td>{s.year || '—'}</td>
                 <td>{s.email || '—'}</td>
                 <td>{getCollegeName(s.college_id)}</td>
                 <td>

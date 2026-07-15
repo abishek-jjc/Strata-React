@@ -6,14 +6,14 @@ import { useTable } from '../../hooks/useTable'
 import { TABLES } from '../../supabase/tables'
 import { hasDuplicateNamesWithinTeam } from '../../utils/validators'
 import { useSettings } from '../../context/SettingsContext'
+import BackButton from '../../components/common/BackButton'
+
 
 const emptyParticipant = () => ({ 
   studentName: '', 
   rollNo: '', 
-  food: '-', 
-  gender: 'Male', 
+  food: '', 
   department: '-', 
-  year: 'I Year' 
 })
 
 export default function TeamRegistration() {
@@ -35,6 +35,8 @@ export default function TeamRegistration() {
   const [editingStudent, setEditingStudent] = useState(null)
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
+  const [showRulesModal, setShowRulesModal] = useState(false)
+
 
   const { settings } = useSettings()
   const isEventStarted = settings.event_started === 'true'
@@ -133,6 +135,9 @@ export default function TeamRegistration() {
     if (names.some(n => !n)) return setRegError('Every participant needs a name.')
     if (names.some(n => n.length < 3)) return setRegError('Every participant name must contain at least 3 characters.')
     if (regParticipants.some(p => !p.rollNo?.trim())) return setRegError('Every participant needs a roll number.')
+    if (regParticipants.some(p => !p.food || p.food === '-')) {
+      return setRegError('Please select a food choice (Veg or Non-Veg) for all participants.')
+    }
     if (regParticipants.length !== teamSize) return setRegError(`This event requires exactly ${teamSize} participant(s).`)
     if (hasDuplicateNamesWithinTeam(names)) return setRegError('Two participants in this team have the same name.')
     
@@ -169,9 +174,9 @@ export default function TeamRegistration() {
         p_participants: regParticipants.map(p => ({
           studentName: p.studentName.trim(),
           rollNo: p.rollNo.trim(),
-          gender: p.gender || 'Male',
+          gender: null,
           department: p.department || '-',
-          year: p.year || 'I Year',
+          year: null,
           food: p.food || '-',
           foodType: p.food || '-'
         })),
@@ -264,12 +269,16 @@ export default function TeamRegistration() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div>
-        <h2 style={{ marginBottom: '4px' }}>Registration & Teams</h2>
-        <p className="muted" style={{ fontSize: '0.9rem' }}>
-          Select an event below to register or manage your team participants.
-        </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <BackButton />
+        <div>
+          <h2 style={{ margin: 0 }}>Registration & Teams</h2>
+          <p className="muted" style={{ fontSize: '0.9rem', marginTop: '4px' }}>
+            Select an event below to register or manage your team participants.
+          </p>
+        </div>
       </div>
+
 
       {/* ── Event Selection Dropdown ── */}
       <div style={{ maxWidth: '500px', width: '100%', position: 'relative' }}>
@@ -390,8 +399,8 @@ export default function TeamRegistration() {
             </div>
           </div>
 
-          {/* Event Description & Rules */}
-          {(activeEvent.description || activeEvent.rules) && (
+          {/* Event Description & Rules Button */}
+          {activeEvent && (activeEvent.description || activeEvent.rules) && (
             <div className="card" style={{ padding: '24px', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {activeEvent.description && (
                 <div>
@@ -403,16 +412,28 @@ export default function TeamRegistration() {
               )}
               {activeEvent.rules && (
                 <div>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Guidelines & Rules</h4>
-                  <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.92rem', lineHeight: '1.6', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {activeEvent.rules.split('\n').filter(r => r.trim() !== '').map((rule, idx) => (
-                      <li key={idx} style={{ listStyleType: 'disc' }}>{rule}</li>
-                    ))}
-                  </ul>
+                  <button 
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowRulesModal(true)}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    📖 View Guidelines & Rules
+                  </button>
                 </div>
               )}
             </div>
           )}
+
 
           {/* ── If registered: show participant cards ── */}
           {isRegistered && (
@@ -555,9 +576,9 @@ export default function TeamRegistration() {
                             </label>
 
                             <label className="field">
-                              <span>Food Choice</span>
-                              <select value={p.food || '-'} onChange={e => updateParticipant(i, 'food', e.target.value)} style={selectStyle}>
-                                <option value="-">—</option>
+                              <span>Food Choice <span style={{ color: '#ef4444' }}>*</span></span>
+                              <select value={p.food || ''} onChange={e => updateParticipant(i, 'food', e.target.value)} style={selectStyle} required>
+                                <option value="" disabled>Select food choice…</option>
                                 <option value="Veg">Veg</option>
                                 <option value="Non-Veg">Non-Veg</option>
                               </select>
@@ -635,6 +656,38 @@ export default function TeamRegistration() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Event Rules Modal */}
+      {showRulesModal && activeEvent?.rules && (
+        <div className="modal-backdrop" onClick={() => setShowRulesModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+              <h3 style={{ margin: 0, color: 'var(--accent)' }}>{activeEvent.event_name} Rules</h3>
+              <button 
+                type="button" 
+                onClick={() => setShowRulesModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '1.2rem', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '10px' }}>
+              <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.95rem', lineHeight: '1.6', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {activeEvent.rules.split('\n').filter(r => r.trim() !== '').map((rule, idx) => (
+                  <li key={idx} style={{ listStyleType: 'disc' }}>{rule}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-primary" onClick={() => setShowRulesModal(false)}>
+                Close Rules
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

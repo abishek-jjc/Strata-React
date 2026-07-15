@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
+import BottomNav from './BottomNav'
 import { useAuth } from '../../auth/AuthContext'
 
 export default function AppShell({ children }) {
@@ -18,8 +19,18 @@ export default function AppShell({ children }) {
     localStorage.setItem('theme', theme)
   }, [theme])
 
+  useEffect(() => {
+    const handleThemeChange = (e) => {
+      setTheme(e.detail)
+    }
+    window.addEventListener('themechange', handleThemeChange)
+    return () => window.removeEventListener('themechange', handleThemeChange)
+  }, [])
+
   function toggleTheme() {
-    setTheme(theme === 'dark' ? 'light' : 'dark')
+    const nextTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(nextTheme)
+    window.dispatchEvent(new CustomEvent('themechange', { detail: nextTheme }))
   }
 
   return (
@@ -46,6 +57,7 @@ export default function AppShell({ children }) {
         />
         <main className="app-content">{children}</main>
       </div>
+      {role === 'leader' && <BottomNav />}
     </div>
   )
 }
