@@ -740,7 +740,7 @@ export default function Certificates() {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(5, 8, 12, 0.9)',
+          background: 'rgba(5, 8, 12, 0.75)',
           zIndex: 9999,
           display: 'flex',
           justifyContent: 'center',
@@ -752,20 +752,20 @@ export default function Certificates() {
             maxWidth: '1100px',
             width: '100%',
             padding: '30px',
-            background: 'var(--bg-glass-card, #0f121d)',
-            border: '1px solid var(--border)',
+            background: 'var(--surface)',
+            border: '1px solid var(--border-strong)',
             borderRadius: '16px',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.8)'
+            boxShadow: '0 24px 50px rgba(0,0,0,0.15)'
           }}>
             {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', borderBottom: '1px solid var(--border)', paddingBottom: '15px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.4rem', fontFamily: 'Syne, sans-serif' }}>
+              <h3 style={{ margin: 0, fontSize: '1.4rem', fontFamily: 'Syne, sans-serif', color: 'var(--text-primary)' }}>
                 Configure Layout — {editingTemplate === 'participation' ? 'Participation Certificate' : editingTemplate === 'winner1' ? '1st Place Certificate' : '2nd Place Certificate'}
               </h3>
               <button 
                 type="button" 
                 onClick={() => setEditingTemplate(null)}
-                style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.8rem', cursor: 'pointer', opacity: 0.8 }}
+                style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: '1.8rem', cursor: 'pointer', opacity: 0.8 }}
               >
                 ×
               </button>
@@ -802,12 +802,12 @@ export default function Certificates() {
                   style={{
                     width: '680px',
                     height: '480px',
-                    border: '2px dashed #3a3f50',
+                    border: '2px dashed var(--border-strong)',
                     borderRadius: '12px',
-                    background: 'rgba(255,255,255,0.01)',
+                    background: 'var(--surface-raised)',
                     position: 'relative',
                     overflow: 'hidden',
-                    boxShadow: 'inset 0 4px 30px rgba(0,0,0,0.4)',
+                    boxShadow: 'inset 0 4px 30px rgba(0,0,0,0.05)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -898,7 +898,7 @@ export default function Certificates() {
                     </div>
 
                     {!pdfUrl && (
-                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'rgba(255,255,255,0.06)', pointerEvents: 'none', fontSize: '1.1rem', fontWeight: 'bold', width: '100%', textAlign: 'center' }}>
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--text-muted)', pointerEvents: 'none', fontSize: '1.1rem', fontWeight: 'bold', width: '100%', textAlign: 'center' }}>
                         Certificate Preview Canvas
                       </div>
                     )}

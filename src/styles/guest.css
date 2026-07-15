@@ -403,6 +403,44 @@ body.light-theme .guest-hero-tagline {
   transform: translateY(-4px);
 }
 
+.guest-btn-video {
+  background: rgba(124, 77, 255, 0.08);
+  color: #ffffff;
+  border: 1.5px solid rgba(124, 77, 255, 0.4);
+  box-shadow: 0 4px 20px rgba(124, 77, 255, 0.2);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.guest-btn-video:hover {
+  background: linear-gradient(135deg, var(--g-primary) 0%, var(--g-secondary) 100%);
+  color: #080710;
+  border-color: transparent;
+  transform: translateY(-5px) scale(1.04);
+  box-shadow: 0 15px 30px rgba(124, 77, 255, 0.55);
+}
+
+.guest-btn-video svg {
+  transition: transform 0.3s ease;
+}
+
+.guest-btn-video:hover svg {
+  transform: scale(1.25) rotate(-5deg);
+}
+
+body.light-theme .guest-btn-video {
+  background: rgba(79, 70, 229, 0.08);
+  color: #4f46e5;
+  border-color: rgba(79, 70, 229, 0.3);
+  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.1);
+}
+
+body.light-theme .guest-btn-video:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #0891b2 100%);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 15px 30px rgba(79, 70, 229, 0.35);
+}
+
 body.light-theme .guest-btn-secondary {
   background: rgba(0, 0, 0, 0.02);
   color: #0b0f19;

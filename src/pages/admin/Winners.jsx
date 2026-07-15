@@ -560,7 +560,7 @@ export default function Winners() {
                           border: localPrelims.includes(l.lot_name) ? '1px solid rgba(0, 229, 255, 0.3)' : '1px solid var(--border)',
                           cursor: 'pointer',
                           fontSize: '0.9rem',
-                          color: localPrelims.includes(l.lot_name) ? '#fff' : 'var(--text-secondary)',
+                          color: localPrelims.includes(l.lot_name) ? 'var(--text-primary)' : 'var(--text-secondary)',
                         }}
                       >
                         <input

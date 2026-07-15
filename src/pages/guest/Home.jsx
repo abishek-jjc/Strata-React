@@ -5,7 +5,7 @@ import { TABLES } from '../../supabase/tables'
 import GuestLayout from '../../components/layout/GuestLayout'
 import { Html5Qrcode } from 'html5-qrcode'
 import { decryptCollegePayload } from '../../utils/qrCrypto'
-import { Superscript } from 'lucide-react'
+import { Superscript, Video } from 'lucide-react'
 
 export default function Home() {
   const navigate = useNavigate()
@@ -211,8 +211,9 @@ export default function Home() {
             href="https://drive.google.com/file/d/1-d93aMC5PH5yswF-q0zDnMwAYjCa9KnS/view?usp=sharing"
             target="_blank"
             rel="noopener noreferrer"
-            className="guest-btn guest-btn-secondary"
+            className="guest-btn guest-btn-video"
           >
+            <Video size={18} />
             Click to Watch Demo Video
           </a>
         </div>
