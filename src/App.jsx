@@ -33,6 +33,7 @@ import AdminFeedbacks from './pages/admin/AdminFeedbacks'
 import AdminRules from './pages/admin/Rules'
 import AdminLeaders from './pages/admin/Leaders'
 import AdminSettings from './pages/admin/Settings'
+import BackupSetup from './pages/admin/BackupSetup'
 import Participants from './pages/admin/Participants'
 import Venues from './pages/admin/Venues'
 import Winners from './pages/admin/Winners'
@@ -111,6 +112,7 @@ export default function App() {
             <Route path="/admin/rules" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminRules />)}</ProtectedRoute>} />
             <Route path="/admin/homepage-leaders" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminLeaders />)}</ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminSettings />)}</ProtectedRoute>} />
+            <Route path="/admin/backup" element={<ProtectedRoute allow={['admin']}>{withShell(<BackupSetup />)}</ProtectedRoute>} />
 
             {/* Student leader */}
             <Route path="/leader" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderDashboard />)}</ProtectedRoute>} />

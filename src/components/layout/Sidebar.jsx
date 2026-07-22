@@ -21,6 +21,7 @@ const NAV = {
     ['/admin/reports', 'Reports'],
     ['/admin/feedbacks', 'Feedbacks'],
     ['/admin/settings', 'Page Settings'],
+    ['/admin/backup', 'Backup Setup'],
     ['/payment', 'Payment Desk'],
   ],
   leader: [
