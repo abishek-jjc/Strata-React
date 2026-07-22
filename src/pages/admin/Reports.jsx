@@ -6,6 +6,8 @@ import { supabase } from '../../supabase/client'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { encryptCollegePayload } from '../../utils/qrCrypto'
+import { useSettings } from '../../context/SettingsContext'
+import { loadLogoWithOpacity, addWatermarkToAllPages } from '../../utils/pdfBackground'
 
 const REPORT_TYPES = [
   { key: 'students', label: 'Students' },
@@ -18,8 +20,11 @@ const REPORT_TYPES = [
 ]
 
 export default function Reports() {
+  const { settings } = useSettings()
+  const logoUrl = settings?.event_logo_url
   const [active, setActive] = useState(REPORT_TYPES[0].key)
   const [search, setSearch] = useState('')
+  const [genderFilter, setGenderFilter] = useState('all')
 
   // 2nd Filter Mode state: 'all' | 'individual' | 'many'
   const [eventMode, setEventMode] = useState('all')
@@ -70,6 +75,7 @@ export default function Reports() {
   useEffect(() => {
     setCurrentPage(1)
     setSearch('')
+    setGenderFilter('all')
   }, [active])
 
   // Select default individual event once events load
@@ -115,10 +121,11 @@ export default function Reports() {
   const reportRows = useMemo(() => {
     if (active === 'students') {
       return students
-        .filter((s) => activeEventIds.has(s.event_id))
+        .filter((s) => activeEventIds.has(s.event_id) && (genderFilter === 'all' || s.gender === genderFilter))
         .map((s) => ({
           'Event Name': eventName(s.event_id),
           'Participant Name': s.student_name,
+          'Gender': s.gender || '—',
           'Roll No': s.roll_no || '—',
           'Lot Name': collegeLot(s.college_id, s.registration_id),
           'College Name': colleges.find((col) => col.id === s.college_id)?.college || '—',
@@ -228,7 +235,7 @@ export default function Reports() {
     }
 
     return []
-  }, [active, students, registrations, colleges, lots, studentLeaders, payments, certificates, activeEventIds])
+  }, [active, students, registrations, colleges, lots, studentLeaders, payments, certificates, activeEventIds, genderFilter])
 
   // Apply general search filter
   const filtered = useMemo(() => {
@@ -268,7 +275,7 @@ export default function Reports() {
   }, [filtered, currentPage])
 
   // PDF Export
-  function handleDownloadPdf() {
+  async function handleDownloadPdf() {
     if (filtered.length === 0) {
       alert('No data to export.')
       return
@@ -289,6 +296,10 @@ export default function Reports() {
         subtitle = `Filtered by Event: ${ev?.event_name || '—'}`
       } else {
         subtitle = `Filtered by: ${selectedEvents.size} Selected Events`
+      }
+
+      if (active === 'students' && genderFilter !== 'all') {
+        subtitle += ` | Gender: ${genderFilter}`
       }
     }
 
@@ -315,6 +326,8 @@ export default function Reports() {
       styles: { fontSize: 8.5 },
     })
 
+    const watermark = await loadLogoWithOpacity(logoUrl, 0.05)
+    addWatermarkToAllPages(doc, watermark, 0.5)
     doc.save(`strata_${active}_report.pdf`)
   }
 
@@ -537,6 +550,28 @@ export default function Reports() {
                 </div>
               )}
             </>
+          )}
+
+          {/* Gender Filter (Only visible for Students report) */}
+          {active === 'students' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>
+                Gender Filter
+              </label>
+              <select
+                value={genderFilter}
+                onChange={(e) => {
+                  setGenderFilter(e.target.value)
+                  setCurrentPage(1)
+                }}
+                style={{ padding: '8px 12px', fontSize: '0.9rem', minWidth: '150px', borderRadius: '6px' }}
+              >
+                <option value="all">All Genders</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
           )}
 
           {/* Search Field */}

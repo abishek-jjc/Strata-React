@@ -20,6 +20,8 @@ export default function Home() {
 
   // Countdown state
   const [timeLeft, setTimeLeft] = useState({ days: '00', hours: '00', minutes: '00', seconds: '00' })
+  const [eventFinished, setEventFinished] = useState(false)
+  const [isEventStarted, setIsEventStarted] = useState(false)
 
   function handleDownloadInvitation() {
     if (invPdfUrl && invPdfUrl.trim() !== '') {
@@ -134,6 +136,9 @@ export default function Home() {
         if (settingsMap.invitation_body) setInvBody(settingsMap.invitation_body)
         if (settingsMap.invitation_pdf_url) setInvPdfUrl(settingsMap.invitation_pdf_url)
         if (settingsMap.demo_video_url) setDemoVideoUrl(settingsMap.demo_video_url)
+        if (settingsMap.event_started === 'true') {
+          setIsEventStarted(true)
+        }
       }
 
       // Event Count
@@ -157,8 +162,10 @@ export default function Home() {
 
       if (diff <= 0) {
         setTimeLeft({ days: '00', hours: '00', minutes: '00', seconds: '00' })
+        setEventFinished(true)
         return
       }
+      setEventFinished(false)
 
       const d = Math.floor(diff / (1000 * 60 * 60 * 24))
       const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
@@ -188,32 +195,19 @@ export default function Home() {
           (Autonomous, Affiliated to Madurai Kamaraj University, Re-accredited 4<sup>th</sup> cycle with ‘A+’ Grade (CGPA of 3.48 out of 4) by NAAC, recognized as College of Excellence and Mentor Institution by UGC, Star College by DBT and Ranked 72<sup>nd</sup> at National Level in NIRF 2025, DST-FIST(2024) supported and ISO 9001:2015 & ISO 21001:2018 Certified Institution), Sivakasi
         </p>
         <h1 className="guest-hero-title">STRATA 2K26</h1>
-        <p className="guest-hero-tagline">
-          State Level Intercollegiate Technical Meet organized by the <strong>Department of Computer Science</strong>
+        <p className="guest-hero-tagline" style={{ marginBottom: '20px' }}>
+          State Level Intercollegiate Technical Meet organized by the <br /><strong>Department of Computer Science</strong>
         </p>
 
-<<<<<<< Updated upstream
         <HeartbeatVideoButton
           text="Click to Watch Demo Video"
-          onClick={function() {
-            if (demoVideoUrl && demoVideoUrl.trim() !== '') {
-              window.open(demoVideoUrl, '_blank');
-            } else {
-              alert('Demo video is not available yet.');
-            }
+          onClick={() => {
+            const url = (demoVideoUrl && demoVideoUrl.trim() !== '') 
+              ? demoVideoUrl.trim() 
+              : 'https://drive.google.com/file/d/1-d93aMC5PH5yswF-q0zDnMwAYjCa9KnS/view?usp=sharing';
+            window.open(url, '_blank');
           }}
         />
-=======
-        <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
-          <Link
-            to="/demo-video"
-            className="guest-btn guest-btn-video blinking-red"
-          >
-            <Video size={20} />
-            Click to Watch Demo Video
-          </Link>
-        </div>
->>>>>>> Stashed changes
 
         <div className="guest-cta-container">
           <Link to="/login" className="guest-btn guest-btn-primary">
@@ -235,25 +229,38 @@ export default function Home() {
           </Link>
         </div>
 
-        {/* Countdown */}
-        <div className="guest-countdown">
-          <div className="guest-countdown-item">
-            <span className="guest-countdown-val">{timeLeft.days}</span>
-            <span className="guest-countdown-label">Days</span>
+        {/* Countdown / Event Status */}
+        {eventFinished || isEventStarted ? (
+          <div style={{
+            fontSize: '2rem',
+            fontWeight: 'bold',
+            color: 'var(--g-secondary)',
+            textAlign: 'center',
+            marginTop: '25px',
+            fontFamily: 'Syne, sans-serif'
+          }}>
+            Events started
           </div>
-          <div className="guest-countdown-item">
-            <span className="guest-countdown-val">{timeLeft.hours}</span>
-            <span className="guest-countdown-label">Hours</span>
+        ) : (
+          <div className="guest-countdown">
+            <div className="guest-countdown-item">
+              <span className="guest-countdown-val">{timeLeft.days}</span>
+              <span className="guest-countdown-label">Days</span>
+            </div>
+            <div className="guest-countdown-item">
+              <span className="guest-countdown-val">{timeLeft.hours}</span>
+              <span className="guest-countdown-label">Hours</span>
+            </div>
+            <div className="guest-countdown-item">
+              <span className="guest-countdown-val">{timeLeft.minutes}</span>
+              <span className="guest-countdown-label">Min</span>
+            </div>
+            <div className="guest-countdown-item">
+              <span className="guest-countdown-val">{timeLeft.seconds}</span>
+              <span className="guest-countdown-label">Sec</span>
+            </div>
           </div>
-          <div className="guest-countdown-item">
-            <span className="guest-countdown-val">{timeLeft.minutes}</span>
-            <span className="guest-countdown-label">Min</span>
-          </div>
-          <div className="guest-countdown-item">
-            <span className="guest-countdown-val">{timeLeft.seconds}</span>
-            <span className="guest-countdown-label">Sec</span>
-          </div>
-        </div>
+        )}
       </section>
 
       {/* Invitation Section */}

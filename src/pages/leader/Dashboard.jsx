@@ -27,12 +27,12 @@ export default function Dashboard() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
       <div>
         <h2>Welcome, {profile?.name}</h2>
-        <p className="muted">Student Leader Coordinator</p>
+        <p className="muted">Student Leader</p>
       </div>
 
       {/* Lot Status Card */}
       <div className="card" style={{ maxWidth: '500px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-secondary)' }}>Your College Lot Number</h3>
+        <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-secondary)' }}>Your College Lot Name</h3>
         {collegeLot ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--accent)' }}>{collegeLot.lot_name}</span>

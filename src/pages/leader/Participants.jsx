@@ -243,7 +243,7 @@ export default function Participants() {
                   {/* Profile Metadata */}
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: '1fr',
+                    gridTemplateColumns: '1fr 1fr',
                     gap: '12px',
                     fontSize: '0.85rem',
                     borderTop: '1px solid var(--border-strong)',
@@ -252,6 +252,10 @@ export default function Participants() {
                     <div>
                       <span className="muted" style={{ display: 'block', fontSize: '0.75rem', marginBottom: '2px' }}>Roll No.</span>
                       <strong style={{ color: 'var(--text-primary)' }}>{s.roll_no || '—'}</strong>
+                    </div>
+                    <div>
+                      <span className="muted" style={{ display: 'block', fontSize: '0.75rem', marginBottom: '2px' }}>Gender</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{s.gender || '—'}</strong>
                     </div>
                   </div>
 

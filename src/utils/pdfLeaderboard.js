@@ -1,7 +1,8 @@
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
+import { loadLogoWithOpacity, addWatermarkToAllPages } from './pdfBackground'
 
-export function generateLeaderboardPdf(eventWinners, leaderboardData) {
+export async function generateLeaderboardPdf(eventWinners, leaderboardData, logoUrl) {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
 
   // 1. HEADER SECTION
@@ -51,15 +52,14 @@ export function generateLeaderboardPdf(eventWinners, leaderboardData) {
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(13)
   doc.setTextColor(26, 29, 35)
-  doc.text('Overall Championship Standings (Top 5 Colleges)', 40, nextY)
+  doc.text('Overall Championship Standings (Top 5 Lots)', 40, nextY)
 
   doc.autoTable({
     startY: nextY + 15,
     margin: { left: 40, right: 40 },
-    head: [['Rank', 'College Name', 'Lot Name', '1st Places', '2nd Places', 'Total Points']],
+    head: [['Rank', 'Lot Name', '1st Places', '2nd Places', 'Total Points']],
     body: leaderboardData.map((row, idx) => [
       idx + 1,
-      row.college,
       row.lot_name || '—',
       row.firsts,
       row.seconds,
@@ -69,12 +69,11 @@ export function generateLeaderboardPdf(eventWinners, leaderboardData) {
     headStyles: { fillColor: [12, 14, 18], fontSize: 10, fontStyle: 'bold' }, // Dark theme heading for overall championship
     styles: { fontSize: 9, cellPadding: 6 },
     columnStyles: {
-      0: { cellWidth: 50, align: 'center' },
-      1: { cellWidth: 200, fontStyle: 'bold' },
-      2: { cellWidth: 75, align: 'center' },
-      3: { cellWidth: 65, align: 'center' },
-      4: { cellWidth: 65, align: 'center' },
-      5: { cellWidth: 60, align: 'center' },
+      0: { cellWidth: 60, align: 'center' },
+      1: { cellWidth: 150, align: 'center', fontStyle: 'bold' },
+      2: { cellWidth: 100, align: 'center' },
+      3: { cellWidth: 100, align: 'center' },
+      4: { cellWidth: 105, align: 'center' },
     },
   })
 
@@ -85,5 +84,7 @@ export function generateLeaderboardPdf(eventWinners, leaderboardData) {
   doc.setTextColor(120, 130, 140)
   doc.text('Note: Championship scoring is calculated as First Place = 5 points, Second Place = 3 points.', 40, footerY)
 
+  const watermark = await loadLogoWithOpacity(logoUrl, 0.05)
+  addWatermarkToAllPages(doc, watermark, 0.5)
   doc.save('strata_winner_results.pdf')
 }

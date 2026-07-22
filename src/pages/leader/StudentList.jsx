@@ -54,6 +54,7 @@ export default function StudentList() {
         student_name: editingStudent.student_name,
         roll_no: editingStudent.roll_no || '',
         food_type: editingStudent.food_type || 'Veg',
+        gender: editingStudent.gender || '-',
         department: editingStudent.department.trim(),
       })
       .eq('id', editingStudent.id)
@@ -131,6 +132,10 @@ export default function StudentList() {
                       <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{s.department || '—'}</strong>
                     </div>
                     <div>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>Gender</span>
+                      <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{s.gender || '—'}</strong>
+                    </div>
+                    <div>
                       <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', display: 'block' }}>Food Choice</span>
                       <span className={`badge badge-${s.food_type === 'Non-Veg' ? 'pending' : 'approved'}`} style={{ textTransform: 'capitalize', fontSize: '0.75rem', padding: '1px 8px', marginTop: '2px', display: 'inline-block' }}>
                         {s.food_type || 'Veg'}
@@ -172,8 +177,22 @@ export default function StudentList() {
                 type="text"
                 required
                 value={editingStudent.roll_no || ''}
-                onChange={(e) => setEditingStudent({ ...editingStudent, roll_no: e.target.value })}
+                onChange={(e) => setEditingStudent({ ...editingStudent, roll_no: e.target.value.replace(/[^a-zA-Z0-9]/g, '') })}
               />
+            </label>
+
+            <label className="field">
+              <span>Gender</span>
+              <select
+                value={editingStudent.gender || '-'}
+                onChange={(e) => setEditingStudent({ ...editingStudent, gender: e.target.value })}
+                required
+              >
+                <option value="-">Select…</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
             </label>
 
             <label className="field">

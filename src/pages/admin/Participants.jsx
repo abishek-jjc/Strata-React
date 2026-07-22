@@ -5,6 +5,17 @@ import { useTable } from '../../hooks/useTable'
 
 const baseFields = [
   { name: 'student_name', label: 'Name', type: 'text', required: true },
+  {
+    name: 'gender',
+    label: 'Gender',
+    type: 'select',
+    options: [
+      { value: 'Male', label: 'Male' },
+      { value: 'Female', label: 'Female' },
+      { value: 'Other', label: 'Other' },
+      { value: '-', label: 'Unspecified' },
+    ]
+  },
   { name: 'roll_no', label: 'Roll Number', type: 'text' },
   { name: 'event_id', label: 'Event', type: 'select', options: [] },
   { name: 'college_id', label: 'College', type: 'select', options: [] },
@@ -41,7 +52,7 @@ export default function Participants() {
       title="Participants"
       table={TABLES.STUDENTS}
       fields={fields}
-      columns={['student_name', 'roll_no', 'event_id', 'college_id']}
+      columns={['student_name', 'gender', 'roll_no', 'event_id', 'college_id']}
       disableAdd={true}
       customData={filteredStudents}
       renderExtraHeaderActions={() => (

@@ -14,11 +14,6 @@ import GuestRules from './pages/guest/GuestRules'
 import GuestInvitation from './pages/guest/GuestInvitation'
 import GuestRegister from './pages/guest/GuestRegister'
 import GuestWinners from './pages/guest/GuestWinners'
-<<<<<<< Updated upstream
-import WatchDemo from './pages/guest/WatchDemo'
-=======
-import DemoVideo from './pages/guest/DemoVideo'
->>>>>>> Stashed changes
 
 
 // Admin Portal
@@ -34,6 +29,7 @@ import Food from './pages/admin/Food'
 import Incharges from './pages/admin/Incharges'
 import Certificates from './pages/admin/Certificates'
 import Reports from './pages/admin/Reports'
+import AdminFeedbacks from './pages/admin/AdminFeedbacks'
 import AdminRules from './pages/admin/Rules'
 import AdminLeaders from './pages/admin/Leaders'
 import AdminSettings from './pages/admin/Settings'
@@ -54,8 +50,9 @@ import CertificateDownload from './pages/leader/CertificateDownload'
 import LeaderProfile from './pages/leader/Profile'
 import LeaderPayment from './pages/leader/Payment'
 import LeaderWhatsApp from './pages/leader/WhatsApp'
-import LeaderParticipants from './pages/leader/Participants'
+import LeaderWinners from './pages/leader/Winners'
 import LeaderMore from './pages/leader/More'
+import LeaderFeedback from './pages/leader/LeaderFeedback'
 
 
 
@@ -88,11 +85,6 @@ export default function App() {
             <Route path="/invitation" element={<GuestInvitation />} />
             <Route path="/register" element={<GuestRegister />} />
             <Route path="/winners" element={<WinnersRoute />} />
-<<<<<<< Updated upstream
-            <Route path="/watch-demo" element={<WatchDemo />} />
-=======
-            <Route path="/demo-video" element={<DemoVideo />} />
->>>>>>> Stashed changes
 
             {/* Auth */}
             <Route path="/login" element={<Login />} />
@@ -115,6 +107,7 @@ export default function App() {
             <Route path="/admin/incharges" element={<ProtectedRoute allow={['admin']}>{withShell(<Incharges />)}</ProtectedRoute>} />
             <Route path="/admin/certificates" element={<ProtectedRoute allow={['admin']}>{withShell(<Certificates />)}</ProtectedRoute>} />
             <Route path="/admin/reports" element={<ProtectedRoute allow={['admin']}>{withShell(<Reports />)}</ProtectedRoute>} />
+            <Route path="/admin/feedbacks" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminFeedbacks />)}</ProtectedRoute>} />
             <Route path="/admin/rules" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminRules />)}</ProtectedRoute>} />
             <Route path="/admin/homepage-leaders" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminLeaders />)}</ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminSettings />)}</ProtectedRoute>} />
@@ -127,12 +120,16 @@ export default function App() {
             <Route path="/leader/profile" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderProfile />)}</ProtectedRoute>} />
             <Route path="/leader/payment" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderPayment />)}</ProtectedRoute>} />
             <Route path="/leader/whatsapp" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderWhatsApp />)}</ProtectedRoute>} />
-            <Route path="/leader/participants" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderParticipants />)}</ProtectedRoute>} />
+            <Route path="/leader/winners" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderWinners />)}</ProtectedRoute>} />
             <Route path="/leader/more" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderMore />)}</ProtectedRoute>} />
+            <Route path="/leader/feedback" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderFeedback />)}</ProtectedRoute>} />
 
 
             {/* Incharge */}
-            <Route path="/incharge" element={<ProtectedRoute allow={['incharge']}>{withShell(<InchargeDashboard />)}</ProtectedRoute>} />
+            <Route path="/incharge" element={<ProtectedRoute allow={['incharge']}>{withShell(<InchargeDashboard tab="lots" />)}</ProtectedRoute>} />
+            <Route path="/incharge/students" element={<ProtectedRoute allow={['incharge']}>{withShell(<InchargeDashboard tab="students" />)}</ProtectedRoute>} />
+            <Route path="/incharge/profile" element={<ProtectedRoute allow={['incharge']}>{withShell(<InchargeDashboard tab="profile" />)}</ProtectedRoute>} />
+            <Route path="/incharge/winners" element={<ProtectedRoute allow={['incharge']}>{withShell(<InchargeDashboard tab="winners" />)}</ProtectedRoute>} />
 
 
             <Route path="*" element={<Navigate to="/login" replace />} />

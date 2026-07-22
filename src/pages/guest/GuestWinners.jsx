@@ -79,49 +79,70 @@ export default function GuestWinners() {
 
   // Resolve college details by lot name
   const resolveCollegeByLot = (lotName) => {
-    if (!lotName || lotName === '-') return '—'
+    if (!lotName || lotName === '-') return ''
     const lot = lots.find((l) => l.lot_name && l.lot_name.toLowerCase().trim() === lotName.toLowerCase().trim())
-    return lot ? lot.assigned_college : '—'
+    return lot && lot.assigned_college && lot.assigned_college !== '-' ? lot.assigned_college : ''
   }
 
   // Calculate overall standings
-  const leaderboard = colleges
-    .map((col) => {
-      const cName = col.department ? `${col.college} (${col.department})` : col.college
-      const cNameClean = cName.toLowerCase().trim()
-      const lotObj = lots.find((l) => (l.assigned_college || '').toLowerCase().trim() === cNameClean)
-      const cLot = lotObj?.lot_name || ''
-      const cLotClean = cLot.toLowerCase().trim()
-
-      // Mains winners point calculation with robust case-insensitive and trimmed checks
-      const firsts = winners.filter((w) => 
-        w.first_place && 
-        w.first_place.toLowerCase().trim() === cLotClean && 
-        cLotClean !== '' && 
-        cLotClean !== '-' &&
-        w.first_place !== '-'
-      ).length
-
-      const seconds = winners.filter((w) => 
-        w.second_place && 
-        w.second_place.toLowerCase().trim() === cLotClean && 
-        cLotClean !== '' && 
-        cLotClean !== '-' &&
-        w.second_place !== '-'
-      ).length
-
-      const points = firsts * 5 + seconds * 3
-
-      return {
-        college: cName,
-        lot_name: cLot,
-        firsts,
-        seconds,
-        points,
+  const getLeaderboard = () => {
+    const assignedLotsMap = new Map()
+    lots.forEach(l => {
+      if (l.lot_name && l.lot_name !== '-') {
+        assignedLotsMap.set(l.lot_name.toLowerCase().trim(), l)
       }
     })
-    .filter((row) => row.points > 0) // Only display colleges with recorded points on the leaderboard
-    .sort((a, b) => b.points - a.points || a.college.localeCompare(b.college))
+
+    winners.forEach(w => {
+      if (w.mains_published) {
+        if (w.first_place && w.first_place !== '-' && !assignedLotsMap.has(w.first_place.toLowerCase().trim())) {
+          assignedLotsMap.set(w.first_place.toLowerCase().trim(), {
+            lot_name: w.first_place,
+            is_assigned: true,
+            assigned_college: '-'
+          })
+        }
+        if (w.second_place && w.second_place !== '-' && !assignedLotsMap.has(w.second_place.toLowerCase().trim())) {
+          assignedLotsMap.set(w.second_place.toLowerCase().trim(), {
+            lot_name: w.second_place,
+            is_assigned: true,
+            assigned_college: '-'
+          })
+        }
+      }
+    })
+
+    return Array.from(assignedLotsMap.values())
+      .map((lot) => {
+        const lotNameClean = lot.lot_name.toLowerCase().trim()
+
+        // Mains winners point calculation checking mains_published for guests
+        const firsts = winners.filter((w) => 
+          w.mains_published &&
+          w.first_place && 
+          w.first_place.toLowerCase().trim() === lotNameClean
+        ).length
+
+        const seconds = winners.filter((w) => 
+          w.mains_published &&
+          w.second_place && 
+          w.second_place.toLowerCase().trim() === lotNameClean
+        ).length
+
+        const points = firsts * 5 + seconds * 3
+
+        return {
+          lot_name: lot.lot_name,
+          firsts,
+          seconds,
+          points,
+        }
+      })
+      .filter((row) => row.points > 0) // Only display lots with recorded points on the leaderboard
+      .sort((a, b) => b.points - a.points || a.lot_name.localeCompare(b.lot_name))
+  }
+
+  const leaderboard = getLeaderboard()
 
   const activeEvent = events[activeIndex]
   const prelimsVenue = activeEvent ? (venues.find((v) => v.id === activeEvent.prelims_venue)?.venue_name || 'TBD') : 'TBD'
@@ -157,10 +178,10 @@ export default function GuestWinners() {
                       width: '100%',
                       padding: '12px 16px',
                       fontSize: '0.95rem',
-                      background: 'rgba(255, 255, 255, 0.02)',
+                      background: 'var(--g-glass-bg)',
                       border: '1px solid var(--g-glass-border)',
                       borderRadius: '8px',
-                      color: '#fff',
+                      color: 'var(--g-text)',
                       outline: 'none',
                       cursor: 'pointer',
                       transition: 'all 0.3s ease',
@@ -173,7 +194,7 @@ export default function GuestWinners() {
                       <option 
                         key={event.id} 
                         value={idx} 
-                        style={{ backgroundColor: 'var(--g-bg)', color: '#fff' }}
+                        style={{ backgroundColor: 'var(--g-bg)', color: 'var(--g-text)' }}
                       >
                         {event.event_name} ({event.category || 'Contest'})
                       </option>
@@ -186,8 +207,9 @@ export default function GuestWinners() {
                 {activeEvent && (() => {
                   const ev = activeEvent
                   const rec = winners.find((w) => w.event_id === ev.id)
-                  const hasPrelims = rec?.prelims_published && rec?.prelim_winners?.length > 0
                   const hasMains = rec?.mains_published && (rec?.first_place !== '-' || rec?.second_place !== '-')
+                  const eventHasPrelims = !!(ev?.prelims_venue || ev?.preliminary)
+                  const showPrelims = !hasMains && eventHasPrelims && rec?.prelims_published && rec?.prelim_winners?.length > 0
 
                   return (
                     <div className="guest-event-details-card guest-glass-panel">
@@ -209,10 +231,10 @@ export default function GuestWinners() {
                         </div>
 
                         {/* Results block */}
-                        {(hasPrelims || hasMains) ? (
+                        {(showPrelims || hasMains) ? (
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
                             {/* Prelims Qualifiers */}
-                            {hasPrelims && (
+                            {showPrelims && (
                               <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '8px', border: '1px solid var(--g-glass-border)' }}>
                                 <span style={{ fontSize: '0.8rem', color: 'var(--g-accent)', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: '10px' }}>
                                   ⚡ Preliminary Qualifiers
@@ -222,10 +244,12 @@ export default function GuestWinners() {
                                     <li key={lotName} style={{ display: 'flex', gap: '8px', fontSize: '0.85rem' }}>
                                       <span style={{ color: 'var(--g-accent)' }}>✓</span>
                                       <span>
-                                        <strong>Lot {lotName}</strong>
-                                        <span className="muted" style={{ display: 'block', fontSize: '0.78rem', color: 'var(--g-text-muted)' }}>
-                                          {resolveCollegeByLot(lotName)}
-                                        </span>
+                                        <strong style={{ color: 'var(--g-text)' }}>Lot {lotName}</strong>
+                                        {resolveCollegeByLot(lotName) && (
+                                          <span className="muted" style={{ display: 'block', fontSize: '0.78rem', color: 'var(--g-text-muted)' }}>
+                                            {resolveCollegeByLot(lotName)}
+                                          </span>
+                                        )}
                                       </span>
                                     </li>
                                   ))}
@@ -246,8 +270,10 @@ export default function GuestWinners() {
                                       <span style={{ fontSize: '1.4rem' }}>🥇</span>
                                       <div>
                                         <span style={{ fontSize: '0.72rem', color: 'var(--g-text-muted)', display: 'block', textTransform: 'uppercase' }}>1st Place</span>
-                                        <strong style={{ color: '#fff', fontSize: '0.9rem' }}>Lot {rec.first_place}</strong>
-                                        <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--g-text-muted)' }}>{resolveCollegeByLot(rec.first_place)}</span>
+                                        <strong style={{ color: 'var(--g-text)', fontSize: '0.9rem' }}>Lot {rec.first_place}</strong>
+                                        {resolveCollegeByLot(rec.first_place) && (
+                                          <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--g-text-muted)' }}>{resolveCollegeByLot(rec.first_place)}</span>
+                                        )}
                                       </div>
                                     </div>
                                   )}
@@ -257,8 +283,10 @@ export default function GuestWinners() {
                                       <span style={{ fontSize: '1.4rem' }}>🥈</span>
                                       <div>
                                         <span style={{ fontSize: '0.72rem', color: 'var(--g-text-muted)', display: 'block', textTransform: 'uppercase' }}>2nd Place</span>
-                                        <strong style={{ color: '#fff', fontSize: '0.9rem' }}>Lot {rec.second_place}</strong>
-                                        <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--g-text-muted)' }}>{resolveCollegeByLot(rec.second_place)}</span>
+                                        <strong style={{ color: 'var(--g-text)', fontSize: '0.9rem' }}>Lot {rec.second_place}</strong>
+                                        {resolveCollegeByLot(rec.second_place) && (
+                                          <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--g-text-muted)' }}>{resolveCollegeByLot(rec.second_place)}</span>
+                                        )}
                                       </div>
                                     </div>
                                   )}
@@ -290,7 +318,7 @@ export default function GuestWinners() {
               </h3>
 
               <div className="guest-glass-panel" style={{ padding: '24px', borderRadius: '12px' }}>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '1.1rem', fontFamily: 'Syne, sans-serif', color: '#fff' }}>
+                <h4 style={{ margin: '0 0 6px 0', fontSize: '1.1rem', fontFamily: 'Syne, sans-serif', color: 'var(--g-text)' }}>
                   Championship Standings
                 </h4>
                 <p style={{ color: 'var(--g-text-muted)', fontSize: '0.8rem', margin: '0 0 20px 0' }}>
@@ -301,7 +329,7 @@ export default function GuestWinners() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {leaderboard.map((row, idx) => (
                       <div
-                        key={row.college}
+                        key={row.lot_name}
                         style={{
                           display: 'flex',
                           justifyContent: 'space-between',
@@ -317,13 +345,10 @@ export default function GuestWinners() {
                             {idx + 1}
                           </span>
                           <div>
-                            <strong style={{ fontSize: '0.88rem', color: idx === 0 ? '#fff' : 'var(--g-text-secondary)' }}>
-                              {row.college}
+                            <strong style={{ fontSize: '0.88rem', color: idx === 0 ? 'var(--g-text)' : 'var(--g-text-muted)' }}>
+                              Lot {row.lot_name}
                               {idx === 0 && <span style={{ marginLeft: '6px' }}>👑</span>}
                             </strong>
-                            <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--g-text-muted)', marginTop: '2px' }}>
-                              Lot Number: {row.lot_name || '—'}
-                            </span>
                           </div>
                         </div>
                         <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--g-accent)' }}>

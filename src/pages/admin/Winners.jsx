@@ -5,13 +5,26 @@ import { useTable } from '../../hooks/useTable'
 import { generateLeaderboardPdf } from '../../utils/pdfLeaderboard'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
+import { useSettings } from '../../context/SettingsContext'
+import { loadLogoWithOpacity, addWatermarkToAllPages } from '../../utils/pdfBackground'
 
 export default function Winners() {
+  const { settings } = useSettings()
+  const logoUrl = settings?.event_logo_url
   const { data: events, loading: eventsLoading } = useTable(TABLES.EVENTS)
   const { data: lots, loading: lotsLoading } = useTable(TABLES.LOTS)
   const { data: colleges, loading: collegesLoading } = useTable(TABLES.COLLEGES)
   const { data: winners, loading: winnersLoading } = useTable(TABLES.WINNERS)
   const { data: registrations, loading: registrationsLoading } = useTable(TABLES.REGISTRATIONS)
+
+  const [localWinners, setLocalWinners] = useState([])
+
+  // Sync localWinners with DB winners when DB winners change
+  useEffect(() => {
+    if (winners) {
+      setLocalWinners(winners)
+    }
+  }, [winners])
 
   const [selectedEventId, setSelectedEventId] = useState('')
   const [activeTab, setActiveTab] = useState('prelims')
@@ -124,7 +137,9 @@ export default function Winners() {
   const secondSelectedCollege = secondSelectedLot ? (secondSelectedLot.assigned_college || '').toLowerCase().trim() : ''
 
   // Filter the final winners selection options to ONLY include the saved preliminary qualifiers
-  const mainsLotOptions = allowedLots.filter((l) => prelimWinners.includes(l.lot_name))
+  const mainsLotOptions = hasPrelims
+    ? allowedLots.filter((l) => prelimWinners.includes(l.lot_name))
+    : allowedLots
 
   const firstPlaceOptions = mainsLotOptions.filter((l) => {
     const assigned = (l.assigned_college || '').toLowerCase().trim()
@@ -153,16 +168,23 @@ export default function Winners() {
           .update({ prelim_winners: localPrelims })
           .eq('event_id', selectedEventId)
         if (error) throw error
+        setLocalWinners((prev) =>
+          prev.map((w) =>
+            w.event_id === selectedEventId ? { ...w, prelim_winners: localPrelims } : w
+          )
+        )
       } else {
-        const { error } = await supabase.from(TABLES.WINNERS).insert({
+        const payload = {
           event_id: selectedEventId,
           prelim_winners: localPrelims,
           first_place: '-',
           second_place: '-',
           prelims_published: false,
           mains_published: false,
-        })
+        }
+        const { error } = await supabase.from(TABLES.WINNERS).insert(payload)
         if (error) throw error
+        setLocalWinners((prev) => [...prev, payload])
       }
       setPrelimWinners(localPrelims)
       setSuccessEventId(selectedEventId)
@@ -182,11 +204,17 @@ export default function Winners() {
     setSavingId(selectedEventId)
     try {
       if (rec) {
+        const updateObj = isPrelims ? { prelims_published: nextVal } : { mains_published: nextVal }
         const { error } = await supabase
           .from(TABLES.WINNERS)
-          .update(isPrelims ? { prelims_published: nextVal } : { mains_published: nextVal })
+          .update(updateObj)
           .eq('event_id', selectedEventId)
         if (error) throw error
+        setLocalWinners((prev) =>
+          prev.map((w) =>
+            w.event_id === selectedEventId ? { ...w, ...updateObj } : w
+          )
+        )
         if (isPrelims) setPrelimsPublished(nextVal)
         else setMainsPublished(nextVal)
       } else {
@@ -200,6 +228,7 @@ export default function Winners() {
         }
         const { error } = await supabase.from(TABLES.WINNERS).insert(payload)
         if (error) throw error
+        setLocalWinners((prev) => [...prev, payload])
         if (isPrelims) setPrelimsPublished(nextVal)
         else setMainsPublished(nextVal)
       }
@@ -249,15 +278,22 @@ export default function Winners() {
           .update(updated)
           .eq('event_id', selectedEventId)
         if (error) throw error
+        setLocalWinners((prev) =>
+          prev.map((w) =>
+            w.event_id === selectedEventId ? { ...w, ...updated } : w
+          )
+        )
       } else {
-        const { error } = await supabase.from(TABLES.WINNERS).insert({
+        const payload = {
           event_id: selectedEventId,
           prelim_winners: [],
           prelims_published: false,
           mains_published: false,
           ...updated,
-        })
+        }
+        const { error } = await supabase.from(TABLES.WINNERS).insert(payload)
         if (error) throw error
+        setLocalWinners((prev) => [...prev, payload])
       }
       setSuccessEventId(selectedEventId)
       setTimeout(() => setSuccessEventId(null), 1500)
@@ -268,45 +304,63 @@ export default function Winners() {
     }
   }
 
-  // Calculate overall college rankings leaderboard
+  // Calculate overall rankings leaderboard based on localWinners to ensure immediate updates
   // First Place = 5 pts, Second Place = 3 pts
-  const leaderboard = colleges
-    .map((col) => {
-      const cName = col.department ? `${col.college} (${col.department})` : col.college
-      const cNameClean = cName.toLowerCase().trim()
-      const lotObj = lots.find((l) => (l.assigned_college || '').toLowerCase().trim() === cNameClean)
-      const cLot = lotObj?.lot_name || ''
-      const cLotClean = cLot.toLowerCase().trim()
-
-      const firsts = winners.filter((w) => 
-        w.first_place && 
-        w.first_place.toLowerCase().trim() === cLotClean && 
-        cLotClean !== '' &&
-        cLotClean !== '-' &&
-        w.first_place !== '-'
-      ).length
-
-      const seconds = winners.filter((w) => 
-        w.second_place && 
-        w.second_place.toLowerCase().trim() === cLotClean && 
-        cLotClean !== '' &&
-        cLotClean !== '-' &&
-        w.second_place !== '-'
-      ).length
-
-      const points = firsts * 5 + seconds * 3
-
-      return {
-        college: cName,
-        lot_name: cLot,
-        firsts,
-        seconds,
-        points,
+  const getLeaderboard = () => {
+    const assignedLotsMap = new Map()
+    lots.forEach(l => {
+      if (l.lot_name && l.lot_name !== '-') {
+        assignedLotsMap.set(l.lot_name.toLowerCase().trim(), l)
       }
     })
-    .sort((a, b) => b.points - a.points || a.college.localeCompare(b.college))
 
-  function handleDownloadEventPdf() {
+    localWinners.forEach(w => {
+      if (w.first_place && w.first_place !== '-' && !assignedLotsMap.has(w.first_place.toLowerCase().trim())) {
+        assignedLotsMap.set(w.first_place.toLowerCase().trim(), {
+          lot_name: w.first_place,
+          is_assigned: true,
+          assigned_college: '-'
+        })
+      }
+      if (w.second_place && w.second_place !== '-' && !assignedLotsMap.has(w.second_place.toLowerCase().trim())) {
+        assignedLotsMap.set(w.second_place.toLowerCase().trim(), {
+          lot_name: w.second_place,
+          is_assigned: true,
+          assigned_college: '-'
+        })
+      }
+    })
+
+    return Array.from(assignedLotsMap.values())
+      .map((lot) => {
+        const lotNameClean = lot.lot_name.toLowerCase().trim()
+
+        const firsts = localWinners.filter((w) => 
+          w.first_place && 
+          w.first_place.toLowerCase().trim() === lotNameClean
+        ).length
+
+        const seconds = localWinners.filter((w) => 
+          w.second_place && 
+          w.second_place.toLowerCase().trim() === lotNameClean
+        ).length
+
+        const points = firsts * 5 + seconds * 3
+
+        return {
+          lot_name: lot.lot_name,
+          firsts,
+          seconds,
+          points,
+        }
+      })
+      .filter((row) => row.points > 0 || (lots.find(l => l.lot_name === row.lot_name)?.is_assigned))
+      .sort((a, b) => b.points - a.points || a.lot_name.localeCompare(b.lot_name))
+  }
+
+  const leaderboard = getLeaderboard()
+
+  async function handleDownloadEventPdf() {
     if (!selectedEvent) return
     const doc = new jsPDF({ unit: 'pt', format: 'a4' })
 
@@ -393,10 +447,12 @@ export default function Winners() {
       styles: { fontSize: 9 },
     })
 
+    const watermark = await loadLogoWithOpacity(logoUrl, 0.05)
+    addWatermarkToAllPages(doc, watermark, 0.5)
     doc.save(`strata_results_${selectedEvent.event_name.toLowerCase().replace(/\s+/g, '_')}.pdf`)
   }
 
-  function handleDownloadGlobalPdf() {
+  async function handleDownloadGlobalPdf() {
     const eventWinners = events.map((ev) => {
       const rec = winners.find((w) => w.event_id === ev.id)
       const firstLotName = rec?.first_place || '-'
@@ -417,7 +473,7 @@ export default function Winners() {
     })
 
     const topColleges = leaderboard.slice(0, 5)
-    generateLeaderboardPdf(eventWinners, topColleges)
+    await generateLeaderboardPdf(eventWinners, topColleges, logoUrl)
   }
 
   if (loading) return <p className="muted">Loading winners manager...</p>
@@ -621,10 +677,13 @@ export default function Winners() {
                 </div>
 
                 <p className="muted" style={{ fontSize: '0.85rem', marginBottom: '24px' }}>
-                  Choose the first and second place winners. The options are automatically limited to the lots saved as preliminary qualifiers above.
+                  {hasPrelims
+                    ? 'Choose the first and second place winners. The options are automatically limited to the lots saved as preliminary qualifiers above.'
+                    : 'Choose the first and second place winners.'
+                  }
                 </p>
 
-                {prelimWinners.length > 0 ? (
+                {(prelimWinners.length > 0 || !hasPrelims) ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '400px', marginBottom: '24px' }}>
                     <div className="field">
                       <span>First Place (1st Place Winner)</span>
@@ -693,27 +752,25 @@ export default function Winners() {
             <table className="data-table" style={{ fontSize: '0.85rem' }}>
               <thead>
                 <tr>
-                  <th style={{ width: '40px' }}>Rank</th>
-                  <th>College</th>
-                  <th style={{ width: '60px' }}>Lot</th>
-                  <th style={{ width: '65px' }}>Points</th>
+                  <th style={{ width: '80px' }}>Rank</th>
+                  <th>Lot Name</th>
+                  <th style={{ width: '100px' }}>Points</th>
                 </tr>
               </thead>
               <tbody>
                 {leaderboard.map((row, idx) => (
-                  <tr key={row.college} style={{ fontWeight: idx === 0 && row.points > 0 ? 'bold' : 'normal' }}>
+                  <tr key={row.lot_name} style={{ fontWeight: idx === 0 && row.points > 0 ? 'bold' : 'normal' }}>
                     <td>{idx + 1}</td>
                     <td>
-                      {row.college}
+                      Lot {row.lot_name}
                       {idx === 0 && row.points > 0 && <span style={{ marginLeft: '6px' }}>👑</span>}
                     </td>
-                    <td>{row.lot_name || '—'}</td>
                     <td>{row.points} pts</td>
                   </tr>
                 ))}
                 {leaderboard.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
+                    <td colSpan={3} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
                       No points recorded yet.
                     </td>
                   </tr>

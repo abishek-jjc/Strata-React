@@ -1679,3 +1679,49 @@ body.light-theme .guest-btn-video.blinking-red:hover {
 .guest-btn-video.blinking-red:hover svg {
   transform: scale(1.25) rotate(-10deg) !important;
 }
+
+/* Custom leader profile modal style to be bright and clear */
+.guest-leader-modal-panel {
+  background: #121120 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5) !important;
+  color: #ffffff !important;
+}
+
+body.light-theme .guest-leader-modal-panel {
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12) !important;
+  color: #0b0f19 !important;
+}
+
+body.light-theme .guest-leader-modal-panel .guest-field span {
+  color: #374151 !important;
+  font-weight: 500 !important;
+}
+
+body.light-theme .guest-leader-modal-panel input {
+  background: #ffffff !important;
+  border: 1px solid #d1d5db !important;
+  color: #0b0f19 !important;
+}
+
+body.light-theme .guest-leader-modal-panel input[readonly] {
+  background: #f3f4f6 !important;
+  border-color: #e5e7eb !important;
+  color: #4b5563 !important;
+}
+
+body.light-theme .guest-leader-modal-panel input:focus {
+  border-color: #0891b2 !important;
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1) !important;
+}
+
+body.light-theme .guest-leader-modal-panel label {
+  color: #374151 !important;
+}
+
+body.light-theme .guest-leader-modal-panel p {
+  color: #4b5563 !important;
+}

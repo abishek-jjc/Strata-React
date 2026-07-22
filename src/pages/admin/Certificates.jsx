@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import JSZip from 'jszip'
 import { supabase } from '../../supabase/client'
 import { useTable } from '../../hooks/useTable'
 import { TABLES, REGISTRATION_STATUS } from '../../supabase/tables'
@@ -88,6 +89,8 @@ export default function Certificates() {
   const [pdfPageSize, setPdfPageSize] = useState({ width: 841.89, height: 595.28 })
 
   const [loadingBulk, setLoadingBulk] = useState(false)
+  const [loadingZip, setLoadingZip] = useState(false)
+  const [zipProgress, setZipProgress] = useState('')
 
   // Tab and search state
   const [activeTab, setActiveTab] = useState('participation')
@@ -510,16 +513,6 @@ export default function Certificates() {
   async function issueParticipation(student) {
     const certNumber = `CERT-PART-${Date.now()}`
     try {
-      const layout = layouts.participation
-      const sName = student.student_name
-      const cName = getCollegeName(student.college_id)
-      const eName = getEventName(student.event_id)
-      
-      const singleList = [{ ...student, student_name: sName, winnerCollegeName: cName, winnerEventName: eName }]
-      const bytes = await generateBulkPdf(singleList, participationUrl, layout)
-      
-      downloadBlob(bytes, `participation_${sName.replace(/\s+/g, '_')}.pdf`)
-
       const { error: certError } = await supabase.from(TABLES.CERTIFICATES).insert({
         student_id: student.id,
         event_id: student.event_id,
@@ -532,6 +525,8 @@ export default function Certificates() {
         .from(TABLES.STUDENTS)
         .update({ certificate_status: 'issued' })
         .eq('id', student.id)
+
+      alert(`Participation certificate issued successfully for ${student.student_name}!`)
     } catch (err) {
       alert(err.message || 'Failed to issue participation certificate.')
     }
@@ -540,14 +535,6 @@ export default function Certificates() {
   async function issueWinner(student) {
     const certNumber = `CERT-WIN-${Date.now()}`
     try {
-      const templateVal = student.winnerPlace === '1st Place' ? winner1Url : winner2Url
-      const layout = student.winnerPlace === '1st Place' ? layouts.winner1 : layouts.winner2
-      
-      const singleList = [student]
-      const bytes = await generateBulkPdf(singleList, templateVal, layout)
-      
-      downloadBlob(bytes, `winner_${student.winnerPlace.replace(/\s+/g, '_')}_${student.student_name.replace(/\s+/g, '_')}.pdf`)
-
       const { error: certError } = await supabase.from(TABLES.CERTIFICATES).insert({
         student_id: student.id,
         event_id: student.event_id,
@@ -560,8 +547,150 @@ export default function Certificates() {
         .from(TABLES.STUDENTS)
         .update({ certificate_status: 'issued' })
         .eq('id', student.id)
+
+      alert(`Winner certificate (${student.winnerPlace}) issued successfully for ${student.student_name}!`)
     } catch (err) {
       alert(err.message || 'Failed to issue winner certificate.')
+    }
+  }
+
+  // View preview handler (opens PDF in a new tab)
+  async function handleViewCertificate(student) {
+    try {
+      const isWinnerTab = activeTab === 'winner'
+      const templateUrl = isWinnerTab
+        ? (student.winnerPlace === '1st Place' ? winner1Url : winner2Url)
+        : participationUrl
+      const layout = isWinnerTab
+        ? (student.winnerPlace === '1st Place' ? layouts.winner1 : layouts.winner2)
+        : layouts.participation
+
+      if (!templateUrl) {
+        alert('Please upload a PDF template first!')
+        return
+      }
+
+      const sName = student.student_name || 'student'
+      const cName = student.winnerCollegeName || getCollegeName(student.college_id) || ''
+      const eName = student.winnerEventName || getEventName(student.event_id) || ''
+      const singleList = [{ ...student, student_name: sName, winnerCollegeName: cName, winnerEventName: eName }]
+
+      const bytes = await generateBulkPdf(singleList, templateUrl, layout)
+      const blob = new Blob([bytes], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank')
+    } catch (err) {
+      alert('Failed to generate view preview: ' + err.message)
+    }
+  }
+
+  // Individual Download handler
+  async function handleDownloadCertificate(student) {
+    try {
+      const isWinnerTab = activeTab === 'winner'
+      const templateUrl = isWinnerTab
+        ? (student.winnerPlace === '1st Place' ? winner1Url : winner2Url)
+        : participationUrl
+      const layout = isWinnerTab
+        ? (student.winnerPlace === '1st Place' ? layouts.winner1 : layouts.winner2)
+        : layouts.participation
+
+      if (!templateUrl) {
+        alert('Please upload a PDF template first!')
+        return
+      }
+
+      const sName = student.student_name || 'student'
+      const cName = student.winnerCollegeName || getCollegeName(student.college_id) || ''
+      const eName = student.winnerEventName || getEventName(student.event_id) || ''
+      const singleList = [{ ...student, student_name: sName, winnerCollegeName: cName, winnerEventName: eName }]
+
+      const bytes = await generateBulkPdf(singleList, templateUrl, layout)
+      const fileName = isWinnerTab
+        ? `winner_${student.winnerPlace.replace(/\s+/g, '_')}_${sName.replace(/\s+/g, '_')}.pdf`
+        : `participation_${sName.replace(/\s+/g, '_')}.pdf`
+
+      downloadBlob(bytes, fileName)
+    } catch (err) {
+      alert('Failed to download certificate: ' + err.message)
+    }
+  }
+
+  // Individual Issue handler
+  async function handleIssueCertificate(student) {
+    const isWinnerTab = activeTab === 'winner'
+    if (isWinnerTab) {
+      await issueWinner(student)
+    } else {
+      await issueParticipation(student)
+    }
+  }
+
+  // Bulk ZIP Download handler for filtered search results
+  async function handleDownloadFilteredZip() {
+    const isWinnerTab = activeTab === 'winner'
+    const listToZip = isWinnerTab ? filteredWinners : filteredParticipation
+
+    if (listToZip.length === 0) {
+      alert('No certificates found matching your search filter!')
+      return
+    }
+
+    setLoadingZip(true)
+    setZipProgress(`0 / ${listToZip.length}`)
+
+    try {
+      const zip = new JSZip()
+      let count = 0
+
+      for (const student of listToZip) {
+        const templateUrl = isWinnerTab
+          ? (student.winnerPlace === '1st Place' ? winner1Url : winner2Url)
+          : participationUrl
+        const layout = isWinnerTab
+          ? (student.winnerPlace === '1st Place' ? layouts.winner1 : layouts.winner2)
+          : layouts.participation
+
+        if (!templateUrl) {
+          throw new Error(`PDF template missing for ${student.student_name}! Please upload template first.`)
+        }
+
+        const sName = student.student_name || 'student'
+        const cName = student.winnerCollegeName || getCollegeName(student.college_id) || ''
+        const eName = student.winnerEventName || getEventName(student.event_id) || ''
+        const singleList = [{ ...student, student_name: sName, winnerCollegeName: cName, winnerEventName: eName }]
+
+        const bytes = await generateBulkPdf(singleList, templateUrl, layout)
+
+        const cleanSName = sName.replace(/[/\\?%*:|"<>]/g, '_').replace(/\s+/g, '_')
+        const cleanEName = eName.replace(/[/\\?%*:|"<>]/g, '_').replace(/\s+/g, '_')
+
+        let filename = isWinnerTab
+          ? `${cleanSName}_${cleanEName}_${student.winnerPlace.replace(/\s+/g, '_')}.pdf`
+          : `${cleanSName}_${cleanEName}_Participation.pdf`
+
+        if (zip.file(filename)) {
+          filename = `${count + 1}_${filename}`
+        }
+
+        zip.file(filename, bytes)
+        count++
+        setZipProgress(`${count} / ${listToZip.length}`)
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(zipBlob)
+      const a = document.createElement('a')
+      a.href = url
+      const filterLabel = searchQuery.trim() ? searchQuery.trim().replace(/\s+/g, '_') : 'all'
+      a.download = `certificates_${isWinnerTab ? 'winners' : 'participation'}_${filterLabel}.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      alert('Failed to generate ZIP archive: ' + err.message)
+    } finally {
+      setLoadingZip(false)
+      setZipProgress('')
     }
   }  // Unified Issue All — works for both participation and winner tabs
   async function issueAll() {
@@ -1088,8 +1217,33 @@ export default function Certificates() {
           </button>
         </div>
 
-        {/* Unified Bulk Issue Button + Search */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        {/* Unified Bulk Issue Button + Filtered ZIP Export + Search */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {searchQuery.trim() !== '' && (
+            <button
+              type="button"
+              className="btn"
+              onClick={handleDownloadFilteredZip}
+              disabled={loadingZip}
+              style={{
+                padding: '8px 14px',
+                fontSize: '0.85rem',
+                backgroundColor: '#0284c7',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer'
+              }}
+              title="Download all certificates matching current search filter as a ZIP archive"
+            >
+              📦 {loadingZip ? `Zipping (${zipProgress})...` : `Download Filtered ZIP (${activeTab === 'participation' ? filteredParticipation.length : filteredWinners.length})`}
+            </button>
+          )}
+
           <button
             className="btn btn-primary"
             onClick={issueAll}
@@ -1138,27 +1292,46 @@ export default function Certificates() {
                           {isIssued ? '✓ Issued' : 'Not Issued'}
                         </span>
                       </td>
-                      <td>
-                        {isIssued ? (
+                      <td style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
                           <button
-                            onClick={() => {
-                              const cert = certificates.find(c => c.student_id === s.id && c.position === 'Participation')
-                              if (cert) downloadSingle(cert)
+                            type="button"
+                            onClick={() => handleViewCertificate(s)}
+                            className="btn btn-sm"
+                            style={{ padding: '4px 8px', fontSize: '0.78rem', background: 'var(--surface-raised, #1e293b)', color: '#00e5ff', border: '1px solid var(--border)' }}
+                            disabled={!participationUrl}
+                            title="View / Preview Certificate"
+                          >
+                            👁️ View
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadCertificate(s)}
+                            className="btn btn-sm"
+                            style={{ padding: '4px 8px', fontSize: '0.78rem', background: 'var(--surface-raised, #1e293b)', color: '#f9c20a', border: '1px solid var(--border)' }}
+                            disabled={!participationUrl}
+                            title="Download PDF Certificate"
+                          >
+                            ⬇️ Download
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleIssueCertificate(s)}
+                            className="btn btn-sm"
+                            style={{
+                              padding: '4px 8px',
+                              fontSize: '0.78rem',
+                              background: isIssued ? 'rgba(34, 197, 94, 0.15)' : 'var(--accent)',
+                              color: isIssued ? '#22c55e' : '#000',
+                              border: isIssued ? '1px solid #22c55e' : 'none',
+                              fontWeight: 600
                             }}
-                            className="link"
                             disabled={!participationUrl}
+                            title={isIssued ? 'Certificate already issued' : 'Issue Certificate'}
                           >
-                            Download PDF
+                            {isIssued ? '✓ Issued' : '⚡ Issue'}
                           </button>
-                        ) : (
-                          <button
-                            onClick={() => issueParticipation(s)}
-                            className="link btn-primary-link"
-                            disabled={!participationUrl}
-                          >
-                            Issue PDF
-                          </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -1237,7 +1410,7 @@ export default function Certificates() {
                   const isIssued = certificates.some(
                     (c) => c.student_id === s.id && c.position === s.winnerPlace
                   )
-                  const hasTemplates = winner1Url && winner2Url
+                  const templateForWinner = s.winnerPlace === '1st Place' ? winner1Url : winner2Url
                   return (
                     <tr key={`${s.id}-${s.winnerPlace}-${idx}`}>
                       <td><strong>{s.student_name}</strong></td>
@@ -1253,27 +1426,46 @@ export default function Certificates() {
                           {isIssued ? '✓ Issued' : 'Not Issued'}
                         </span>
                       </td>
-                      <td>
-                        {isIssued ? (
+                      <td style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
                           <button
-                            onClick={() => {
-                              const cert = certificates.find(c => c.student_id === s.id && c.position === s.winnerPlace)
-                              if (cert) downloadSingle(cert)
+                            type="button"
+                            onClick={() => handleViewCertificate(s)}
+                            className="btn btn-sm"
+                            style={{ padding: '4px 8px', fontSize: '0.78rem', background: 'var(--surface-raised, #1e293b)', color: '#00e5ff', border: '1px solid var(--border)' }}
+                            disabled={!templateForWinner}
+                            title="View / Preview Certificate"
+                          >
+                            👁️ View
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadCertificate(s)}
+                            className="btn btn-sm"
+                            style={{ padding: '4px 8px', fontSize: '0.78rem', background: 'var(--surface-raised, #1e293b)', color: '#f9c20a', border: '1px solid var(--border)' }}
+                            disabled={!templateForWinner}
+                            title="Download PDF Certificate"
+                          >
+                            ⬇️ Download
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleIssueCertificate(s)}
+                            className="btn btn-sm"
+                            style={{
+                              padding: '4px 8px',
+                              fontSize: '0.78rem',
+                              background: isIssued ? 'rgba(34, 197, 94, 0.15)' : 'var(--accent)',
+                              color: isIssued ? '#22c55e' : '#000',
+                              border: isIssued ? '1px solid #22c55e' : 'none',
+                              fontWeight: 600
                             }}
-                            className="link"
-                            disabled={!hasTemplates}
+                            disabled={!templateForWinner}
+                            title={isIssued ? 'Certificate already issued' : 'Issue Certificate'}
                           >
-                            Download PDF
+                            {isIssued ? '✓ Issued' : '⚡ Issue'}
                           </button>
-                        ) : (
-                          <button
-                            onClick={() => issueWinner(s)}
-                            className="link btn-primary-link"
-                            disabled={!hasTemplates}
-                          >
-                            Issue PDF
-                          </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   )

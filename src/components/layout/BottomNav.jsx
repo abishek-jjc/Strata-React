@@ -1,7 +1,49 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, Users, CreditCard, MoreHorizontal } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, CreditCard, MoreHorizontal, Trophy, FileText, Award, User } from 'lucide-react'
+import { useAuth } from '../../auth/AuthContext'
 
 export default function BottomNav() {
+  const { role } = useAuth()
+
+  if (role === 'incharge') {
+    return (
+      <div className="mobile-bottom-nav">
+        <NavLink 
+          to="/incharge" 
+          end 
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+        >
+          <Trophy size={20} />
+          <span>Lots</span>
+        </NavLink>
+
+        <NavLink 
+          to="/incharge/students" 
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+        >
+          <Users size={20} />
+          <span>Students</span>
+        </NavLink>
+
+        <NavLink 
+          to="/incharge/winners" 
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+        >
+          <Award size={20} />
+          <span>Winners</span>
+        </NavLink>
+
+        <NavLink 
+          to="/incharge/profile" 
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+        >
+          <User size={20} />
+          <span>Profile</span>
+        </NavLink>
+      </div>
+    )
+  }
+
   return (
     <div className="mobile-bottom-nav">
       <NavLink 
@@ -22,11 +64,11 @@ export default function BottomNav() {
       </NavLink>
 
       <NavLink 
-        to="/leader/participants" 
+        to="/leader/winners" 
         className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
       >
-        <Users size={20} />
-        <span>Participants</span>
+        <Trophy size={20} />
+        <span>Winners</span>
       </NavLink>
 
       <NavLink 

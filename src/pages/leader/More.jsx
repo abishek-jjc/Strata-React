@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ShieldAlert, MessageCircle, Award, User, ChevronRight } from 'lucide-react'
+import { ShieldAlert, MessageCircle, Award, User, ChevronRight, MessageSquare } from 'lucide-react'
 import BackButton from '../../components/common/BackButton'
 
 export default function More() {
@@ -21,6 +21,12 @@ export default function More() {
       title: 'Certificates',
       desc: 'Download participation and merit award certificates.',
       icon: <Award size={24} style={{ color: '#eab308' }} />,
+    },
+    {
+      to: '/leader/feedback',
+      title: 'Feedback',
+      desc: 'Submit suggestions, comments, or queries for event organizers.',
+      icon: <MessageSquare size={24} style={{ color: '#ec4899' }} />,
     },
     {
       to: '/leader/profile',

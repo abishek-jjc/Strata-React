@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../auth/AuthContext'
 import { useTable } from '../../hooks/useTable'
@@ -14,10 +14,12 @@ const emptyParticipant = () => ({
   rollNo: '', 
   food: '', 
   department: '-', 
+  gender: '',
 })
 
 export default function TeamRegistration() {
   const { profile } = useAuth()
+  const navigate = useNavigate()
 
   const { data: events, loading: eventsLoading } = useTable(TABLES.EVENTS, [['status', 'eq', 'active']])
   const { data: registrations, loading: regsLoading } = useTable(TABLES.REGISTRATIONS, [['leader_id', 'eq', profile?.ref_id]])
@@ -112,7 +114,11 @@ export default function TeamRegistration() {
 
   function updateParticipant(index, field, value) {
     const next = [...regParticipants]
-    next[index] = { ...next[index], [field]: value }
+    let val = value
+    if (field === 'rollNo') {
+      val = value.replace(/[^a-zA-Z0-9]/g, '')
+    }
+    next[index] = { ...next[index], [field]: val }
     setRegParticipants(next)
   }
 
@@ -137,6 +143,9 @@ export default function TeamRegistration() {
     if (regParticipants.some(p => !p.rollNo?.trim())) return setRegError('Every participant needs a roll number.')
     if (regParticipants.some(p => !p.food || p.food === '-')) {
       return setRegError('Please select a food choice (Veg or Non-Veg) for all participants.')
+    }
+    if (regParticipants.some(p => !p.gender || p.gender === '-')) {
+      return setRegError('Please select a gender for all participants.')
     }
     if (regParticipants.length !== teamSize) return setRegError(`This event requires exactly ${teamSize} participant(s).`)
     if (hasDuplicateNamesWithinTeam(names)) return setRegError('Two participants in this team have the same name.')
@@ -174,7 +183,7 @@ export default function TeamRegistration() {
         p_participants: regParticipants.map(p => ({
           studentName: p.studentName.trim(),
           rollNo: p.rollNo.trim(),
-          gender: null,
+          gender: p.gender || '-',
           department: p.department || '-',
           year: null,
           food: p.food || '-',
@@ -192,8 +201,19 @@ export default function TeamRegistration() {
       })
       if (countError) throw countError
 
-      setRegSuccess('Team registered successfully! Waiting for admin review.')
-      setRegParticipants([])
+      const registeredIds = new Set([...registrations.map(r => r.event_id), activeEventId])
+      const isAllRegistered = registeredIds.size === events.length
+
+      if (isAllRegistered) {
+        setRegSuccess('Registered for all events! Redirecting to payment...')
+        setRegParticipants([])
+        setTimeout(() => {
+          navigate('/leader/payment')
+        }, 1500)
+      } else {
+        setRegSuccess('Team registered successfully! Waiting for admin review.')
+        setRegParticipants([])
+      }
     } catch (err) {
       setRegError(err.message)
     } finally {
@@ -245,6 +265,7 @@ export default function TeamRegistration() {
         student_name: editingStudent.student_name.trim(),
         roll_no: editingStudent.roll_no.trim(),
         food_type: editingStudent.food_type || 'Veg',
+        gender: editingStudent.gender || '-',
       })
       .eq('id', editingStudent.id)
     setEditSaving(false)
@@ -253,6 +274,20 @@ export default function TeamRegistration() {
       setEditError(updateError.message)
     } else {
       setEditingStudent(null)
+    }
+  }
+
+  const currentEventIdx = events.findIndex(e => e.id === activeEventId)
+
+  function handleNextEvent() {
+    if (currentEventIdx < events.length - 1) {
+      setActiveEventId(events[currentEventIdx + 1].id)
+    }
+  }
+
+  function handlePrevEvent() {
+    if (currentEventIdx > 0) {
+      setActiveEventId(events[currentEventIdx - 1].id)
     }
   }
 
@@ -280,53 +315,75 @@ export default function TeamRegistration() {
       </div>
 
 
-      {/* ── Event Selection Dropdown ── */}
-      <div style={{ maxWidth: '500px', width: '100%', position: 'relative' }}>
-        <select
-          id="event-select"
-          value={activeEventId}
-          onChange={(e) => setActiveEventId(e.target.value)}
-          className="input"
-          style={{
-            width: '100%',
-            padding: '12px 14px',
-            fontSize: '0.95rem',
-            background: 'var(--surface-raised)',
-            border: '1px solid var(--border-strong)',
-            color: 'var(--text-primary)',
-            borderRadius: 'var(--radius-md)',
-            cursor: 'pointer',
-            fontWeight: 600,
-            outline: 'none',
-            paddingRight: '36px',
-            appearance: 'none',
-            WebkitAppearance: 'none',
-            MozAppearance: 'none',
-          }}
+      {/* ── Event Selection Dropdown & Navigation ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="btn"
+          onClick={handlePrevEvent}
+          disabled={currentEventIdx <= 0}
+          style={{ padding: '10px 16px', borderRadius: 'var(--radius-md)', fontWeight: 600 }}
         >
-          {events.map((ev) => {
-            const reg = registrations.find(r => r.event_id === ev.id)
-            const regText = reg ? ` (Registered: ${reg.status})` : ' (Not Registered)'
-            return (
-              <option key={ev.id} value={ev.id}>
-                {ev.event_name}{regText}
-              </option>
-            )
-          })}
-        </select>
-        <div style={{
-          position: 'absolute',
-          right: '14px',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          pointerEvents: 'none',
-          color: 'var(--text-secondary)',
-          fontSize: '0.8rem',
-          display: 'flex',
-          alignItems: 'center',
-        }}>
-          ▼
+          ◀ Prev Event
+        </button>
+
+        <div style={{ flex: 1, minWidth: '200px', maxWidth: '400px', position: 'relative' }}>
+          <select
+            id="event-select"
+            value={activeEventId}
+            onChange={(e) => setActiveEventId(e.target.value)}
+            className="input"
+            style={{
+              width: '100%',
+              padding: '12px 14px',
+              fontSize: '0.95rem',
+              background: 'var(--surface-raised)',
+              border: '1px solid var(--border-strong)',
+              color: 'var(--text-primary)',
+              borderRadius: 'var(--radius-md)',
+              cursor: 'pointer',
+              fontWeight: 600,
+              outline: 'none',
+              paddingRight: '36px',
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              MozAppearance: 'none',
+            }}
+          >
+            {events.map((ev) => {
+              const reg = registrations.find(r => r.event_id === ev.id)
+              const regText = reg ? ` (Registered: ${reg.status})` : ' (Not Registered)'
+              return (
+                <option key={ev.id} value={ev.id}>
+                  {ev.event_name}{regText}
+                </option>
+              )
+            })}
+          </select>
+          <div style={{
+            position: 'absolute',
+            right: '14px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            pointerEvents: 'none',
+            color: 'var(--text-secondary)',
+            fontSize: '0.8rem',
+            display: 'flex',
+            alignItems: 'center',
+          }}>
+            ▼
+          </div>
         </div>
+
+        <button
+          type="button"
+          className="btn"
+          onClick={handleNextEvent}
+          disabled={currentEventIdx >= events.length - 1 || currentEventIdx === -1}
+          style={{ padding: '10px 16px', borderRadius: 'var(--radius-md)', fontWeight: 600 }}
+        >
+          Next Event ▶
+        </button>
       </div>
 
       {!activeEvent ? (
@@ -483,10 +540,14 @@ export default function TeamRegistration() {
                         </span>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '0.85rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', fontSize: '0.85rem' }}>
                         <div>
                           <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '2px' }}>Roll No.</div>
                           <strong style={{ color: 'var(--text-primary)' }}>{s.roll_no || '—'}</strong>
+                        </div>
+                        <div>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '2px' }}>Gender</div>
+                          <strong style={{ color: 'var(--text-primary)' }}>{s.gender || '—'}</strong>
                         </div>
                         <div>
                           <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginBottom: '2px' }}>Food Choice</div>
@@ -575,14 +636,72 @@ export default function TeamRegistration() {
                               <input value={p.rollNo || ''} onChange={e => updateParticipant(i, 'rollNo', e.target.value)} placeholder="Roll number" required />
                             </label>
 
-                            <label className="field">
+                            <div className="field">
+                              <span>Gender <span style={{ color: '#ef4444' }}>*</span></span>
+                              <div style={{ display: 'flex', gap: '20px', marginTop: '8px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                                  <input
+                                    type="radio"
+                                    name={`gender-${i}`}
+                                    value="Male"
+                                    checked={p.gender === 'Male'}
+                                    onChange={e => updateParticipant(i, 'gender', e.target.value)}
+                                    required
+                                  />
+                                  Male
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                                  <input
+                                    type="radio"
+                                    name={`gender-${i}`}
+                                    value="Female"
+                                    checked={p.gender === 'Female'}
+                                    onChange={e => updateParticipant(i, 'gender', e.target.value)}
+                                    required
+                                  />
+                                  Female
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                                  <input
+                                    type="radio"
+                                    name={`gender-${i}`}
+                                    value="Other"
+                                    checked={p.gender === 'Other'}
+                                    onChange={e => updateParticipant(i, 'gender', e.target.value)}
+                                    required
+                                  />
+                                  Other
+                                </label>
+                              </div>
+                            </div>
+
+                            <div className="field">
                               <span>Food Choice <span style={{ color: '#ef4444' }}>*</span></span>
-                              <select value={p.food || ''} onChange={e => updateParticipant(i, 'food', e.target.value)} style={selectStyle} required>
-                                <option value="" disabled>Select food choice…</option>
-                                <option value="Veg">Veg</option>
-                                <option value="Non-Veg">Non-Veg</option>
-                              </select>
-                            </label>
+                              <div style={{ display: 'flex', gap: '20px', marginTop: '8px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                                  <input
+                                    type="radio"
+                                    name={`food-${i}`}
+                                    value="Veg"
+                                    checked={p.food === 'Veg'}
+                                    onChange={e => updateParticipant(i, 'food', e.target.value)}
+                                    required
+                                  />
+                                  Veg
+                                </label>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                                  <input
+                                    type="radio"
+                                    name={`food-${i}`}
+                                    value="Non-Veg"
+                                    checked={p.food === 'Non-Veg'}
+                                    onChange={e => updateParticipant(i, 'food', e.target.value)}
+                                    required
+                                  />
+                                  Non-Veg
+                                </label>
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -635,17 +754,75 @@ export default function TeamRegistration() {
             <label className="field">
               <span>Roll Number</span>
               <input type="text" required value={editingStudent.roll_no || ''}
-                onChange={e => setEditingStudent({ ...editingStudent, roll_no: e.target.value })} />
+                onChange={e => setEditingStudent({ ...editingStudent, roll_no: e.target.value.replace(/[^a-zA-Z0-9]/g, '') })} />
             </label>
 
-            <label className="field">
+            <div className="field" style={{ marginBottom: '15px' }}>
+              <span>Gender</span>
+              <div style={{ display: 'flex', gap: '20px', marginTop: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                  <input
+                    type="radio"
+                    name="edit-gender"
+                    value="Male"
+                    checked={editingStudent.gender === 'Male'}
+                    onChange={e => setEditingStudent({ ...editingStudent, gender: e.target.value })}
+                    required
+                  />
+                  Male
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                  <input
+                    type="radio"
+                    name="edit-gender"
+                    value="Female"
+                    checked={editingStudent.gender === 'Female'}
+                    onChange={e => setEditingStudent({ ...editingStudent, gender: e.target.value })}
+                    required
+                  />
+                  Female
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                  <input
+                    type="radio"
+                    name="edit-gender"
+                    value="Other"
+                    checked={editingStudent.gender === 'Other'}
+                    onChange={e => setEditingStudent({ ...editingStudent, gender: e.target.value })}
+                    required
+                  />
+                  Other
+                </label>
+              </div>
+            </div>
+
+            <div className="field" style={{ marginBottom: '15px' }}>
               <span>Food Choice</span>
-              <select value={editingStudent.food_type || 'Veg'} required
-                onChange={e => setEditingStudent({ ...editingStudent, food_type: e.target.value })}>
-                <option value="Veg">Veg</option>
-                <option value="Non-Veg">Non-Veg</option>
-              </select>
-            </label>
+              <div style={{ display: 'flex', gap: '20px', marginTop: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                  <input
+                    type="radio"
+                    name="edit-food"
+                    value="Veg"
+                    checked={editingStudent.food_type === 'Veg'}
+                    onChange={e => setEditingStudent({ ...editingStudent, food_type: e.target.value })}
+                    required
+                  />
+                  Veg
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                  <input
+                    type="radio"
+                    name="edit-food"
+                    value="Non-Veg"
+                    checked={editingStudent.food_type === 'Non-Veg'}
+                    onChange={e => setEditingStudent({ ...editingStudent, food_type: e.target.value })}
+                    required
+                  />
+                  Non-Veg
+                </label>
+              </div>
+            </div>
 
             {editError && <p className="error">{editError}</p>}
 

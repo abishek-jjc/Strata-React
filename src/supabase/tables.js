@@ -19,6 +19,7 @@ export const TABLES = {
   WINNERS: 'winners',
   PAYMENT_POLLS: 'payment_polls',
   PAYMENT_LOGS: 'payment_logs',
+  FEEDBACKS: 'feedbacks',
 }
 
 // Registration status pipeline — mirrors the CHECK constraint on

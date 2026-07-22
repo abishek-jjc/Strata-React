@@ -7,6 +7,8 @@ import { TABLES } from '../../supabase/tables'
 import { supabase } from '../../supabase/client'
 import { useTable } from '../../hooks/useTable'
 import { encryptCollegePayload } from '../../utils/qrCrypto'
+import { useSettings } from '../../context/SettingsContext'
+import { loadLogoWithOpacity, addWatermarkToAllPages } from '../../utils/pdfBackground'
 
 const fields = [
   { name: 'college', label: 'College', type: 'text', required: true },
@@ -35,6 +37,8 @@ async function generateAndAttachQr(formData, rowId) {
 
 export default function Colleges() {
   const { data } = useTable(TABLES.COLLEGES)
+  const { settings } = useSettings()
+  const logoUrl = settings?.event_logo_url
   const fileInputRef = useRef(null)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [selectedQrCollege, setSelectedQrCollege] = useState(null)
@@ -189,26 +193,37 @@ export default function Colleges() {
       const qrY = startY + 12
       doc.addImage(qrUrl, 'PNG', qrX, qrY, qrSize, qrSize)
 
-      // Text placements with bounds check
+      // Text placements with split text wrapping to prevent collision
+      const maxTextW = cellW - 10
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(8.5)
+      doc.setFontSize(8.2)
       doc.setTextColor(30, 35, 45)
-      const textX = startX + cellW / 2
-      const textY = qrY + qrSize + 16
-
+      
       const cName = college.college || college.college_name || ''
-      const displayCollege = cName.length > 32 ? cName.slice(0, 30) + '..' : cName
-      doc.text(displayCollege, textX, textY, { align: 'center' })
+      const collegeLines = doc.splitTextToSize(cName, maxTextW)
+      
+      const textX = startX + cellW / 2
+      const textY = qrY + qrSize + 14
+      doc.text(collegeLines, textX, textY, { align: 'center' })
+
+      // Calculate next line's Y offset based on number of college name lines
+      const deptY = textY + (collegeLines.length * 9.5) + 3
 
       doc.setFont('helvetica', 'normal')
-      doc.setFontSize(7.5)
+      doc.setFontSize(7.2)
       doc.setTextColor(100, 110, 120)
-      const displayDept = (college.department || '').length > 32 
-        ? (college.department || '').slice(0, 30) + '..' 
-        : (college.department || '')
-      doc.text(displayDept + ' Department', textX, textY + 11, { align: 'center' })
+      
+      const deptVal = college.department || ''
+      const displayDept = deptVal.endsWith(' Department') 
+        ? deptVal 
+        : `${deptVal} Department`
+        
+      const deptLines = doc.splitTextToSize(displayDept, maxTextW)
+      doc.text(deptLines, textX, deptY, { align: 'center' })
     }
 
+    const watermark = await loadLogoWithOpacity(logoUrl, 0.05)
+    addWatermarkToAllPages(doc, watermark, 0.4)
     doc.save('colleges_qr_sheets.pdf')
   }
 

@@ -336,6 +336,7 @@ export default function GuestRegister() {
       setIsDecrypted(false)
       sessionStorage.removeItem('pending_college_name')
       sessionStorage.removeItem('pending_leader_dept')
+      sessionStorage.removeItem('pending_leader_dept_type')
       window.location.reload()
     } catch (err) {
       alert('Sign out failed: ' + err.message)
@@ -416,6 +417,7 @@ export default function GuestRegister() {
                     onClick={() => {
                       sessionStorage.removeItem('pending_college_name')
                       sessionStorage.removeItem('pending_leader_dept')
+                      sessionStorage.removeItem('pending_leader_dept_type')
                       window.location.href = '/'
                     }} 
                     className="guest-btn guest-btn-secondary" 
@@ -658,7 +660,7 @@ export default function GuestRegister() {
           overflowY: 'auto'
         }}>
           <form onSubmit={handleSubmit} style={{ maxWidth: '600px', width: '100%', margin: 'auto' }} onClick={(e) => e.stopPropagation()}>
-            <div className="guest-glass-panel" style={{ padding: '30px' }}>
+            <div className="guest-glass-panel guest-leader-modal-panel" style={{ padding: '30px' }}>
               <h3 style={{ fontFamily: 'Syne, sans-serif', fontSize: '1.4rem', color: 'var(--g-secondary)', marginBottom: '20px', borderBottom: '1px solid var(--g-glass-border)', paddingBottom: '12px', textAlign: 'center' }}>
                 Complete Leader Registration
               </h3>
@@ -688,7 +690,7 @@ export default function GuestRegister() {
                     required 
                     placeholder="10-digit mobile number" 
                     value={leaderPhone}
-                    onChange={(e) => setLeaderPhone(e.target.value)}
+                    onChange={(e) => setLeaderPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                   />
                 </label>
 

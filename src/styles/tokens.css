@@ -1749,20 +1749,49 @@ body.light-theme .btn-primary:hover {
     transform: translateY(-2px);
   }
 
-  /* Responsive layout adjustments for mobile leaders */
-  .app-shell.role-leader .sidebar {
+  /* Responsive layout adjustments for mobile leaders & incharges */
+  .app-shell.role-leader .sidebar,
+  .app-shell.role-incharge .sidebar {
     display: none !important;
   }
 
-  .app-shell.role-leader .sidebar-backdrop {
+  .app-shell.role-leader .sidebar-backdrop,
+  .app-shell.role-incharge .sidebar-backdrop {
     display: none !important;
   }
 
-  .app-shell.role-leader .sidebar-toggle-btn {
+  .app-shell.role-leader .sidebar-toggle-btn,
+  .app-shell.role-incharge .sidebar-toggle-btn {
     display: none !important;
   }
 
-  .app-shell.role-leader .app-content {
+  .app-shell.role-leader .app-content,
+  .app-shell.role-incharge .app-content {
     padding-bottom: 86px !important;
+  }
+
+  /* Responsive adjustments for Incharge Dashboard */
+  .incharge-header-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  .incharge-actions-container {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+  .incharge-search-wrapper {
+    width: 100% !important;
+  }
+  .incharge-export-btn-group {
+    display: flex !important;
+    width: 100% !important;
+    gap: 10px !important;
+  }
+  .incharge-export-btn-group button {
+    flex: 1 !important;
+    justify-content: center !important;
   }
 }

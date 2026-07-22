@@ -132,7 +132,7 @@ export default function Profile() {
         <div>
           <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)' }}>{profile?.name || '—'}</div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'capitalize', marginTop: '2px' }}>
-            {profile?.role} · Student Leader Coordinator
+            {profile?.role || 'Leader'}
           </div>
 
         </div>
@@ -276,7 +276,7 @@ export default function Profile() {
                 required
                 placeholder="10-digit mobile number"
                 value={editPhone}
-                onChange={(e) => setEditPhone(e.target.value)}
+                onChange={(e) => setEditPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
               />
             </label>
 

@@ -4,32 +4,18 @@
 -- ============================================================================
 
 -- ============================================================================
--- PHASE 0: Clean existing transactional data if tables exist
+-- PHASE 0: Clean existing transactional data (OPTIONAL - UNCOMMENT ONLY IF YOU WANT A BLANK DB)
 -- ============================================================================
-DO $$
-BEGIN
-  -- Disable FK checks temporarily for clean cascaded truncation
-  SET session_replication_role = 'replica';
-
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'certificates') THEN
-    TRUNCATE TABLE public.certificates CASCADE;
-  END IF;
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'payments') THEN
-    TRUNCATE TABLE public.payments CASCADE;
-  END IF;
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'students') THEN
-    TRUNCATE TABLE public.students CASCADE;
-  END IF;
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'registrations') THEN
-    TRUNCATE TABLE public.registrations CASCADE;
-  END IF;
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'student_leaders') THEN
-    TRUNCATE TABLE public.student_leaders CASCADE;
-  END IF;
-
-  -- Restore normal trigger behaviour
-  SET session_replication_role = 'origin';
-END $$;
+-- DO $$
+-- BEGIN
+--   SET session_replication_role = 'replica';
+--   IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'certificates') THEN TRUNCATE TABLE public.certificates CASCADE; END IF;
+--   IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'payments') THEN TRUNCATE TABLE public.payments CASCADE; END IF;
+--   IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'students') THEN TRUNCATE TABLE public.students CASCADE; END IF;
+--   IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'registrations') THEN TRUNCATE TABLE public.registrations CASCADE; END IF;
+--   IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'student_leaders') THEN TRUNCATE TABLE public.student_leaders CASCADE; END IF;
+--   SET session_replication_role = 'origin';
+-- END $$;
 
 
 -- ============================================================================
@@ -55,11 +41,12 @@ CREATE TABLE IF NOT EXISTS public.leaders (
   id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   name        text        NOT NULL,
   position    text        NOT NULL,
-  description text        NOT NULL,
+  description text,
   created_at  timestamptz DEFAULT now()
 );
 ALTER TABLE public.leaders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.leaders ADD COLUMN IF NOT EXISTS image_url text;
+ALTER TABLE public.leaders ALTER COLUMN description DROP NOT NULL;
 
 -- 2c. rules
 CREATE TABLE IF NOT EXISTS public.rules (
@@ -250,7 +237,9 @@ CREATE TABLE IF NOT EXISTS public.students (
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS student_name_normalized text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS roll_no                  text;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS gender                  text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS department              text;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS year                    text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS email                   text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS registration_id         uuid REFERENCES public.registrations(id) ON DELETE CASCADE;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS leader_id               uuid REFERENCES public.student_leaders(id) ON DELETE SET NULL;
@@ -275,129 +264,6 @@ ALTER TABLE public.certificates ADD COLUMN IF NOT EXISTS event_id            uui
 ALTER TABLE public.certificates ADD COLUMN IF NOT EXISTS position            text;   -- 'Participation', '1st Place', '2nd Place'
 ALTER TABLE public.certificates ADD COLUMN IF NOT EXISTS certificate_number  text;
 ALTER TABLE public.certificates ADD COLUMN IF NOT EXISTS created_at          timestamptz DEFAULT now();
-
--- ============================================================================
--- PHASE 2z: Row Level Security Policies
--- Open read access to all authenticated users and anon (Supabase client uses
--- anon key for all browser requests). Writes are protected to service_role/admin.
--- ============================================================================
-
--- Allow anyone to read (anon key is used in the browser)
-DO $$ BEGIN
-  -- settings: anyone reads
-  DROP POLICY IF EXISTS "settings_read_all" ON public.settings;
-  CREATE POLICY "settings_read_all" ON public.settings FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "settings_write_admin" ON public.settings;
-  CREATE POLICY "settings_write_admin" ON public.settings FOR ALL USING (true);
-
-  -- leaders: anyone reads
-  DROP POLICY IF EXISTS "leaders_read_all" ON public.leaders;
-  CREATE POLICY "leaders_read_all" ON public.leaders FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "leaders_write_admin" ON public.leaders;
-  CREATE POLICY "leaders_write_admin" ON public.leaders FOR ALL USING (true);
-
-  -- rules: anyone reads
-  DROP POLICY IF EXISTS "rules_read_all" ON public.rules;
-  CREATE POLICY "rules_read_all" ON public.rules FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "rules_write_admin" ON public.rules;
-  CREATE POLICY "rules_write_admin" ON public.rules FOR ALL USING (true);
-
-  -- venues: anyone reads
-  DROP POLICY IF EXISTS "venues_read_all" ON public.venues;
-  CREATE POLICY "venues_read_all" ON public.venues FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "venues_write_admin" ON public.venues;
-  CREATE POLICY "venues_write_admin" ON public.venues FOR ALL USING (true);
-
-  -- profiles: anyone reads, authenticated writes
-  DROP POLICY IF EXISTS "profiles_read_all" ON public.profiles;
-  CREATE POLICY "profiles_read_all" ON public.profiles FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "profiles_write_all" ON public.profiles;
-  CREATE POLICY "profiles_write_all" ON public.profiles FOR ALL USING (true);
-
-  -- admins: anyone reads
-  DROP POLICY IF EXISTS "admins_read_all" ON public.admins;
-  CREATE POLICY "admins_read_all" ON public.admins FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "admins_write_admin" ON public.admins;
-  CREATE POLICY "admins_write_admin" ON public.admins FOR ALL USING (true);
-
-  -- accountants: anyone reads
-  DROP POLICY IF EXISTS "accountants_read_all" ON public.accountants;
-  CREATE POLICY "accountants_read_all" ON public.accountants FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "accountants_write_admin" ON public.accountants;
-  CREATE POLICY "accountants_write_admin" ON public.accountants FOR ALL USING (true);
-
-  -- incharges: anyone reads
-  DROP POLICY IF EXISTS "incharges_read_all" ON public.incharges;
-  CREATE POLICY "incharges_read_all" ON public.incharges FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "incharges_write_admin" ON public.incharges;
-  CREATE POLICY "incharges_write_admin" ON public.incharges FOR ALL USING (true);
-
-  -- events: anyone reads
-  DROP POLICY IF EXISTS "events_read_all" ON public.events;
-  CREATE POLICY "events_read_all" ON public.events FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "events_write_admin" ON public.events;
-  CREATE POLICY "events_write_admin" ON public.events FOR ALL USING (true);
-
-  -- colleges: anyone reads
-  DROP POLICY IF EXISTS "colleges_read_all" ON public.colleges;
-  CREATE POLICY "colleges_read_all" ON public.colleges FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "colleges_write_admin" ON public.colleges;
-  CREATE POLICY "colleges_write_admin" ON public.colleges FOR ALL USING (true);
-
-  -- student_leaders: anyone reads
-  DROP POLICY IF EXISTS "student_leaders_read_all" ON public.student_leaders;
-  CREATE POLICY "student_leaders_read_all" ON public.student_leaders FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "student_leaders_write_admin" ON public.student_leaders;
-  CREATE POLICY "student_leaders_write_admin" ON public.student_leaders FOR ALL USING (true);
-
-  -- lots: anyone reads
-  DROP POLICY IF EXISTS "lots_read_all" ON public.lots;
-  CREATE POLICY "lots_read_all" ON public.lots FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "lots_write_admin" ON public.lots;
-  CREATE POLICY "lots_write_admin" ON public.lots FOR ALL USING (true);
-
-  -- registrations: anyone reads
-  DROP POLICY IF EXISTS "registrations_read_all" ON public.registrations;
-  CREATE POLICY "registrations_read_all" ON public.registrations FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "registrations_write_all" ON public.registrations;
-  CREATE POLICY "registrations_write_all" ON public.registrations FOR ALL USING (true);
-
-  -- students: anyone reads
-  DROP POLICY IF EXISTS "students_read_all" ON public.students;
-  CREATE POLICY "students_read_all" ON public.students FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "students_write_all" ON public.students;
-  CREATE POLICY "students_write_all" ON public.students FOR ALL USING (true);
-
-  -- certificates: anyone reads (leaders need this to check issued status)
-  DROP POLICY IF EXISTS "certificates_read_all" ON public.certificates;
-  CREATE POLICY "certificates_read_all" ON public.certificates FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "certificates_write_admin" ON public.certificates;
-  CREATE POLICY "certificates_write_admin" ON public.certificates FOR ALL USING (true);
-
-  -- payments: anyone reads
-  DROP POLICY IF EXISTS "payments_read_all" ON public.payments;
-  CREATE POLICY "payments_read_all" ON public.payments FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "payments_write_admin" ON public.payments;
-  CREATE POLICY "payments_write_admin" ON public.payments FOR ALL USING (true);
-
-  -- payment_polls: anyone reads (desk login requires this)
-  DROP POLICY IF EXISTS "payment_polls_read_all" ON public.payment_polls;
-  CREATE POLICY "payment_polls_read_all" ON public.payment_polls FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "payment_polls_write_admin" ON public.payment_polls;
-  CREATE POLICY "payment_polls_write_admin" ON public.payment_polls FOR ALL USING (true);
-
-  -- payment_logs: anyone reads
-  DROP POLICY IF EXISTS "payment_logs_read_all" ON public.payment_logs;
-  CREATE POLICY "payment_logs_read_all" ON public.payment_logs FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "payment_logs_write_admin" ON public.payment_logs;
-  CREATE POLICY "payment_logs_write_admin" ON public.payment_logs FOR ALL USING (true);
-
-  -- winners: anyone reads
-  DROP POLICY IF EXISTS "winners_read_all" ON public.winners;
-  CREATE POLICY "winners_read_all" ON public.winners FOR SELECT USING (true);
-  DROP POLICY IF EXISTS "winners_write_admin" ON public.winners;
-  CREATE POLICY "winners_write_admin" ON public.winners FOR ALL USING (true);
-END $$;
 
 -- 2p. payments
 CREATE TABLE IF NOT EXISTS public.payments (
@@ -442,6 +308,85 @@ ALTER TABLE public.winners ADD COLUMN IF NOT EXISTS prelim_winners text[] DEFAUL
 ALTER TABLE public.winners ADD COLUMN IF NOT EXISTS prelims_published boolean DEFAULT false;
 ALTER TABLE public.winners ADD COLUMN IF NOT EXISTS mains_published boolean DEFAULT false;
 
+-- 2t. feedbacks
+CREATE TABLE IF NOT EXISTS public.feedbacks (
+  id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  leader_id    uuid        REFERENCES public.student_leaders(id) ON DELETE CASCADE,
+  college_id   uuid        REFERENCES public.colleges(id) ON DELETE CASCADE,
+  college_name text,
+  department   text,
+  title        text        NOT NULL,
+  description  text        NOT NULL,
+  created_at   timestamptz DEFAULT now()
+);
+ALTER TABLE public.feedbacks ENABLE ROW LEVEL SECURITY;
+
+
+-- ============================================================================
+-- PHASE 2z: Drop all legacy open-access policies
+-- ALL tables are created above, so DROP POLICY IF EXISTS is safe here.
+-- ============================================================================
+
+-- Drop all legacy PHASE 2z open policies from every table
+DO $$ BEGIN
+  -- settings
+  DROP POLICY IF EXISTS "settings_read_all"    ON public.settings;
+  DROP POLICY IF EXISTS "settings_write_admin" ON public.settings;
+  -- leaders
+  DROP POLICY IF EXISTS "leaders_read_all"    ON public.leaders;
+  DROP POLICY IF EXISTS "leaders_write_admin" ON public.leaders;
+  -- rules
+  DROP POLICY IF EXISTS "rules_read_all"    ON public.rules;
+  DROP POLICY IF EXISTS "rules_write_admin" ON public.rules;
+  -- venues
+  DROP POLICY IF EXISTS "venues_read_all"    ON public.venues;
+  DROP POLICY IF EXISTS "venues_write_admin" ON public.venues;
+  -- profiles
+  DROP POLICY IF EXISTS "profiles_read_all"  ON public.profiles;
+  DROP POLICY IF EXISTS "profiles_write_all" ON public.profiles;
+  -- admins
+  DROP POLICY IF EXISTS "admins_read_all"    ON public.admins;
+  DROP POLICY IF EXISTS "admins_write_admin" ON public.admins;
+  -- accountants
+  DROP POLICY IF EXISTS "accountants_read_all"    ON public.accountants;
+  DROP POLICY IF EXISTS "accountants_write_admin" ON public.accountants;
+  -- incharges
+  DROP POLICY IF EXISTS "incharges_read_all"    ON public.incharges;
+  DROP POLICY IF EXISTS "incharges_write_admin" ON public.incharges;
+  -- events
+  DROP POLICY IF EXISTS "events_read_all"    ON public.events;
+  DROP POLICY IF EXISTS "events_write_admin" ON public.events;
+  -- colleges
+  DROP POLICY IF EXISTS "colleges_read_all"    ON public.colleges;
+  DROP POLICY IF EXISTS "colleges_write_admin" ON public.colleges;
+  -- student_leaders
+  DROP POLICY IF EXISTS "student_leaders_read_all"    ON public.student_leaders;
+  DROP POLICY IF EXISTS "student_leaders_write_admin" ON public.student_leaders;
+  -- lots
+  DROP POLICY IF EXISTS "lots_read_all"    ON public.lots;
+  DROP POLICY IF EXISTS "lots_write_admin" ON public.lots;
+  -- registrations
+  DROP POLICY IF EXISTS "registrations_read_all"  ON public.registrations;
+  DROP POLICY IF EXISTS "registrations_write_all" ON public.registrations;
+  -- students
+  DROP POLICY IF EXISTS "students_read_all"  ON public.students;
+  DROP POLICY IF EXISTS "students_write_all" ON public.students;
+  -- certificates
+  DROP POLICY IF EXISTS "certificates_read_all"    ON public.certificates;
+  DROP POLICY IF EXISTS "certificates_write_admin" ON public.certificates;
+  -- payments
+  DROP POLICY IF EXISTS "payments_read_all"    ON public.payments;
+  DROP POLICY IF EXISTS "payments_write_admin" ON public.payments;
+  -- payment_polls
+  DROP POLICY IF EXISTS "payment_polls_read_all"    ON public.payment_polls;
+  DROP POLICY IF EXISTS "payment_polls_write_admin" ON public.payment_polls;
+  -- payment_logs
+  DROP POLICY IF EXISTS "payment_logs_read_all"    ON public.payment_logs;
+  DROP POLICY IF EXISTS "payment_logs_write_admin" ON public.payment_logs;
+  -- winners
+  DROP POLICY IF EXISTS "winners_read_all"    ON public.winners;
+  DROP POLICY IF EXISTS "winners_write_admin" ON public.winners;
+END $$;
 
 -- ============================================================================
 -- PHASE 3: Database Helper Functions & Trigger Definitions
@@ -675,10 +620,10 @@ BEGIN
 
   v_count := jsonb_array_length(p_participants);
   IF v_count < v_min THEN
-    RAISE EXCEPTION 'Needs at least % participants — currently %.', v_min, v_count;
+    RAISE EXCEPTION 'Needs at least % participants -- currently %.', v_min, v_count;
   END IF;
   IF v_count > v_max THEN
-    RAISE EXCEPTION 'Maximum % participants allowed — currently %.', v_max, v_count;
+    RAISE EXCEPTION 'Maximum % participants allowed -- currently %.', v_max, v_count;
   END IF;
 
   -- Extract and verify names
@@ -736,14 +681,16 @@ BEGIN
   FOR v_participant IN SELECT * FROM jsonb_array_elements(p_participants) LOOP
     INSERT INTO public.students (
       student_name, student_name_normalized, roll_no, food_type,
-      department,
+      gender, department, year,
       registration_id, leader_id, college_id, event_id, certificate_status
     ) VALUES (
       v_participant->>'studentName',
       lower(trim(v_participant->>'studentName')),
       v_participant->>'rollNo',
       coalesce(v_participant->>'food', v_participant->>'foodType', '-'),
+      v_participant->>'gender',
       v_participant->>'department',
+      v_participant->>'year',
       v_reg_id, p_leader_id, p_college_id, p_event_id, 'not issued'
     );
   END LOOP;
@@ -818,6 +765,37 @@ DROP TRIGGER IF EXISTS trg_sync_profile_on_leader_change ON public.student_leade
 CREATE TRIGGER trg_sync_profile_on_leader_change
   AFTER INSERT OR UPDATE ON public.student_leaders
   FOR EACH ROW EXECUTE FUNCTION public.sync_profile_on_leader_change();
+
+-- Trigger to sync profiles when public.incharges row is inserted or updated
+CREATE OR REPLACE FUNCTION public.sync_profile_on_incharge_change()
+RETURNS trigger AS $$
+DECLARE
+  v_user_id uuid;
+BEGIN
+  IF NEW.email IS NOT NULL AND trim(NEW.email) <> '' THEN
+    SELECT id INTO v_user_id
+      FROM auth.users
+     WHERE lower(trim(email)) = lower(trim(NEW.email))
+     LIMIT 1;
+
+    IF v_user_id IS NOT NULL THEN
+      INSERT INTO public.profiles (id, role, name, ref_id, college_id)
+      VALUES (v_user_id, 'incharge', NEW.name, NEW.id, NULL)
+      ON CONFLICT (id) DO UPDATE
+      SET role = 'incharge',
+          ref_id = EXCLUDED.ref_id,
+          name = EXCLUDED.name;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_sync_profile_on_incharge_change ON public.incharges;
+CREATE TRIGGER trg_sync_profile_on_incharge_change
+  AFTER INSERT OR UPDATE ON public.incharges
+  FOR EACH ROW EXECUTE FUNCTION public.sync_profile_on_incharge_change();
 
 -- SECURITY DEFINER RPC to pre-register a leader profile bypassing auth check
 CREATE OR REPLACE FUNCTION public.pre_register_leader(
@@ -957,7 +935,7 @@ BEGIN
 END;
 $$;
 
--- 3f-1. verify_payment_desk_key — authenticate a payment poll keycode
+-- 3f-1. verify_payment_desk_key -- authenticate a payment poll keycode
 -- Returns the matching payment_polls row or NULL if invalid
 DROP FUNCTION IF EXISTS public.verify_payment_desk_key(text);
 CREATE OR REPLACE FUNCTION public.verify_payment_desk_key(p_keycode text)
@@ -966,6 +944,15 @@ LANGUAGE plpgsql SECURITY DEFINER AS $$
 DECLARE
   v_poll public.payment_polls;
 BEGIN
+  -- Enforce that only 'admin' or 'accountant' role can verify the key
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles 
+     WHERE id = auth.uid() 
+       AND role IN ('admin', 'accountant')
+  ) THEN
+    RAISE EXCEPTION 'Access Denied: Only admins and accountants can verify payment desk keys.';
+  END IF;
+
   SELECT * INTO v_poll
     FROM public.payment_polls
    WHERE upper(trim(poll_key)) = upper(trim(p_keycode))
@@ -974,10 +961,10 @@ BEGIN
 END;
 $$;
 
--- 3f-2. clear_college_payment_with_key — atomically mark a college as paid/unpaid
--- • Updates colleges.is_paid and colleges.paid_student_count
--- • Inserts a payment_logs audit row with amount and students count
--- • Advances all registrations for that college to 'paid' status (when marking as PAID)
+-- 3f-2. clear_college_payment_with_key -- atomically mark a college as paid/unpaid
+-- Updates colleges.is_paid and colleges.paid_student_count
+-- Inserts a payment_logs audit row with amount and students count
+-- Advances all registrations for that college to 'paid' status (when marking as PAID)
 DROP FUNCTION IF EXISTS public.clear_college_payment_with_key(uuid, text, boolean);
 CREATE OR REPLACE FUNCTION public.clear_college_payment_with_key(
   p_college_id uuid,
@@ -994,6 +981,15 @@ DECLARE
   v_new_students     int;
   v_amt              numeric;
 BEGIN
+  -- Enforce that only 'admin' or 'accountant' role can perform this operation
+  IF NOT EXISTS (
+    SELECT 1 FROM public.profiles 
+     WHERE id = auth.uid() 
+       AND role IN ('admin', 'accountant')
+  ) THEN
+    RAISE EXCEPTION 'Access Denied: Only admins and accountants can clear college payments.';
+  END IF;
+
   -- 1. Verify the poll keycode
   SELECT * INTO v_poll
     FROM public.payment_polls
@@ -1053,7 +1049,7 @@ BEGIN
            paid_student_count = 0
      WHERE id = p_college_id;
 
-    -- Roll registrations back from 'paid' → 'lot_assigned'
+    -- Roll registrations back from 'paid' to 'lot_assigned'
     UPDATE public.registrations
        SET status = 'lot_assigned'
      WHERE college_id = p_college_id
@@ -1181,115 +1177,315 @@ $$;
 
 
 -- ============================================================================
--- PHASE 4: Row Level Security Policies
+-- PHASE 4: Row Level Security Policies (Production-Hardened)
+-- ============================================================================
+-- Design principles:
+--   anon   = unauthenticated browser visitor (Supabase anon key)
+--   Public website tables (settings, leaders, rules, venues, events, lots,
+--   winners) allow anon SELECT only.
+--   Private tables (admins, accountants, profiles, incharges, students,
+--   registrations, certificates, payments, payment_logs) require sign-in.
+--   All writes (INSERT/UPDATE/DELETE) require role = 'admin' via
+--   current_role_name(), except where SECURITY DEFINER RPCs bypass RLS.
+--   colleges and student_leaders: authenticated read only; SECURITY DEFINER
+--   RPCs handle writes during registration workflow.
 -- ============================================================================
 
+-- settings: anon can read. Admin can write.
 DROP POLICY IF EXISTS "settings: public read"  ON public.settings;
 DROP POLICY IF EXISTS "settings: admin write"  ON public.settings;
-CREATE POLICY "settings: public read"  ON public.settings FOR SELECT USING (true);
-CREATE POLICY "settings: admin write"  ON public.settings FOR ALL    USING (current_role_name() = 'admin');
+CREATE POLICY "settings: public read"
+  ON public.settings FOR SELECT
+  USING (true);
+CREATE POLICY "settings: admin write"
+  ON public.settings FOR ALL
+  USING (current_role_name() = 'admin');
 
-DROP POLICY IF EXISTS "leaders: public read"   ON public.leaders;
-DROP POLICY IF EXISTS "leaders: admin write"   ON public.leaders;
-CREATE POLICY "leaders: public read"   ON public.leaders FOR SELECT USING (true);
-CREATE POLICY "leaders: admin write"   ON public.leaders FOR ALL    USING (current_role_name() = 'admin');
+-- leaders: anon can read. Admin can write.
+DROP POLICY IF EXISTS "leaders: public read"  ON public.leaders;
+DROP POLICY IF EXISTS "leaders: admin write"  ON public.leaders;
+CREATE POLICY "leaders: public read"
+  ON public.leaders FOR SELECT
+  USING (true);
+CREATE POLICY "leaders: admin write"
+  ON public.leaders FOR ALL
+  USING (current_role_name() = 'admin');
 
-DROP POLICY IF EXISTS "rules: public read"     ON public.rules;
-DROP POLICY IF EXISTS "rules: admin write"     ON public.rules;
-CREATE POLICY "rules: public read"     ON public.rules FOR SELECT USING (true);
-CREATE POLICY "rules: admin write"     ON public.rules FOR ALL    USING (current_role_name() = 'admin');
+-- rules: anon can read. Admin can write.
+DROP POLICY IF EXISTS "rules: public read"  ON public.rules;
+DROP POLICY IF EXISTS "rules: admin write"  ON public.rules;
+CREATE POLICY "rules: public read"
+  ON public.rules FOR SELECT
+  USING (true);
+CREATE POLICY "rules: admin write"
+  ON public.rules FOR ALL
+  USING (current_role_name() = 'admin');
 
-DROP POLICY IF EXISTS "venues: public read"    ON public.venues;
-DROP POLICY IF EXISTS "venues: admin write"    ON public.venues;
-CREATE POLICY "venues: public read"    ON public.venues FOR SELECT USING (true);
-CREATE POLICY "venues: admin write"    ON public.venues FOR ALL    USING (current_role_name() = 'admin');
+-- venues: anon can read. Admin can write.
+DROP POLICY IF EXISTS "venues: public read"  ON public.venues;
+DROP POLICY IF EXISTS "venues: admin write"  ON public.venues;
+CREATE POLICY "venues: public read"
+  ON public.venues FOR SELECT
+  USING (true);
+CREATE POLICY "venues: admin write"
+  ON public.venues FOR ALL
+  USING (current_role_name() = 'admin');
 
-DROP POLICY IF EXISTS "events: public read"    ON public.events;
-DROP POLICY IF EXISTS "events: admin write"    ON public.events;
-CREATE POLICY "events: public read"    ON public.events FOR SELECT USING (true);
-CREATE POLICY "events: admin write"    ON public.events FOR ALL    USING (current_role_name() = 'admin');
+-- events: anon can read. Admin can write.
+DROP POLICY IF EXISTS "events: public read"  ON public.events;
+DROP POLICY IF EXISTS "events: admin write"  ON public.events;
+CREATE POLICY "events: public read"
+  ON public.events FOR SELECT
+  USING (true);
+CREATE POLICY "events: admin write"
+  ON public.events FOR ALL
+  USING (current_role_name() = 'admin');
 
-DROP POLICY IF EXISTS "profiles: own read"     ON public.profiles;
-DROP POLICY IF EXISTS "profiles: admin write"  ON public.profiles;
-CREATE POLICY "profiles: own read"     ON public.profiles FOR SELECT USING (auth.uid() = id OR current_role_name() = 'admin');
-CREATE POLICY "profiles: admin write"  ON public.profiles FOR ALL    USING (current_role_name() = 'admin');
+-- lots: anon can read (lot assignments are public-facing).
+-- Admin can write. SECURITY DEFINER triggers handle automatic lot assignment.
+DROP POLICY IF EXISTS "lots: public read"  ON public.lots;
+DROP POLICY IF EXISTS "lots: admin write"  ON public.lots;
+CREATE POLICY "lots: public read"
+  ON public.lots FOR SELECT
+  USING (true);
+CREATE POLICY "lots: admin write"
+  ON public.lots FOR ALL
+  USING (current_role_name() = 'admin');
 
-DROP POLICY IF EXISTS "admins: admin read"     ON public.admins;
-DROP POLICY IF EXISTS "admins: admin write"    ON public.admins;
-CREATE POLICY "admins: admin write"    ON public.admins FOR ALL USING (current_role_name() = 'admin');
-
-DROP POLICY IF EXISTS "accountants: signed-in read" ON public.accountants;
-DROP POLICY IF EXISTS "accountants: admin write"    ON public.accountants;
-CREATE POLICY "accountants: signed-in read" ON public.accountants FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "accountants: admin write"    ON public.accountants FOR ALL    USING (current_role_name() = 'admin');
-
-DROP POLICY IF EXISTS "incharges: signed-in read"  ON public.incharges;
-DROP POLICY IF EXISTS "incharges: admin write"     ON public.incharges;
-CREATE POLICY "incharges: signed-in read"  ON public.incharges FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "incharges: admin write"     ON public.incharges FOR ALL    USING (current_role_name() = 'admin');
-
-DROP POLICY IF EXISTS "colleges: public read"      ON public.colleges;
-DROP POLICY IF EXISTS "colleges: admin write"      ON public.colleges;
-DROP POLICY IF EXISTS "colleges: payment update"   ON public.colleges;
-CREATE POLICY "colleges: public read"      ON public.colleges FOR SELECT USING (true);
-CREATE POLICY "colleges: admin write"      ON public.colleges FOR ALL    USING (current_role_name() = 'admin');
-CREATE POLICY "colleges: payment update"   ON public.colleges FOR UPDATE USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "student_leaders: signed-in read" ON public.student_leaders;
-DROP POLICY IF EXISTS "student_leaders: public read"    ON public.student_leaders;
-DROP POLICY IF EXISTS "student_leaders: admin write"    ON public.student_leaders;
-CREATE POLICY "student_leaders: public read"    ON public.student_leaders FOR SELECT USING (true);
-CREATE POLICY "student_leaders: admin write"    ON public.student_leaders FOR ALL    USING (current_role_name() = 'admin');
-
-DROP POLICY IF EXISTS "lots: public read"     ON public.lots;
-DROP POLICY IF EXISTS "lots: admin write"     ON public.lots;
-CREATE POLICY "lots: public read"     ON public.lots FOR SELECT USING (true);
-CREATE POLICY "lots: admin write"     ON public.lots FOR ALL    USING (current_role_name() = 'admin');
-
-DROP POLICY IF EXISTS "registrations: public read"   ON public.registrations;
-DROP POLICY IF EXISTS "registrations: admin write"   ON public.registrations;
-CREATE POLICY "registrations: public read"   ON public.registrations FOR SELECT USING (true);
-CREATE POLICY "registrations: admin write"   ON public.registrations FOR ALL    USING (current_role_name() = 'admin');
-
-DROP POLICY IF EXISTS "students: public read"                   ON public.students;
-DROP POLICY IF EXISTS "students: admin write"                   ON public.students;
-DROP POLICY IF EXISTS "students: incharge update winner_place"  ON public.students;
-CREATE POLICY "students: public read"   ON public.students FOR SELECT USING (true);
-CREATE POLICY "students: admin write"   ON public.students FOR ALL    USING (current_role_name() = 'admin');
-CREATE POLICY "students: incharge update winner_place" ON public.students FOR UPDATE
+-- winners: anon can read. Admin can write.
+DROP POLICY IF EXISTS "winners: public read"  ON public.winners;
+DROP POLICY IF EXISTS "winners: admin write"  ON public.winners;
+DROP POLICY IF EXISTS "winners: incharge write" ON public.winners;
+CREATE POLICY "winners: public read"
+  ON public.winners FOR SELECT
+  USING (true);
+CREATE POLICY "winners: admin write"
+  ON public.winners FOR ALL
+  USING (current_role_name() = 'admin');
+CREATE POLICY "winners: incharge write"
+  ON public.winners FOR ALL
   USING (
-    current_role_name() = 'incharge' AND
-    event_id IN (
-      SELECT event_id FROM public.incharges WHERE id = (
-        SELECT ref_id FROM public.profiles WHERE id = auth.uid()
+    current_role_name() = 'incharge' AND (
+      event_id IN (
+        SELECT id FROM public.events WHERE staff_incharge::text = (
+          SELECT ref_id::text FROM public.profiles WHERE id = auth.uid()
+        )
+      )
+      OR
+      event_id IN (
+        SELECT event_id FROM public.incharges WHERE id = (
+          SELECT ref_id FROM public.profiles WHERE id = auth.uid()
+        ) AND event_id IS NOT NULL
+      )
+    )
+  )
+  WITH CHECK (
+    current_role_name() = 'incharge' AND (
+      event_id IN (
+        SELECT id FROM public.events WHERE staff_incharge::text = (
+          SELECT ref_id::text FROM public.profiles WHERE id = auth.uid()
+        )
+      )
+      OR
+      event_id IN (
+        SELECT event_id FROM public.incharges WHERE id = (
+          SELECT ref_id FROM public.profiles WHERE id = auth.uid()
+        ) AND event_id IS NOT NULL
       )
     )
   );
 
-DROP POLICY IF EXISTS "certificates: admin read"  ON public.certificates;
-DROP POLICY IF EXISTS "certificates: admin write" ON public.certificates;
-CREATE POLICY "certificates: admin read"  ON public.certificates FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "certificates: admin write" ON public.certificates FOR ALL    USING (current_role_name() = 'admin');
+-- profiles: each authenticated user can read only their own row. Admin reads all.
+DROP POLICY IF EXISTS "profiles: own read"    ON public.profiles;
+DROP POLICY IF EXISTS "profiles: admin write" ON public.profiles;
+CREATE POLICY "profiles: own read"
+  ON public.profiles FOR SELECT
+  USING (auth.uid() = id OR current_role_name() = 'admin');
+CREATE POLICY "profiles: admin write"
+  ON public.profiles FOR ALL
+  USING (current_role_name() = 'admin');
 
-DROP POLICY IF EXISTS "payments: admin read"  ON public.payments;
-DROP POLICY IF EXISTS "payments: admin write" ON public.payments;
-CREATE POLICY "payments: admin read"  ON public.payments FOR SELECT USING (auth.uid() IS NOT NULL);
-CREATE POLICY "payments: admin write" ON public.payments FOR ALL    USING (current_role_name() = 'admin');
+-- admins: admin-only read and write. No public or anon access.
+DROP POLICY IF EXISTS "admins: admin read"  ON public.admins;
+DROP POLICY IF EXISTS "admins: admin write" ON public.admins;
+CREATE POLICY "admins: admin read"
+  ON public.admins FOR SELECT
+  USING (current_role_name() = 'admin');
+CREATE POLICY "admins: admin write"
+  ON public.admins FOR ALL
+  USING (current_role_name() = 'admin');
 
+-- accountants: authenticated users can read (needed for login lookup). Admin writes.
+DROP POLICY IF EXISTS "accountants: signed-in read" ON public.accountants;
+DROP POLICY IF EXISTS "accountants: admin write"    ON public.accountants;
+CREATE POLICY "accountants: signed-in read"
+  ON public.accountants FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+CREATE POLICY "accountants: admin write"
+  ON public.accountants FOR ALL
+  USING (current_role_name() = 'admin');
+
+-- incharges: authenticated users can read (needed for login lookup and workflow). Admin writes.
+DROP POLICY IF EXISTS "incharges: signed-in read" ON public.incharges;
+DROP POLICY IF EXISTS "incharges: admin write"    ON public.incharges;
+CREATE POLICY "incharges: signed-in read"
+  ON public.incharges FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+CREATE POLICY "incharges: admin write"
+  ON public.incharges FOR ALL
+  USING (current_role_name() = 'admin');
+
+-- colleges: authenticated read only (contains PII: email, phone, address).
+-- Admin full write. Payment-desk UPDATE via SECURITY DEFINER RPC only.
+DROP POLICY IF EXISTS "colleges: public read"    ON public.colleges;
+DROP POLICY IF EXISTS "colleges: signed-in read" ON public.colleges;
+DROP POLICY IF EXISTS "colleges: admin write"    ON public.colleges;
+DROP POLICY IF EXISTS "colleges: payment update" ON public.colleges;
+CREATE POLICY "colleges: signed-in read"
+  ON public.colleges FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+CREATE POLICY "colleges: admin write"
+  ON public.colleges FOR ALL
+  USING (current_role_name() = 'admin');
+
+-- student_leaders: authenticated read only. Admin full write.
+-- Inserts via SECURITY DEFINER RPCs only (pre_register_leader, configure_leader_profile).
+DROP POLICY IF EXISTS "student_leaders: public read"    ON public.student_leaders;
+DROP POLICY IF EXISTS "student_leaders: signed-in read" ON public.student_leaders;
+DROP POLICY IF EXISTS "student_leaders: admin write"    ON public.student_leaders;
+CREATE POLICY "student_leaders: signed-in read"
+  ON public.student_leaders FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+CREATE POLICY "student_leaders: admin write"
+  ON public.student_leaders FOR ALL
+  USING (current_role_name() = 'admin');
+
+-- registrations: authenticated users with valid role can read.
+-- Leaders can read only their own college's registrations.
+-- Admin full access. Writes via SECURITY DEFINER RPC (register_team) only.
+DROP POLICY IF EXISTS "registrations: public read"  ON public.registrations;
+DROP POLICY IF EXISTS "registrations: leader read"  ON public.registrations;
+DROP POLICY IF EXISTS "registrations: role read"    ON public.registrations;
+DROP POLICY IF EXISTS "registrations: admin write"  ON public.registrations;
+CREATE POLICY "registrations: role read"
+  ON public.registrations FOR SELECT
+  USING (
+    auth.uid() IS NOT NULL AND (
+      current_role_name() = 'admin'
+      OR current_role_name() = 'accountant'
+      OR current_role_name() = 'incharge'
+      OR (
+        current_role_name() = 'leader' AND
+        college_id = (SELECT college_id FROM public.profiles WHERE id = auth.uid())
+      )
+    )
+  );
+CREATE POLICY "registrations: admin write"
+  ON public.registrations FOR ALL
+  USING (current_role_name() = 'admin');
+
+-- students: authenticated users with valid role can read.
+-- Leaders read only their college's students. Incharge can update winner_place.
+-- Admin full access. Inserts via SECURITY DEFINER RPC only.
+DROP POLICY IF EXISTS "students: public read"                  ON public.students;
+DROP POLICY IF EXISTS "students: leader read"                  ON public.students;
+DROP POLICY IF EXISTS "students: role read"                    ON public.students;
+DROP POLICY IF EXISTS "students: admin write"                  ON public.students;
+DROP POLICY IF EXISTS "students: incharge update winner_place" ON public.students;
+CREATE POLICY "students: role read"
+  ON public.students FOR SELECT
+  USING (
+    auth.uid() IS NOT NULL AND (
+      current_role_name() = 'admin'
+      OR current_role_name() = 'accountant'
+      OR current_role_name() = 'incharge'
+      OR (
+        current_role_name() = 'leader' AND
+        college_id = (SELECT college_id FROM public.profiles WHERE id = auth.uid())
+      )
+    )
+  );
+CREATE POLICY "students: admin write"
+  ON public.students FOR ALL
+  USING (current_role_name() = 'admin');
+CREATE POLICY "students: incharge update winner_place"
+  ON public.students FOR UPDATE
+  USING (
+    current_role_name() = 'incharge' AND (
+      event_id IN (
+        SELECT id FROM public.events WHERE staff_incharge::text = (
+          SELECT ref_id::text FROM public.profiles WHERE id = auth.uid()
+        )
+      )
+      OR
+      event_id IN (
+        SELECT event_id FROM public.incharges WHERE id = (
+          SELECT ref_id FROM public.profiles WHERE id = auth.uid()
+        ) AND event_id IS NOT NULL
+      )
+    )
+  );
+
+-- certificates: authenticated users can read. Admin can write.
+DROP POLICY IF EXISTS "certificates: admin read"      ON public.certificates;
+DROP POLICY IF EXISTS "certificates: signed-in read"  ON public.certificates;
+DROP POLICY IF EXISTS "certificates: admin write"     ON public.certificates;
+CREATE POLICY "certificates: signed-in read"
+  ON public.certificates FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+CREATE POLICY "certificates: admin write"
+  ON public.certificates FOR ALL
+  USING (current_role_name() = 'admin');
+
+-- payments: authenticated users can read. Admin can write.
+DROP POLICY IF EXISTS "payments: admin read"     ON public.payments;
+DROP POLICY IF EXISTS "payments: signed-in read" ON public.payments;
+DROP POLICY IF EXISTS "payments: admin write"    ON public.payments;
+CREATE POLICY "payments: signed-in read"
+  ON public.payments FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+CREATE POLICY "payments: admin write"
+  ON public.payments FOR ALL
+  USING (current_role_name() = 'admin');
+
+-- payment_polls: authenticated read only.
+-- Payment desk uses verify_payment_desk_key SECURITY DEFINER RPC to authenticate.
 DROP POLICY IF EXISTS "payment_polls: public read"  ON public.payment_polls;
+DROP POLICY IF EXISTS "payment_polls: signed-in read" ON public.payment_polls;
 DROP POLICY IF EXISTS "payment_polls: admin write"  ON public.payment_polls;
-CREATE POLICY "payment_polls: public read"  ON public.payment_polls FOR SELECT USING (true);
-CREATE POLICY "payment_polls: admin write"  ON public.payment_polls FOR ALL    USING (current_role_name() = 'admin');
+CREATE POLICY "payment_polls: signed-in read"
+  ON public.payment_polls FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+CREATE POLICY "payment_polls: admin write"
+  ON public.payment_polls FOR ALL
+  USING (current_role_name() = 'admin');
 
+-- payment_logs: authenticated users can read. Admin can write.
+-- Inserts happen via SECURITY DEFINER RPC (clear_college_payment_with_key).
 DROP POLICY IF EXISTS "payment_logs: public insert" ON public.payment_logs;
 DROP POLICY IF EXISTS "payment_logs: admin read"    ON public.payment_logs;
-CREATE POLICY "payment_logs: public insert" ON public.payment_logs FOR INSERT WITH CHECK (true);
-CREATE POLICY "payment_logs: admin read"    ON public.payment_logs FOR SELECT USING (true);
+DROP POLICY IF EXISTS "payment_logs: signed-in read" ON public.payment_logs;
+DROP POLICY IF EXISTS "payment_logs: admin write"   ON public.payment_logs;
+CREATE POLICY "payment_logs: signed-in read"
+  ON public.payment_logs FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+CREATE POLICY "payment_logs: admin write"
+  ON public.payment_logs FOR ALL
+  USING (current_role_name() = 'admin');
 
-DROP POLICY IF EXISTS "winners: public read"  ON public.winners;
-DROP POLICY IF EXISTS "winners: admin write"  ON public.winners;
-CREATE POLICY "winners: public read"  ON public.winners FOR SELECT USING (true);
-CREATE POLICY "winners: admin write"  ON public.winners FOR ALL    USING (current_role_name() = 'admin');
+-- feedbacks: leader write & read, admin write
+DROP POLICY IF EXISTS "feedbacks: leader write" ON public.feedbacks;
+DROP POLICY IF EXISTS "feedbacks: leader read"  ON public.feedbacks;
+DROP POLICY IF EXISTS "feedbacks: admin write"   ON public.feedbacks;
+CREATE POLICY "feedbacks: leader write"
+  ON public.feedbacks FOR INSERT
+  WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "feedbacks: leader read"
+  ON public.feedbacks FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+CREATE POLICY "feedbacks: admin write"
+  ON public.feedbacks FOR ALL
+  USING (current_role_name() = 'admin');
 
 
 -- ============================================================================
@@ -1310,224 +1506,6 @@ DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.payment_logs;  
 DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.winners;         EXCEPTION WHEN others THEN NULL; END $$;
 DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;        EXCEPTION WHEN others THEN NULL; END $$;
 DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.incharges;       EXCEPTION WHEN others THEN NULL; END $$;
+DO $$ BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.feedbacks;       EXCEPTION WHEN others THEN NULL; END $$;
 
 
--- ============================================================================
--- PHASE 6: Default Seed Data
--- ============================================================================
-
--- 6a. Default venues
-INSERT INTO public.venues (venue_name) VALUES
-  ('CS Lab I'),
-  ('CS Lab II'),
-  ('CS Lab III'),
-  ('PG Lab'),
-  ('Main Seminar Hall'),
-  ('CS Seminar Hall'),
-  ('HOD Office'),
-  ('UG Lab 5'),
-  ('Conference Hall')
-ON CONFLICT (venue_name) DO NOTHING;
-
--- 6b. Default page settings
-INSERT INTO public.settings (key_name, value) VALUES
-  ('show_winners_page',       'false'),
-  ('event_date',              '2026-09-25 09:00:00'),
-  ('invitation_title',        'You Are Cordially Invited'),
-  ('invitation_tagline',      'STRATA 2K26 — State Level Intercollegiate Technical Meet, ANJAC Sivakasi'),
-  ('invitation_body',         'On behalf of the Department of Computer Science, Ayya Nadar Janaki Ammal College (Autonomous), Sivakasi, we warmly invite you and your talented students to participate in STRATA 2K26 — our prestigious State Level Intercollegiate Technical Meet.
-
-The event features 8 exciting contests: Logic Hunt, Mind Spark, Code Detox, Tech Premier League, Idea Forge, Code Sprint, Syntax Wars, and Frame Fusion.
-
-Date: 25 September 2026
-Venue: ANJAC, Sivakasi
-Registration Fee: Rs. 150 per participant (Spot Registration)
-Spot Registration opens at 8:30 AM and closes at 9:30 AM.
-
-We warmly look forward to welcoming you and your participants to our campus.'),
-  ('invitation_pdf_url',      ''),
-  ('contact_email',           'cs@anjaconline.org'),
-  ('contact_phone',           '+91 98765 43210'),
-  ('contact_address',         'Department of Computer Science, Ayya Nadar Janaki Ammal College (Autonomous), Sivakasi - Srivilliputhur Road, Sivakasi - 626 124, Tamil Nadu, India.'),
-  ('contact_extra',           'Venue Coordinator: Dr. V. Venkatesh Babu (HOD, CS Dept.)'),
-  ('fee_per_student',         '150'),
-  ('gpay_qr_url',             ''),
-  ('whatsapp_group_link',     ''),
-  ('participation_cert_url',  ''),
-  ('winner_cert_1_url',       ''),
-  ('winner_cert_2_url',       ''),
-  ('about_us',                'Ayya Nadar Janaki Ammal College (ANJAC), Sivakasi, established in 1963, is a pioneer in rural education and a UGC-conferred ''College of Excellence''. STRATA 2K26 is our premier State-Level Intercollegiate Technical Meet organized by the Department of Computer Science, aimed at fostering competitive excellence and innovation in computer technology.'),
-  ('event_started',           'false'),
-  ('upi_id',                  '')
-ON CONFLICT (key_name) DO UPDATE SET value = EXCLUDED.value;
-
--- 6c. Default leaders (Principal + HOD messages)
-DELETE FROM public.leaders;
-INSERT INTO public.leaders (name, position, description) VALUES
-  (
-    'Dr. C. Ashok',
-    'Principal',
-    'ANJAC has always championed technical and creative integration. Fests like STRATA provide students the canvas they need to translate theoretical learning into practical mastery. I welcome all participants to engage, learn, and excel.'
-  ),
-  (
-    'V. Venkatesh Babu',
-    'Head of Department',
-    'Technology changes rapidly, and students must possess critical adaptability. STRATA is curated to test that very agility. From complex debugging routines to dynamic design paradigms, we aim to prepare the next generation of IT leaders. Best of luck!'
-  );
-
--- 6d. Default rules
-DELETE FROM public.rules;
-INSERT INTO public.rules (title, points) VALUES
-  (
-    'Eligibility Criteria',
-    'Only bona fide UG and PG students of Computer Science, Computer Applications, and IT streams are eligible to participate.
-Participant overlaps are permitted, but it is their responsibility to manage clashing event schedules.
-Maximum representation of 12 students per college registration team.'
-  ),
-  (
-    'Team Registration',
-    'Participants must produce their College Identity Card and a Bonafide Certificate signed by their Principal/HOD at the registration desk.
-Registration fee is Rs. 150 per participant, payable at the spot registration desk on arrival.
-Spot registration opens at 8:30 AM and strictly closes at 9:30 AM.'
-  ),
-  (
-    'Conduct & Decorum',
-    'Strict formal dress code is mandatory for all students attending the technical meet.
-Disciplined behavior must be maintained in the seminar halls, laboratories, and college premises.
-Misbehavior or violation of rules will lead to the immediate disqualification of the entire college team.'
-  );
-
--- 6e. Default events
-DELETE FROM public.events;
-INSERT INTO public.events (
-  id, event_name, category, description, rules, staff_incharge,
-  minimum_participants, maximum_participants, team_size,
-  prelims_venue, mains_venue, preliminary, mains, status
-)
-SELECT
-  e.id::uuid,
-  e.event_name, e.category, e.description, e.rules, e.staff_incharge,
-  e.min_p::int, e.max_p::int, e.team_sz::int,
-  (SELECT id FROM public.venues WHERE venue_name = e.p_venue LIMIT 1),
-  (SELECT id FROM public.venues WHERE venue_name = e.m_venue LIMIT 1),
-  e.p_time::time,
-  e.m_time::time,
-  'active'
-FROM (VALUES
-  (
-    '50000000-0000-0000-0000-000000000011',
-    'Logic Hunt', 'Technical Game',
-    'Clue-solving treasure hunt using QR codes placed around the campus.',
-    E'Team Size: 3 Participants.\nPreliminary round will be conducted.\nTwo participants from a team will be allowed to attend the prelims.\n10 teams will be selected to the next round.\nQR Codes will be placed at various locations.\nEach QR Code contains a clue or question.\nTeams must solve the clues and locate the next QR code.\nFirst three teams completing all clues qualify for the final round.',
-    'Mrs. A. Devi', '3', '3', '3', 'Main Seminar Hall', 'Conference Hall', '10:00', '11:30'
-  ),(
-    '50000000-0000-0000-0000-000000000012',
-    'Mind Spark', 'Technical Quiz',
-    'Test your range of IT knowledge, CS fundamentals, programming concepts, and current technology trends.',
-    E'Team Size: 2 Participants.\nPreliminary round will be conducted.\nTop five teams will qualify for the final round.\nQuestions will include:\n- Computer Science Fundamentals\n- Programming Concepts\n- Current Technology Trends',
-    'Dr. P. Senthil', '2', '2', '2', 'Main Seminar Hall', 'Main Seminar Hall', '11:00', '12:00'
-  ),(
-    '50000000-0000-0000-0000-000000000013',
-    'Code Detox', 'Model Making',
-    'Craft innovative models using e-waste/raw materials to promote sustainability.',
-    E'Team Size: 2 Participants.\nParticipants should bring their own e-waste/raw materials.\nComponents should not be pre-assembled.\nAssembly should begin only after the event starts.\nTeams with pre-assembled components will be disqualified.\nTime Duration: 1 Hour.',
-    'Mr. M. Rajesh', '2', '2', '2', 'UG Lab 5', 'UG Lab 5', '10:15', '10:15'
-  ),(
-    '50000000-0000-0000-0000-000000000014',
-    'Tech Premier League', 'Sports Quiz',
-    'An IPL-based technical and sports quiz ending in a high-stakes mock auction.',
-    E'Team Size: 2 Participants.\nPreliminary IPL Quiz round will be conducted.\nQuestions will be based on IPL.\nTop five teams will be selected for the final round (AUCTION).\nPrizes will be awarded to the Top Two Teams.',
-    'Dr. R. Kavitha', '2', '2', '2', 'CS Seminar Hall', 'CS Seminar Hall', '10:30', '12:00'
-  ),(
-    '50000000-0000-0000-0000-000000000015',
-    'Idea Forge', 'Presentation',
-    'Present innovative ideas on Artificial Intelligence (AI), connect systems with Model Context Protocol (MCP), and showcase agentic systems.',
-    E'Two participants per team.\nFive minutes for presentation and three minutes for queries.\nOriginal innovative ideas can be presented.\nTopics may be from the following:\n- Retrieval-Augmented Generation (RAG)\n- Model Context Protocol (MCP)\n- Agentic AI\n- AI Agents\n- Large Language Models (LLMs)\n- Generative AI\n- AI in Education\n- AI for Smart Healthcare\n- Ethical AI\n- The Future of AI\nNote: PPT/PDF submission to cs-regular@anjaconline.org on or before 05.08.2026.',
-    'Mrs. S. Nancy', '2', '2', '2', 'PG Lab', 'PG Lab', '09:45', '09:45'
-  ),(
-    '50000000-0000-0000-0000-000000000016',
-    'Code Sprint', 'Coding',
-    'Implement clean, optimized algorithms for spot problems under time limits.',
-    E'One participant per team.\nPreliminary will be conducted.\nDuration is one hour.\nProblem will be given on the spot.\nSoftware can be used: C/C++/Java/Python.',
-    'Mrs. A. Devi', '1', '1', '1', 'CS Lab I', 'CS Lab I', '10:00', '10:00'
-  ),(
-    '50000000-0000-0000-0000-000000000017',
-    'Syntax Wars', 'Debugging',
-    'Identify and correct syntactic and logical errors in code files.',
-    E'One participant per team.\nPreliminary will be conducted.\nIdentify and correct errors in the given programs.\nLanguages may include C, C++, Java, and Python.',
-    'Mr. M. Rajesh', '1', '1', '1', 'CS Lab II', 'CS Lab II', '11:00', '11:00'
-  ),(
-    '50000000-0000-0000-0000-000000000018',
-    'Frame Fusion', 'Short Film',
-    'Showcase your cinematic and storytelling skills on an open theme.',
-    E'The competition is based on an Open Theme.\nA maximum of 2 participants are allowed per team.\nThe duration of the short film must be between 3–4 minutes (including title and credits).\nThe completed short film must be submitted on or before 02/08/2026, prior to the event date.\nAny film containing vulgar, offensive, illegal, or unsafe content will be disqualified.\nThe use of copyrighted material is strictly prohibited.',
-    'V. Venkatesh Babu', '1', '2', '2', 'Conference Hall', 'Conference Hall', '12:00', '12:00'
-  )
-) AS e(id, event_name, category, description, rules, staff_incharge,
-       min_p, max_p, team_sz, p_venue, m_venue, p_time, m_time)
-ON CONFLICT (id) DO UPDATE SET
-  event_name           = EXCLUDED.event_name,
-  category             = EXCLUDED.category,
-  description          = EXCLUDED.description,
-  rules                = EXCLUDED.rules,
-  staff_incharge       = EXCLUDED.staff_incharge,
-  minimum_participants = EXCLUDED.minimum_participants,
-  maximum_participants = EXCLUDED.maximum_participants,
-  team_size            = EXCLUDED.team_size,
-  prelims_venue        = EXCLUDED.prelims_venue,
-  mains_venue          = EXCLUDED.mains_venue,
-  preliminary          = EXCLUDED.preliminary,
-  mains                = EXCLUDED.mains,
-  status               = EXCLUDED.status;
-
--- 6f. Default lots (10 pre-created, all unassigned)
-INSERT INTO public.lots (lot_name, is_assigned, assigned_college) VALUES
-  ('Lot 1',  false, '-'),
-  ('Lot 2',  false, '-'),
-  ('Lot 3',  false, '-'),
-  ('Lot 4',  false, '-'),
-  ('Lot 5',  false, '-'),
-  ('Lot 6',  false, '-'),
-  ('Lot 7',  false, '-'),
-  ('Lot 8',  false, '-'),
-  ('Lot 9',  false, '-'),
-  ('Lot 10', false, '-')
-ON CONFLICT DO NOTHING;
-
--- ============================================================================
--- 7. STORAGE BUCKET CONFIGURATION (assets bucket for media and templates)
--- ============================================================================
-
--- Create assets bucket if it does not exist
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('assets', 'assets', true)
-ON CONFLICT (id) DO NOTHING;
-
--- Policy to allow anyone (anonymous and authenticated users) to download assets
-DROP POLICY IF EXISTS "Public Download Assets" ON storage.objects;
-CREATE POLICY "Public Download Assets" ON storage.objects
-  FOR SELECT TO public
-  USING (bucket_id = 'assets');
-
--- Policy to allow anyone (anonymous and authenticated users) to upload assets
-DROP POLICY IF EXISTS "Public Upload Assets" ON storage.objects;
-CREATE POLICY "Public Upload Assets" ON storage.objects
-  FOR INSERT TO public
-  WITH CHECK (bucket_id = 'assets');
-
--- Policy to allow updates on assets
-DROP POLICY IF EXISTS "Public Update Assets" ON storage.objects;
-CREATE POLICY "Public Update Assets" ON storage.objects
-  FOR UPDATE TO public
-  USING (bucket_id = 'assets')
-  WITH CHECK (bucket_id = 'assets');
-
--- Policy to allow deletions of assets
-DROP POLICY IF EXISTS "Public Delete Assets" ON storage.objects;
-CREATE POLICY "Public Delete Assets" ON storage.objects
-  FOR DELETE TO public
-  USING (bucket_id = 'assets');
-
--- ============================================================================
--- END OF SCRIPT
--- ============================================================================

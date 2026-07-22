@@ -19,6 +19,7 @@ const NAV = {
     ['/admin/incharges', 'Incharges'],
     ['/admin/certificates', 'Certificates'],
     ['/admin/reports', 'Reports'],
+    ['/admin/feedbacks', 'Feedbacks'],
     ['/admin/settings', 'Page Settings'],
     ['/payment', 'Payment Desk'],
   ],
@@ -29,9 +30,13 @@ const NAV = {
     ['/leader/certificates', 'Certificates'],
     ['/leader/payment', 'Payment'],
     ['/leader/whatsapp', 'WhatsApp Group'],
+    ['/leader/feedback', 'Feedback'],
   ],
   incharge: [
-    ['/incharge', 'Dashboard / Winners'],
+    ['/incharge', 'Allocated Lots'],
+    ['/incharge/students', 'Students Grid'],
+    ['/incharge/winners', 'Assign Winners'],
+    ['/incharge/profile', 'Staff Profile'],
   ],
   accountant: [
     ['/payment', 'Payment Desk'],

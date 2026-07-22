@@ -4,6 +4,7 @@ import { useTable } from '../../hooks/useTable'
 
 const fields = [
   { name: 'name', label: 'Staff Incharge Name', type: 'text', required: true },
+  { name: 'email', label: 'Login Email ID', type: 'text', required: true },
 ]
 
 export default function Incharges() {
@@ -24,7 +25,7 @@ export default function Incharges() {
       title="Staff Incharges"
       table={TABLES.INCHARGES}
       fields={fields}
-      columns={['name', 'event']}
+      columns={['name', 'email', 'event']}
       customData={mappedIncharges}
     />
   )
