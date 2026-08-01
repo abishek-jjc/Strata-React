@@ -185,7 +185,12 @@ export default function BackupSetup() {
     setConnectionStatus(null)
 
     try {
-      const targetClient = createClient(targetUrl.trim(), targetKey.trim())
+      const cleanUrl = targetUrl.trim().replace(/\/+$/, '')
+      const cleanKey = targetKey.trim().replace(/^['"]|['"]$/g, '')
+
+      const targetClient = createClient(cleanUrl, cleanKey, {
+        auth: { persistSession: false, autoRefreshToken: false }
+      })
       // Query a simple select to test validity
       const { data, error } = await targetClient.from(TABLES.SETTINGS).select('key_name').limit(1)
 
@@ -200,6 +205,79 @@ export default function BackupSetup() {
     } finally {
       setTestingConnection(false)
     }
+  }
+
+  // Helper: Resilient batch write that automatically strips missing columns if target DB schema cache lacks them
+  async function resilientWrite(targetClient, tbl, rows, isWipeAndRefill) {
+    let currentRows = [...rows]
+    let maxRetries = 5
+    let omittedCols = []
+
+    while (maxRetries > 0) {
+      const { error } = isWipeAndRefill
+        ? await targetClient.from(tbl).upsert(currentRows, { ignoreDuplicates: false })
+        : await targetClient.from(tbl).upsert(currentRows, { ignoreDuplicates: true })
+
+      if (!error) {
+        return { success: true, count: currentRows.length, omittedCols, error: null }
+      }
+
+      // Check if error is missing column in schema cache
+      const match = error.message && error.message.match(/Could not find the '([^']+)' column of/i)
+      if (match && match[1]) {
+        const missingCol = match[1]
+        omittedCols.push(missingCol)
+        currentRows = currentRows.map(r => {
+          const copy = { ...r }
+          delete copy[missingCol]
+          return copy
+        })
+        maxRetries--
+        continue
+      }
+
+      // Return error for FK or other failures to trigger row-by-row fallback
+      return { success: false, count: 0, omittedCols, error }
+    }
+
+    return { success: false, count: 0, omittedCols, error: new Error('Max retries exceeded while sanitizing columns') }
+  }
+
+  // Helper: Row-by-row fallback when batch operations fail due to FK constraints or auth user mismatches
+  async function rowByRowFallback(targetClient, tbl, rows, isWipeAndRefill, omittedCols = []) {
+    let successCount = 0
+    let skippedCount = 0
+    let lastErr = null
+
+    for (const r of rows) {
+      let singleRow = { ...r }
+      for (const col of omittedCols) {
+        delete singleRow[col]
+      }
+
+      const { error } = isWipeAndRefill
+        ? await targetClient.from(tbl).upsert([singleRow], { ignoreDuplicates: false })
+        : await targetClient.from(tbl).upsert([singleRow], { ignoreDuplicates: true })
+
+      if (!error) {
+        successCount++
+      } else {
+        // Try sanitizing missing column for single row if needed
+        const match = error.message && error.message.match(/Could not find the '([^']+)' column of/i)
+        if (match && match[1]) {
+          delete singleRow[match[1]]
+          const { error: err2 } = await targetClient.from(tbl).upsert([singleRow], { ignoreDuplicates: true })
+          if (!err2) {
+            successCount++
+            continue
+          }
+        }
+        skippedCount++
+        lastErr = error
+      }
+    }
+
+    return { successCount, skippedCount, lastErr }
   }
 
   // Core Backup Execution Engine (Supports safe append OR full refresh & refill)
@@ -227,12 +305,35 @@ export default function BackupSetup() {
     let hasFailures = false
 
     const startTime = new Date().toISOString()
-    const targetClient = createClient(targetUrl.trim(), targetKey.trim())
+    const cleanUrl = targetUrl.trim().replace(/\/+$/, '')
+    const cleanKey = targetKey.trim().replace(/^['"]|['"]$/g, '')
+
+    const targetClient = createClient(cleanUrl, cleanKey, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    })
 
     try {
+      // Step 1: Wipe phase for Refresh & Refill in REVERSE dependency order to prevent FK deletion errors
+      if (isWipeAndRefill) {
+        setCurrentTableSyncing('Clearing target database tables...')
+        const wipeOrder = [...tableList].reverse()
+        for (const tbl of wipeOrder) {
+          try {
+            if (tbl === TABLES.SETTINGS) {
+              await targetClient.from(tbl).delete().neq('key_name', '___dummy___')
+            } else {
+              await targetClient.from(tbl).delete().not('id', 'is', null)
+            }
+          } catch (wipeErr) {
+            console.warn(`Wipe notice for ${tbl}:`, wipeErr)
+          }
+        }
+      }
+
+      // Step 2: Insert phase in FORWARD dependency order
       for (let i = 0; i < tableList.length; i++) {
         const tbl = tableList[i]
-        setCurrentTableSyncing(isWipeAndRefill ? `Clearing & Syncing ${tbl}...` : `Syncing ${tbl}...`)
+        setCurrentTableSyncing(isWipeAndRefill ? `Refilling ${tbl}...` : `Syncing ${tbl}...`)
         setSyncProgress(Math.round(((i) / tableList.length) * 100))
 
         let fetchedCount = 0
@@ -241,19 +342,6 @@ export default function BackupSetup() {
         let sampleData = []
 
         try {
-          // If Refresh & Refill requested, clear existing target table data first
-          if (isWipeAndRefill) {
-            try {
-              if (tbl === TABLES.SETTINGS) {
-                await targetClient.from(tbl).delete().neq('key_name', '___dummy___')
-              } else {
-                await targetClient.from(tbl).delete().not('id', 'is', null)
-              }
-            } catch (wipeErr) {
-              console.warn(`Wipe notice for ${tbl}:`, wipeErr)
-            }
-          }
-
           // 1. Fetch live data from source DB
           const { data: rows, error: fetchErr } = await supabase
             .from(tbl)
@@ -267,29 +355,38 @@ export default function BackupSetup() {
             sampleData = rows.slice(0, 3)
           }
 
-          // 2. Insert/Upsert into target backup DB
+          // 2. Insert into target backup DB
           if (fetchedCount > 0) {
-            if (isWipeAndRefill) {
-              const { error: insertErr } = await targetClient.from(tbl).upsert(rows, { ignoreDuplicates: false })
-              if (insertErr) {
-                const { error: fbErr } = await targetClient.from(tbl).insert(rows)
-                if (fbErr) throw fbErr
+            const result = await resilientWrite(targetClient, tbl, rows, isWipeAndRefill)
+
+            if (result.success) {
+              totalRecordsInserted += result.count
+              if (result.omittedCols.length > 0) {
+                errorMsg = `Synced (omitted unsupported target cols: ${result.omittedCols.join(', ')})`
               }
             } else {
-              // Standard backup: ignoreDuplicates: true preserves existing backup data
-              const { error: insertErr } = await targetClient
-                .from(tbl)
-                .upsert(rows, { ignoreDuplicates: true })
+              // Batch write failed (e.g. FK constraint violation or profiles auth.users issue)
+              const fallback = await rowByRowFallback(targetClient, tbl, rows, isWipeAndRefill, result.omittedCols)
 
-              if (insertErr) {
-                const { error: fallbackErr } = await targetClient
-                  .from(tbl)
-                  .insert(rows, { ignoreDuplicates: true })
+              totalRecordsInserted += fallback.successCount
 
-                if (fallbackErr) throw fallbackErr
+              if (tbl === TABLES.PROFILES) {
+                if (fallback.skippedCount > 0) {
+                  status = fallback.successCount > 0 ? 'Success' : 'Partial Warning'
+                  errorMsg = `Inserted ${fallback.successCount}/${fetchedCount} profiles (skipped ${fallback.skippedCount} profiles without target auth accounts)`
+                }
+              } else {
+                if (fallback.skippedCount > 0) {
+                  hasFailures = true
+                  status = fallback.successCount > 0 ? 'Partial Warning' : 'Failed'
+                  errorMsg = `Inserted ${fallback.successCount}/${fetchedCount} rows. Error on remaining: ${fallback.lastErr?.message}`
+                } else {
+                  if (result.omittedCols.length > 0) {
+                    errorMsg = `Synced (omitted unsupported target cols: ${result.omittedCols.join(', ')})`
+                  }
+                }
               }
             }
-            totalRecordsInserted += fetchedCount
           }
         } catch (err) {
           hasFailures = true
@@ -917,13 +1014,13 @@ export default function BackupSetup() {
                           borderRadius: '6px',
                           fontSize: '0.75rem',
                           fontWeight: 600,
-                          background: tbl.status === 'Success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                          color: tbl.status === 'Success' ? '#34d399' : '#f87171'
+                          background: tbl.status === 'Success' ? 'rgba(16, 185, 129, 0.15)' : tbl.status === 'Partial Warning' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                          color: tbl.status === 'Success' ? '#34d399' : tbl.status === 'Partial Warning' ? '#fbbf24' : '#f87171'
                         }}>
                           {tbl.status}
                         </span>
                       </td>
-                      <td style={{ padding: '8px 12px', fontSize: '0.78rem', color: tbl.errorMsg ? '#f87171' : '#64748b' }}>
+                      <td style={{ padding: '8px 12px', fontSize: '0.78rem', color: tbl.status === 'Failed' ? '#f87171' : tbl.status === 'Partial Warning' ? '#fbbf24' : '#64748b' }}>
                         {tbl.errorMsg ? tbl.errorMsg : selectedLog.triggerType.includes('Refill') ? 'Cleared & Refilled' : 'Synced without overwrite'}
                       </td>
                     </tr>

@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS public.accountants (
   created_at timestamptz DEFAULT now()
 );
 ALTER TABLE public.accountants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.accountants ADD COLUMN IF NOT EXISTS active boolean NOT NULL DEFAULT true;
 
 -- 2h. incharges
 CREATE TABLE IF NOT EXISTS public.incharges (
