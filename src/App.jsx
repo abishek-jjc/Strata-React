@@ -43,6 +43,12 @@ import PaymentPolls from './pages/admin/PaymentPolls'
 // Incharge Portal
 import InchargeDashboard from './pages/incharge/Dashboard'
 
+// Accountant Portal
+import AccountantDashboard from './pages/accountant/Dashboard'
+import AccountantView from './pages/accountant/View'
+import AccountantEdit from './pages/accountant/Edit'
+import AccountantProfile from './pages/accountant/Profile'
+
 // Student Leader Portal
 import LeaderDashboard from './pages/leader/Dashboard'
 import TeamRegistration from './pages/leader/TeamRegistration'
@@ -132,6 +138,12 @@ export default function App() {
             <Route path="/incharge/students" element={<ProtectedRoute allow={['incharge']}>{withShell(<InchargeDashboard tab="students" />)}</ProtectedRoute>} />
             <Route path="/incharge/profile" element={<ProtectedRoute allow={['incharge']}>{withShell(<InchargeDashboard tab="profile" />)}</ProtectedRoute>} />
             <Route path="/incharge/winners" element={<ProtectedRoute allow={['incharge']}>{withShell(<InchargeDashboard tab="winners" />)}</ProtectedRoute>} />
+
+            {/* Accountant */}
+            <Route path="/accountant" element={<ProtectedRoute allow={['accountant', 'admin']}>{withShell(<AccountantDashboard />)}</ProtectedRoute>} />
+            <Route path="/accountant/view" element={<ProtectedRoute allow={['accountant', 'admin']}>{withShell(<AccountantView />)}</ProtectedRoute>} />
+            <Route path="/accountant/edit" element={<ProtectedRoute allow={['accountant', 'admin']}>{withShell(<AccountantEdit />)}</ProtectedRoute>} />
+            <Route path="/accountant/profile" element={<ProtectedRoute allow={['accountant', 'admin']}>{withShell(<AccountantProfile />)}</ProtectedRoute>} />
 
 
             <Route path="*" element={<Navigate to="/login" replace />} />

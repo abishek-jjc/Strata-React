@@ -22,7 +22,6 @@ const NAV = {
     ['/admin/feedbacks', 'Feedbacks'],
     ['/admin/settings', 'Page Settings'],
     ['/admin/backup', 'Backup Setup'],
-    ['/payment', 'Payment Desk'],
   ],
   leader: [
     ['/leader', 'Dashboard'],
@@ -40,7 +39,10 @@ const NAV = {
     ['/incharge/profile', 'Staff Profile'],
   ],
   accountant: [
-    ['/payment', 'Payment Desk'],
+    ['/accountant', 'Dashboard'],
+    ['/accountant/view', 'View Details'],
+    ['/accountant/edit', 'Edit Payments'],
+    ['/accountant/profile', 'Profile'],
   ],
 }
 
@@ -56,11 +58,17 @@ export default function Sidebar({ role, isOpen, onClose }) {
   const navigate = useNavigate()
   const { profile, logout } = useAuth()
 
-  const isLeader = role === 'leader'
+  const hasProfilePage = role === 'leader' || role === 'accountant' || role === 'incharge'
 
   const handleProfileClick = () => {
-    if (isLeader) {
+    if (role === 'leader') {
       navigate('/leader/profile')
+      onClose()
+    } else if (role === 'accountant') {
+      navigate('/accountant/profile')
+      onClose()
+    } else if (role === 'incharge') {
+      navigate('/incharge/profile')
       onClose()
     }
   }
@@ -113,12 +121,12 @@ export default function Sidebar({ role, isOpen, onClose }) {
               display: 'flex', 
               alignItems: 'center', 
               gap: '10px', 
-              cursor: isLeader ? 'pointer' : 'default', 
+              cursor: hasProfilePage ? 'pointer' : 'default', 
               padding: '8px', 
               borderRadius: '10px',
               transition: 'all 0.2s'
             }}
-            className={isLeader ? 'sidebar-profile-card clickable' : 'sidebar-profile-card'}
+            className={hasProfilePage ? 'sidebar-profile-card clickable' : 'sidebar-profile-card'}
           >
             <div className="topbar-avatar" style={{ 
               margin: 0, 
@@ -140,7 +148,7 @@ export default function Sidebar({ role, isOpen, onClose }) {
               <span className="sidebar-profile-name" style={{ fontSize: '0.85rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {profile.name}
               </span>
-              {isLeader && (
+              {hasProfilePage && (
                 <span style={{ fontSize: '0.7rem', color: 'var(--accent)' }}>
                   View Profile
                 </span>

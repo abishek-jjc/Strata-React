@@ -278,26 +278,6 @@ export default function Payment() {
                       <strong style={{ color: 'var(--text-primary)' }}>{upiId}</strong>
                     </div>
                   )}
-                  <a
-                    href={upiLink}
-                    className="btn btn-primary"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      padding: '12px 24px',
-                      borderRadius: '8px',
-                      fontWeight: 'bold',
-                      textDecoration: 'none',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      boxShadow: '0 4px 15px rgba(0, 229, 255, 0.25)',
-                      marginBottom: '15px'
-                    }}
-                  >
-                    📱 Pay via UPI App (GPay/PhonePe)
-                  </a>
                 </>
 
               ) : (

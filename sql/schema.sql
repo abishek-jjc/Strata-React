@@ -1348,6 +1348,11 @@ CREATE POLICY "colleges: signed-in read"
 CREATE POLICY "colleges: admin write"
   ON public.colleges FOR ALL
   USING (current_role_name() = 'admin');
+CREATE POLICY "colleges_update_payment"
+  ON public.colleges FOR UPDATE
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
 
 -- student_leaders: authenticated read only. Admin full write.
 -- Inserts via SECURITY DEFINER RPCs only (pre_register_leader, configure_leader_profile).

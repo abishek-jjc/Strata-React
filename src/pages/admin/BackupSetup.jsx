@@ -155,10 +155,8 @@ export default function BackupSetup() {
         lastSyncTime
       }
 
-      // Store in localStorage
       localStorage.setItem('strata_backup_config', JSON.stringify(configObj))
 
-      // Store in Supabase settings
       const { error } = await supabase
         .from(TABLES.SETTINGS)
         .upsert([{ key_name: 'backup_config', value: JSON.stringify(configObj) }])
@@ -191,11 +189,9 @@ export default function BackupSetup() {
       const targetClient = createClient(cleanUrl, cleanKey, {
         auth: { persistSession: false, autoRefreshToken: false }
       })
-      // Query a simple select to test validity
-      const { data, error } = await targetClient.from(TABLES.SETTINGS).select('key_name').limit(1)
+      const { error } = await targetClient.from(TABLES.SETTINGS).select('key_name').limit(1)
 
       if (error && error.code !== 'PGRST116') {
-        // Even if settings table doesn't exist yet, we check error
         throw error
       }
 
@@ -222,7 +218,6 @@ export default function BackupSetup() {
         return { success: true, count: currentRows.length, omittedCols, error: null }
       }
 
-      // Check if error is missing column in schema cache
       const match = error.message && error.message.match(/Could not find the '([^']+)' column of/i)
       if (match && match[1]) {
         const missingCol = match[1]
@@ -236,14 +231,13 @@ export default function BackupSetup() {
         continue
       }
 
-      // Return error for FK or other failures to trigger row-by-row fallback
       return { success: false, count: 0, omittedCols, error }
     }
 
     return { success: false, count: 0, omittedCols, error: new Error('Max retries exceeded while sanitizing columns') }
   }
 
-  // Helper: Row-by-row fallback when batch operations fail due to FK constraints or auth user mismatches
+  // Helper: Row-by-row fallback when batch operations fail due to FK constraints
   async function rowByRowFallback(targetClient, tbl, rows, isWipeAndRefill, omittedCols = []) {
     let successCount = 0
     let skippedCount = 0
@@ -262,7 +256,6 @@ export default function BackupSetup() {
       if (!error) {
         successCount++
       } else {
-        // Try sanitizing missing column for single row if needed
         const match = error.message && error.message.match(/Could not find the '([^']+)' column of/i)
         if (match && match[1]) {
           delete singleRow[match[1]]
@@ -280,7 +273,7 @@ export default function BackupSetup() {
     return { successCount, skippedCount, lastErr }
   }
 
-  // Core Backup Execution Engine (Supports safe append OR full refresh & refill)
+  // Core Backup Execution Engine
   async function runBackup(triggerType = 'Manual', isWipeAndRefill = false) {
     if (!targetUrl || !targetKey) {
       setSyncError('Target Supabase URL and Key are required to start backup.')
@@ -313,7 +306,6 @@ export default function BackupSetup() {
     })
 
     try {
-      // Step 1: Wipe phase for Refresh & Refill in REVERSE dependency order to prevent FK deletion errors
       if (isWipeAndRefill) {
         setCurrentTableSyncing('Clearing target database tables...')
         const wipeOrder = [...tableList].reverse()
@@ -330,7 +322,6 @@ export default function BackupSetup() {
         }
       }
 
-      // Step 2: Insert phase in FORWARD dependency order
       for (let i = 0; i < tableList.length; i++) {
         const tbl = tableList[i]
         setCurrentTableSyncing(isWipeAndRefill ? `Refilling ${tbl}...` : `Syncing ${tbl}...`)
@@ -342,7 +333,6 @@ export default function BackupSetup() {
         let sampleData = []
 
         try {
-          // 1. Fetch live data from source DB
           const { data: rows, error: fetchErr } = await supabase
             .from(tbl)
             .select('*')
@@ -355,7 +345,6 @@ export default function BackupSetup() {
             sampleData = rows.slice(0, 3)
           }
 
-          // 2. Insert into target backup DB
           if (fetchedCount > 0) {
             const result = await resilientWrite(targetClient, tbl, rows, isWipeAndRefill)
 
@@ -365,7 +354,6 @@ export default function BackupSetup() {
                 errorMsg = `Synced (omitted unsupported target cols: ${result.omittedCols.join(', ')})`
               }
             } else {
-              // Batch write failed (e.g. FK constraint violation or profiles auth.users issue)
               const fallback = await rowByRowFallback(targetClient, tbl, rows, isWipeAndRefill, result.omittedCols)
 
               totalRecordsInserted += fallback.successCount
@@ -410,7 +398,6 @@ export default function BackupSetup() {
       const overallStatus = hasFailures ? 'Partial Warning' : 'Success'
       const actualTriggerLabel = isWipeAndRefill ? `${triggerType} (Full Refill)` : triggerType
 
-      // Construct Log Entry
       const newLog = {
         id: 'log_' + Date.now(),
         timestamp: startTime,
@@ -423,15 +410,12 @@ export default function BackupSetup() {
         tableDetails
       }
 
-      // Update state logs
-      const updatedLogs = [newLog, ...logs].slice(0, 30) // Keep latest 30 logs
+      const updatedLogs = [newLog, ...logs].slice(0, 30)
       setLogs(updatedLogs)
 
-      // Update last sync time
       const nowIso = new Date().toISOString()
       setLastSyncTime(nowIso)
 
-      // Persist logs & last sync time in localStorage
       localStorage.setItem('strata_backup_logs', JSON.stringify(updatedLogs))
       
       const updatedConfig = {
@@ -442,7 +426,6 @@ export default function BackupSetup() {
       }
       localStorage.setItem('strata_backup_config', JSON.stringify(updatedConfig))
 
-      // Persist logs & config in Supabase settings
       await supabase
         .from(TABLES.SETTINGS)
         .upsert([
@@ -477,7 +460,9 @@ export default function BackupSetup() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px', marginBottom: '25px' }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: '1.8rem', fontFamily: 'var(--font-display)' }}>Database Backup Setup</h2>
+          <h2 style={{ margin: 0, fontSize: '1.8rem', fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>
+            Database Backup Setup
+          </h2>
           <p className="muted" style={{ margin: '5px 0 0 0', fontSize: '0.92rem' }}>
             Fetch all live database tables and clone safely into target backup Supabase database.
           </p>
@@ -510,7 +495,7 @@ export default function BackupSetup() {
       <div className="card" style={{
         padding: '16px 20px',
         marginBottom: '25px',
-        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%)',
+        background: 'rgba(99, 102, 241, 0.08)',
         border: '1px solid rgba(99, 102, 241, 0.25)',
         borderRadius: '14px',
         display: 'flex',
@@ -519,8 +504,8 @@ export default function BackupSetup() {
       }}>
         <span style={{ fontSize: '1.8rem' }}>🛡️</span>
         <div style={{ flex: 1 }}>
-          <strong style={{ fontSize: '0.95rem', color: '#e0e7ff' }}>Safe Append vs. Refresh & Refill Protocols</strong>
-          <p style={{ margin: '3px 0 0 0', fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.4' }}>
+          <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>Safe Append vs. Refresh & Refill Protocols</strong>
+          <p style={{ margin: '3px 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
             <strong>Fetch Now</strong> appends missing live rows into the backup database without overwriting existing data. 
             <strong>Refresh & Refill</strong> clears existing target table records and performs a complete fresh initial sync.
           </p>
@@ -531,59 +516,46 @@ export default function BackupSetup() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '25px', marginBottom: '30px' }}>
         
         {/* Card 1: Backup Database Credentials */}
-        <div className="card" style={{ padding: '24px', borderRadius: '16px', background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <h3 style={{ margin: '0 0 16px 0', fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="card" style={{ padding: '24px', borderRadius: '16px' }}>
+          <h3 style={{ margin: '0 0 16px 0', fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
             <span>🔑</span> Target Supabase Credentials
           </h3>
 
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
               Target Supabase URL
             </label>
             <input
               type="text"
+              className="input"
               placeholder="https://your-backup-project.supabase.co"
               value={targetUrl}
               onChange={(e) => setTargetUrl(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                border: '1px solid var(--border)',
-                background: 'rgba(0, 0, 0, 0.2)',
-                color: '#fff',
-                fontSize: '0.9rem',
-                boxSizing: 'border-box'
-              }}
+              style={{ width: '100%', boxSizing: 'border-box' }}
             />
           </div>
 
           <div style={{ marginBottom: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                 Target Supabase Key (Anon / Service Role)
               </label>
               <button
                 type="button"
                 onClick={() => setShowKey(!showKey)}
-                style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.78rem' }}
+                style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
               >
                 {showKey ? 'Hide' : 'Show'}
               </button>
             </div>
             <input
               type={showKey ? 'text' : 'password'}
+              className="input"
               placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
               value={targetKey}
               onChange={(e) => setTargetKey(e.target.value)}
               style={{
                 width: '100%',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                border: '1px solid var(--border)',
-                background: 'rgba(0, 0, 0, 0.2)',
-                color: '#fff',
-                fontSize: '0.9rem',
                 fontFamily: showKey ? 'monospace' : 'inherit',
                 boxSizing: 'border-box'
               }}
@@ -598,7 +570,7 @@ export default function BackupSetup() {
               fontSize: '0.85rem',
               background: connectionStatus.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
               border: `1px solid ${connectionStatus.type === 'success' ? '#10b981' : '#ef4444'}`,
-              color: connectionStatus.type === 'success' ? '#34d399' : '#f87171'
+              color: connectionStatus.type === 'success' ? '#10b981' : '#ef4444'
             }}>
               {connectionStatus.msg}
             </div>
@@ -609,17 +581,7 @@ export default function BackupSetup() {
               onClick={handleTestConnection}
               disabled={testingConnection || !targetUrl || !targetKey}
               className="btn"
-              style={{
-                flex: 1,
-                padding: '10px 16px',
-                borderRadius: '8px',
-                border: '1px solid var(--border)',
-                background: 'rgba(255, 255, 255, 0.05)',
-                color: '#fff',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                fontWeight: 600
-              }}
+              style={{ flex: 1, padding: '10px 16px', fontSize: '0.85rem', fontWeight: 600 }}
             >
               {testingConnection ? 'Testing...' : '⚡ Test Connection'}
             </button>
@@ -627,18 +589,8 @@ export default function BackupSetup() {
             <button
               onClick={handleSaveConfig}
               disabled={savingConfig}
-              className="btn"
-              style={{
-                flex: 1,
-                padding: '10px 16px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'var(--accent)',
-                color: '#fff',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                fontWeight: 600
-              }}
+              className="btn btn-primary"
+              style={{ flex: 1, padding: '10px 16px', fontSize: '0.85rem', fontWeight: 600 }}
             >
               {savingConfig ? 'Saving...' : '💾 Save Settings'}
             </button>
@@ -648,7 +600,7 @@ export default function BackupSetup() {
             <p style={{
               marginTop: '10px',
               fontSize: '0.8rem',
-              color: configStatus.type === 'success' ? '#34d399' : '#f87171',
+              color: configStatus.type === 'success' ? '#10b981' : '#ef4444',
               marginBottom: 0
             }}>
               {configStatus.msg}
@@ -657,33 +609,24 @@ export default function BackupSetup() {
         </div>
 
         {/* Card 2: Auto Sync Schedule & Action Control */}
-        <div className="card" style={{ padding: '24px', borderRadius: '16px', background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <div className="card" style={{ padding: '24px', borderRadius: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
           <div>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
               <span>⏱️</span> Auto-Fetch Timing & Controls
             </h3>
 
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-secondary)' }}>
                 Auto Fetch Schedule Interval
               </label>
               <select
+                className="input"
                 value={intervalHours}
                 onChange={(e) => setIntervalHours(Number(e.target.value))}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border)',
-                  background: 'rgba(0, 0, 0, 0.3)',
-                  color: '#fff',
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
-                  boxSizing: 'border-box'
-                }}
+                style={{ width: '100%', cursor: 'pointer', boxSizing: 'border-box' }}
               >
                 {AUTO_INTERVAL_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value} style={{ background: '#1e1e2e' }}>
+                  <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>
                 ))}
@@ -694,7 +637,7 @@ export default function BackupSetup() {
             <div style={{
               padding: '14px',
               borderRadius: '10px',
-              background: 'rgba(0, 0, 0, 0.25)',
+              background: 'rgba(0, 0, 0, 0.04)',
               border: '1px solid var(--border)',
               marginBottom: '20px'
             }}>
@@ -704,7 +647,7 @@ export default function BackupSetup() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.83rem' }}>
                 <span className="muted">Last Successful Backup:</span>
-                <span style={{ fontWeight: 600, color: '#e2e8f0' }}>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                   {lastSyncTime ? new Date(lastSyncTime).toLocaleString() : 'Never'}
                 </span>
               </div>
@@ -714,18 +657,18 @@ export default function BackupSetup() {
           {/* Sync Trigger Buttons Section */}
           <div>
             {syncError && (
-              <div style={{ padding: '10px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', fontSize: '0.82rem', marginBottom: '12px' }}>
+              <div style={{ padding: '10px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', fontSize: '0.82rem', marginBottom: '12px' }}>
                 {syncError}
               </div>
             )}
 
             {isSyncing && (
               <div style={{ marginBottom: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px', color: 'var(--text-secondary)' }}>
                   <span>Progress: <strong>{currentTableSyncing}</strong></span>
                   <span>{syncProgress}%</span>
                 </div>
-                <div style={{ width: '100%', height: '8px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: '8px', background: 'rgba(0, 0, 0, 0.1)', borderRadius: '4px', overflow: 'hidden' }}>
                   <div style={{
                     width: `${syncProgress}%`,
                     height: '100%',
@@ -740,19 +683,13 @@ export default function BackupSetup() {
               <button
                 onClick={() => runBackup('Manual', false)}
                 disabled={isSyncing || !targetUrl || !targetKey}
-                className="btn"
+                className="btn btn-primary"
                 style={{
                   width: '100%',
                   padding: '12px 18px',
                   borderRadius: '10px',
-                  border: 'none',
-                  background: isSyncing ? 'rgba(59, 130, 246, 0.5)' : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  color: '#fff',
                   fontSize: '0.95rem',
                   fontWeight: 700,
-                  cursor: isSyncing ? 'not-allowed' : 'pointer',
-                  boxShadow: isSyncing ? 'none' : '0 4px 14px rgba(16, 185, 129, 0.3)',
-                  transition: 'transform 0.2s'
                 }}
               >
                 {isSyncing ? '🔄 Syncing Tables...' : '🚀 Fetch Now (Append New Data)'}
@@ -767,12 +704,10 @@ export default function BackupSetup() {
                   padding: '12px 18px',
                   borderRadius: '10px',
                   border: '1px solid rgba(245, 158, 11, 0.4)',
-                  background: isSyncing ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.12)',
-                  color: '#fbbf24',
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  color: '#f59e0b',
                   fontSize: '0.9rem',
                   fontWeight: 700,
-                  cursor: isSyncing ? 'not-allowed' : 'pointer',
-                  transition: 'transform 0.2s, background 0.2s'
                 }}
               >
                 🔄 Refresh Backup & Refill (Clear & Refill)
@@ -783,10 +718,10 @@ export default function BackupSetup() {
       </div>
 
       {/* Latest Fetch Logs Section */}
-      <div className="card" style={{ padding: '24px', borderRadius: '16px', background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <div className="card" style={{ padding: '24px', borderRadius: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.2rem', fontFamily: 'var(--font-display)' }}>Latest Fetch Logs</h3>
+            <h3 style={{ margin: 0, fontSize: '1.2rem', fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>Latest Fetch Logs</h3>
             <p className="muted" style={{ margin: '4px 0 0 0', fontSize: '0.85rem' }}>
               Historical audit log of all manual, refresh-refill, and auto-scheduled database fetch operations.
             </p>
@@ -812,7 +747,7 @@ export default function BackupSetup() {
         </div>
 
         {logs.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8', border: '1px dashed var(--border)', borderRadius: '12px' }}>
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', border: '1px dashed var(--border)', borderRadius: '12px' }}>
             <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '10px' }}>📋</span>
             No backup fetch logs recorded yet. Click <strong>"Fetch Now"</strong> or <strong>"Refresh Backup & Refill"</strong> above to perform your first backup!
           </div>
@@ -820,7 +755,7 @@ export default function BackupSetup() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', textAlign: 'left' }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)', color: '#94a3b8' }}>
+                <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
                   <th style={{ padding: '12px' }}>Execution Time</th>
                   <th style={{ padding: '12px' }}>Trigger / Mode</th>
                   <th style={{ padding: '12px' }}>Overall Status</th>
@@ -831,8 +766,8 @@ export default function BackupSetup() {
               </thead>
               <tbody>
                 {logs.map((log) => (
-                  <tr key={log.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', transition: 'background 0.2s' }}>
-                    <td style={{ padding: '12px', fontWeight: 600 }}>
+                  <tr key={log.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}>
+                    <td style={{ padding: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
                       {new Date(log.timestamp).toLocaleString()}
                     </td>
                     <td style={{ padding: '12px' }}>
@@ -847,10 +782,10 @@ export default function BackupSetup() {
                           ? 'rgba(59, 130, 246, 0.15)' 
                           : 'rgba(168, 85, 247, 0.15)',
                         color: log.triggerType.includes('Refill') 
-                          ? '#fbbf24' 
+                          ? '#f59e0b' 
                           : log.triggerType === 'Manual' 
-                          ? '#60a5fa' 
-                          : '#c084fc',
+                          ? '#3b82f6' 
+                          : '#a855f7',
                         border: `1px solid ${
                           log.triggerType.includes('Refill') 
                             ? '#f59e0b' 
@@ -869,16 +804,16 @@ export default function BackupSetup() {
                         fontSize: '0.78rem',
                         fontWeight: 600,
                         background: log.overallStatus === 'Success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                        color: log.overallStatus === 'Success' ? '#34d399' : '#fbbf24',
+                        color: log.overallStatus === 'Success' ? '#10b981' : '#f59e0b',
                         border: `1px solid ${log.overallStatus === 'Success' ? '#10b981' : '#f59e0b'}`
                       }}>
                         {log.overallStatus === 'Success' ? '✅ Success' : '⚠️ Warning'}
                       </span>
                     </td>
-                    <td style={{ padding: '12px', fontWeight: 700, color: '#38bdf8' }}>
+                    <td style={{ padding: '12px', fontWeight: 700, color: 'var(--accent)' }}>
                       {log.totalRecordsFetched} rows
                     </td>
-                    <td style={{ padding: '12px', color: '#cbd5e1' }}>
+                    <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>
                       {log.tableDetails ? log.tableDetails.length : log.totalTables} tables
                     </td>
                     <td style={{ padding: '12px', textAlign: 'right' }}>
@@ -887,14 +822,10 @@ export default function BackupSetup() {
                           setSelectedLog(log)
                           setShowLogModal(true)
                         }}
+                        className="btn"
                         style={{
-                          background: 'rgba(255, 255, 255, 0.08)',
-                          border: '1px solid var(--border)',
-                          color: '#fff',
                           padding: '6px 14px',
-                          borderRadius: '8px',
                           fontSize: '0.8rem',
-                          cursor: 'pointer',
                           fontWeight: 600
                         }}
                       >
@@ -917,7 +848,7 @@ export default function BackupSetup() {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0, 0, 0, 0.75)',
+          background: 'rgba(0, 0, 0, 0.65)',
           backdropFilter: 'blur(6px)',
           display: 'flex',
           justifyContent: 'center',
@@ -926,7 +857,7 @@ export default function BackupSetup() {
           padding: '20px'
         }}>
           <div style={{
-            background: '#181825',
+            background: 'var(--surface)',
             border: '1px solid var(--border)',
             borderRadius: '20px',
             width: '100%',
@@ -935,7 +866,7 @@ export default function BackupSetup() {
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)'
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.25)'
           }}>
             {/* Modal Header */}
             <div style={{
@@ -946,7 +877,7 @@ export default function BackupSetup() {
               alignItems: 'center'
             }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Backup Run Table Breakdown</h3>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-primary)' }}>Backup Run Table Breakdown</h3>
                 <span className="muted" style={{ fontSize: '0.82rem' }}>
                   Ran at {new Date(selectedLog.timestamp).toLocaleString()} ({selectedLog.triggerType})
                 </span>
@@ -954,9 +885,9 @@ export default function BackupSetup() {
               <button
                 onClick={() => setShowLogModal(false)}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
+                  background: 'rgba(0, 0, 0, 0.08)',
                   border: 'none',
-                  color: '#fff',
+                  color: 'var(--text-primary)',
                   width: '32px',
                   height: '32px',
                   borderRadius: '50%',
@@ -972,27 +903,27 @@ export default function BackupSetup() {
             {/* Modal Body */}
             <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginBottom: '20px' }}>
-                <div style={{ padding: '12px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                <div style={{ padding: '12px', background: 'rgba(0, 0, 0, 0.03)', borderRadius: '10px', border: '1px solid var(--border)' }}>
                   <span className="muted" style={{ fontSize: '0.78rem' }}>Total Fetched</span>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#38bdf8' }}>{selectedLog.totalRecordsFetched}</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent)' }}>{selectedLog.totalRecordsFetched}</div>
                 </div>
-                <div style={{ padding: '12px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                <div style={{ padding: '12px', background: 'rgba(0, 0, 0, 0.03)', borderRadius: '10px', border: '1px solid var(--border)' }}>
                   <span className="muted" style={{ fontSize: '0.78rem' }}>Total Inserted/Refilled</span>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#34d399' }}>{selectedLog.totalRecordsInserted}</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#10b981' }}>{selectedLog.totalRecordsInserted}</div>
                 </div>
-                <div style={{ padding: '12px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                <div style={{ padding: '12px', background: 'rgba(0, 0, 0, 0.03)', borderRadius: '10px', border: '1px solid var(--border)' }}>
                   <span className="muted" style={{ fontSize: '0.78rem' }}>Overall Status</span>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: selectedLog.overallStatus === 'Success' ? '#34d399' : '#f59e0b' }}>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: selectedLog.overallStatus === 'Success' ? '#10b981' : '#f59e0b' }}>
                     {selectedLog.overallStatus}
                   </div>
                 </div>
               </div>
 
-              <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem' }}>Tables Processed Details:</h4>
+              <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem', color: 'var(--text-primary)' }}>Tables Processed Details:</h4>
 
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)', color: '#94a3b8', textAlign: 'left' }}>
+                  <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)', textAlign: 'left' }}>
                     <th style={{ padding: '8px 12px' }}>Table Name</th>
                     <th style={{ padding: '8px 12px' }}>Rows Fetched</th>
                     <th style={{ padding: '8px 12px' }}>Backup Write Status</th>
@@ -1001,11 +932,11 @@ export default function BackupSetup() {
                 </thead>
                 <tbody>
                   {selectedLog.tableDetails?.map((tbl, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                      <td style={{ padding: '8px 12px', fontWeight: 600, color: '#e0e7ff' }}>
+                    <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '8px 12px', fontWeight: 600, color: 'var(--text-primary)' }}>
                         <code>{tbl.tableName}</code>
                       </td>
-                      <td style={{ padding: '8px 12px', fontWeight: 600, color: tbl.fetchedCount > 0 ? '#38bdf8' : '#94a3b8' }}>
+                      <td style={{ padding: '8px 12px', fontWeight: 600, color: tbl.fetchedCount > 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
                         {tbl.fetchedCount} rows
                       </td>
                       <td style={{ padding: '8px 12px' }}>
@@ -1015,12 +946,12 @@ export default function BackupSetup() {
                           fontSize: '0.75rem',
                           fontWeight: 600,
                           background: tbl.status === 'Success' ? 'rgba(16, 185, 129, 0.15)' : tbl.status === 'Partial Warning' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                          color: tbl.status === 'Success' ? '#34d399' : tbl.status === 'Partial Warning' ? '#fbbf24' : '#f87171'
+                          color: tbl.status === 'Success' ? '#10b981' : tbl.status === 'Partial Warning' ? '#f59e0b' : '#ef4444'
                         }}>
                           {tbl.status}
                         </span>
                       </td>
-                      <td style={{ padding: '8px 12px', fontSize: '0.78rem', color: tbl.status === 'Failed' ? '#f87171' : tbl.status === 'Partial Warning' ? '#fbbf24' : '#64748b' }}>
+                      <td style={{ padding: '8px 12px', fontSize: '0.78rem', color: tbl.status === 'Failed' ? '#ef4444' : tbl.status === 'Partial Warning' ? '#f59e0b' : 'var(--text-secondary)' }}>
                         {tbl.errorMsg ? tbl.errorMsg : selectedLog.triggerType.includes('Refill') ? 'Cleared & Refilled' : 'Synced without overwrite'}
                       </td>
                     </tr>
@@ -1033,16 +964,11 @@ export default function BackupSetup() {
             <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', textAlign: 'right' }}>
               <button
                 onClick={() => setShowLogModal(false)}
-                className="btn"
+                className="btn btn-primary"
                 style={{
                   padding: '8px 20px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: 'var(--accent)',
-                  color: '#fff',
                   fontSize: '0.85rem',
                   fontWeight: 600,
-                  cursor: 'pointer'
                 }}
               >
                 Close

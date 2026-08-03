@@ -1,9 +1,48 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, Users, CreditCard, MoreHorizontal, Trophy, FileText, Award, User } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Users, CreditCard, MoreHorizontal, Trophy, Award, User, Eye, Edit3 } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 
 export default function BottomNav() {
   const { role } = useAuth()
+
+  if (role === 'accountant') {
+    return (
+      <div className="mobile-bottom-nav">
+        <NavLink 
+          to="/accountant" 
+          end 
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+        >
+          <LayoutDashboard size={20} />
+          <span>Dashboard</span>
+        </NavLink>
+
+        <NavLink 
+          to="/accountant/view" 
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+        >
+          <Eye size={20} />
+          <span>View</span>
+        </NavLink>
+
+        <NavLink 
+          to="/accountant/edit" 
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+        >
+          <Edit3 size={20} />
+          <span>Edit</span>
+        </NavLink>
+
+        <NavLink 
+          to="/accountant/profile" 
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+        >
+          <User size={20} />
+          <span>Profile</span>
+        </NavLink>
+      </div>
+    )
+  }
 
   if (role === 'incharge') {
     return (

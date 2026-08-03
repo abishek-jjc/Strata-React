@@ -1553,9 +1553,36 @@ body.light-theme .table-responsive {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
+body.light-theme input,
+body.light-theme textarea,
+body.light-theme select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(0, 0, 0, 0.18) !important;
+}
+
 body.light-theme select option {
-  background-color: #ffffff;
-  color: #0f172a;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+body.light-theme .card {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-theme .data-table th,
+body.light-theme table th {
+  color: #475569 !important;
+  border-bottom-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+body.light-theme .data-table td,
+body.light-theme table td {
+  color: #0f172a !important;
+  border-bottom-color: rgba(0, 0, 0, 0.06) !important;
 }
 
 body.light-theme .login-brand-logo {

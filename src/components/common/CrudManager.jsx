@@ -4,11 +4,6 @@ import { useTable } from '../../hooks/useTable'
 import { exportToExcel } from '../../utils/excelExport'
 
 // Config-driven CRUD table + modal form against a Postgres table.
-// `fields` describes the schema: [{ name, label, type, required, options }]
-// `name` must match the actual Postgres column name (snake_case).
-//
-// onAfterSave(formData, rowId) — optional hook for side effects, e.g.
-// Colleges uses this to generate + store the QR code after insert.
 export default function CrudManager({
   title,
   table,
@@ -18,13 +13,17 @@ export default function CrudManager({
   renderExtraActions,
   renderExtraHeaderActions,
   disableEdit = false,
+  disableDelete = false,
   disableAdd = false,
+  readOnlyView = false,
   customData = null,
 }) {
   const { data: dbData, loading } = useTable(table)
   const data = customData || dbData
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
+  const [viewModalOpen, setViewModalOpen] = useState(false)
+  const [viewingRow, setViewingRow] = useState(null)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
@@ -35,7 +34,6 @@ export default function CrudManager({
 
   const [selectedIds, setSelectedIds] = useState([])
 
-  // Reset page and selection when search term or customData/table changes
   useEffect(() => {
     setCurrentPage(1)
     setSelectedIds([])
@@ -57,8 +55,7 @@ export default function CrudManager({
     return data.filter((row) =>
       visibleColumns.some((col) => String(row[col] ?? '').toLowerCase().includes(q))
     )
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, search])
+  }, [data, search, visibleColumns])
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage)
 
@@ -92,6 +89,11 @@ export default function CrudManager({
     setEditing(row)
     setError('')
     setModalOpen(true)
+  }
+
+  function openView(row) {
+    setViewingRow(row)
+    setViewModalOpen(true)
   }
 
   function toggleSelectRow(id) {
@@ -156,15 +158,11 @@ export default function CrudManager({
     }
     setSaving(true)
     try {
-      // Only send columns this form actually knows about — avoids
-      // accidentally writing back stray fields (id, created_at) that
-      // came along for the ride when `form` was seeded from a row.
       const payload = {}
       fields.forEach((f) => {
         if (f.persist === false) return
         let val = form[f.name]
 
-        // Force prelims fields to null if has_prelims toggle is off
         if (form.has_prelims === false && (f.name === 'prelims_venue' || f.name === 'preliminary')) {
           val = null
         }
@@ -204,7 +202,7 @@ export default function CrudManager({
       <div className="crud-header">
         <h2>{title}</h2>
         <div className="crud-actions">
-          {selectedIds.length > 0 && (
+          {!disableDelete && selectedIds.length > 0 && (
             <button
               type="button"
               className="btn"
@@ -224,7 +222,7 @@ export default function CrudManager({
           <button className="btn" onClick={() => exportToExcel(filtered, table)}>
             Export Excel
           </button>
-          {!disableAdd && (
+          {!disableAdd && !readOnlyView && (
             <button className="btn btn-primary" onClick={openAdd}>
               Add
             </button>
@@ -240,13 +238,15 @@ export default function CrudManager({
             <table className="data-table">
               <thead>
                 <tr>
-                  <th style={{ width: '40px', textAlign: 'center' }}>
-                    <input
-                      type="checkbox"
-                      checked={paginatedData.length > 0 && paginatedData.every((item) => selectedIds.includes(item.id))}
-                      onChange={toggleSelectAll}
-                    />
-                  </th>
+                  {!disableDelete && (
+                    <th style={{ width: '40px', textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={paginatedData.length > 0 && paginatedData.every((item) => selectedIds.includes(item.id))}
+                        onChange={toggleSelectAll}
+                      />
+                    </th>
+                  )}
                   {visibleColumns.map((c) => (
                     <th key={c}>{fields.find((f) => f.name === c)?.label || c}</th>
                   ))}
@@ -256,13 +256,15 @@ export default function CrudManager({
               <tbody>
                 {paginatedData.map((row) => (
                   <tr key={row.id}>
-                    <td style={{ textAlign: 'center' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(row.id)}
-                        onChange={() => toggleSelectRow(row.id)}
-                      />
-                    </td>
+                    {!disableDelete && (
+                      <td style={{ textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(row.id)}
+                          onChange={() => toggleSelectRow(row.id)}
+                        />
+                      </td>
+                    )}
                     {visibleColumns.map((c) => {
                       const field = fields.find((f) => f.name === c)
                       let val = row[c]
@@ -285,25 +287,35 @@ export default function CrudManager({
                           </td>
                         )
                       }
-                      return <td key={c}>{String(val ?? '')}</td>
+                      return <td key={c}>{String(val ?? '—')}</td>
                     })}
                     <td className="row-actions">
-                      {!disableEdit && (
-                        <button className="link" onClick={() => openEdit(row)}>
-                          Edit
+                      {readOnlyView ? (
+                        <button className="link" onClick={() => openView(row)}>
+                          View
                         </button>
+                      ) : (
+                        <>
+                          {!disableEdit && (
+                            <button className="link" onClick={() => openEdit(row)}>
+                              Edit
+                            </button>
+                          )}
+                          {!disableDelete && (
+                            <button className="link danger" onClick={() => handleDelete(row)}>
+                              Delete
+                            </button>
+                          )}
+                        </>
                       )}
-                      <button className="link danger" onClick={() => handleDelete(row)}>
-                        Delete
-                      </button>
                       {renderExtraActions && renderExtraActions(row)}
                     </td>
                   </tr>
                 ))}
                 {paginatedData.length === 0 && (
                   <tr>
-                    <td colSpan={visibleColumns.length + 2} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
-                      No records yet.
+                    <td colSpan={visibleColumns.length + (disableDelete ? 1 : 2)} className="muted" style={{ textAlign: 'center', padding: '20px' }}>
+                      No records found.
                     </td>
                   </tr>
                 )}
@@ -357,6 +369,56 @@ export default function CrudManager({
         </>
       )}
 
+      {/* Read Only Detail Modal */}
+      {viewModalOpen && viewingRow && (
+        <div className="modal-backdrop" onClick={() => setViewModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px', width: '100%' }}>
+            <h3 style={{ margin: '0 0 16px 0', borderBottom: '1px solid var(--border)', paddingBottom: '12px', color: 'var(--text-primary)' }}>
+              Detail View: {title}
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '60vh', overflowY: 'auto', fontSize: '0.92rem' }}>
+              {fields.map((f) => {
+                let rawVal = viewingRow[f.name]
+                let displayVal = rawVal ?? '—'
+                if (f.type === 'select' && f.options) {
+                  const opt = f.options.find((o) => (o.value ?? o) === rawVal)
+                  if (opt) displayVal = opt.label ?? opt
+                }
+                if (f.type === 'image' && rawVal) {
+                  return (
+                    <div key={f.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                      <span className="muted">{f.label}:</span>
+                      <img src={rawVal} alt={f.label} style={{ maxWidth: '100px', maxHeight: '100px', borderRadius: '8px', objectFit: 'cover' }} />
+                    </div>
+                  )
+                }
+                return (
+                  <div key={f.name} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                    <span className="muted">{f.label}:</span>
+                    <strong style={{ color: 'var(--text-primary)' }}>{String(displayVal)}</strong>
+                  </div>
+                )
+              })}
+
+              {viewingRow.created_at && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                  <span className="muted">Created At:</span>
+                  <strong style={{ color: 'var(--text-primary)' }}>{new Date(viewingRow.created_at).toLocaleString()}</strong>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: '20px' }}>
+              <button type="button" className="btn btn-primary" onClick={() => setViewModalOpen(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit / Add Modal */}
       {modalOpen && (
         <div className="modal-backdrop" onClick={() => setModalOpen(false)}>
           <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSave}>
@@ -492,4 +554,3 @@ export default function CrudManager({
     </div>
   )
 }
-

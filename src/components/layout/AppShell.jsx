@@ -57,7 +57,7 @@ export default function AppShell({ children }) {
         />
         <main className="app-content">{children}</main>
       </div>
-      {(role === 'leader' || role === 'incharge') && <BottomNav />}
+      {(role === 'leader' || role === 'incharge' || role === 'accountant') && <BottomNav />}
     </div>
   )
 }
