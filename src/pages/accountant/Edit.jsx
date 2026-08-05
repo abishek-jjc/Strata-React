@@ -4,12 +4,18 @@ import { TABLES } from '../../supabase/tables'
 import { useTable } from '../../hooks/useTable'
 import { useAuth } from '../../auth/AuthContext'
 
+import { getUniqueStudents } from '../../utils/studentUtils'
+
 export default function AccountantEdit() {
   const { profile } = useAuth()
   const { data: colleges, loading: loadingColleges, reload: reloadColleges } = useTable(TABLES.COLLEGES)
   const { data: registrations, loading: loadingRegs } = useTable(TABLES.REGISTRATIONS)
-  const { data: students, loading: loadingStudents } = useTable(TABLES.STUDENTS)
+  const { data: dbStudents, loading: loadingStudents } = useTable(TABLES.STUDENTS)
   const { data: settings } = useTable(TABLES.SETTINGS)
+
+  const students = useMemo(() => {
+    return getUniqueStudents(dbStudents)
+  }, [dbStudents])
 
   const [selectedCollege, setSelectedCollege] = useState(null)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)

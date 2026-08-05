@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../auth/AuthContext'
 import { TABLES } from '../../supabase/tables'
 import { useTable } from '../../hooks/useTable'
 import QRCode from 'qrcode'
 import BackButton from '../../components/common/BackButton'
+
+import { getUniqueStudents } from '../../utils/studentUtils'
 
 export default function Payment() {
   const { profile } = useAuth()
@@ -15,7 +17,7 @@ export default function Payment() {
   const { data: colleges, loading: colLoading } = useTable(TABLES.COLLEGES, [
     ['id', 'eq', profile?.college_id]
   ])
-  const { data: students, loading: stdLoading } = useTable(TABLES.STUDENTS, [
+  const { data: dbStudents, loading: stdLoading } = useTable(TABLES.STUDENTS, [
     ['leader_id', 'eq', profile?.ref_id]
   ])
   const { data: registrations, loading: regLoading } = useTable(TABLES.REGISTRATIONS, [
@@ -25,6 +27,10 @@ export default function Payment() {
 
   const loading = colLoading || stdLoading || regLoading || setLoading
   const myCollege = colleges[0]
+
+  const students = useMemo(() => {
+    return getUniqueStudents(dbStudents)
+  }, [dbStudents])
 
   const whatsappLink = settings.find(s => s.key_name === 'whatsapp_group_link')?.value || ''
 

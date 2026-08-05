@@ -30,6 +30,7 @@ import Incharges from './pages/admin/Incharges'
 import Certificates from './pages/admin/Certificates'
 import Reports from './pages/admin/Reports'
 import AdminFeedbacks from './pages/admin/AdminFeedbacks'
+import AdminReviews from './pages/admin/Reviews'
 import AdminRules from './pages/admin/Rules'
 import AdminLeaders from './pages/admin/Leaders'
 import AdminSettings from './pages/admin/Settings'
@@ -60,6 +61,7 @@ import LeaderWhatsApp from './pages/leader/WhatsApp'
 import LeaderWinners from './pages/leader/Winners'
 import LeaderMore from './pages/leader/More'
 import LeaderFeedback from './pages/leader/LeaderFeedback'
+import LeaderReviews from './pages/leader/Reviews'
 
 
 
@@ -115,6 +117,7 @@ export default function App() {
             <Route path="/admin/certificates" element={<ProtectedRoute allow={['admin']}>{withShell(<Certificates />)}</ProtectedRoute>} />
             <Route path="/admin/reports" element={<ProtectedRoute allow={['admin']}>{withShell(<Reports />)}</ProtectedRoute>} />
             <Route path="/admin/feedbacks" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminFeedbacks />)}</ProtectedRoute>} />
+            <Route path="/admin/reviews" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminReviews />)}</ProtectedRoute>} />
             <Route path="/admin/rules" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminRules />)}</ProtectedRoute>} />
             <Route path="/admin/homepage-leaders" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminLeaders />)}</ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute allow={['admin']}>{withShell(<AdminSettings />)}</ProtectedRoute>} />
@@ -131,6 +134,7 @@ export default function App() {
             <Route path="/leader/winners" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderWinners />)}</ProtectedRoute>} />
             <Route path="/leader/more" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderMore />)}</ProtectedRoute>} />
             <Route path="/leader/feedback" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderFeedback />)}</ProtectedRoute>} />
+            <Route path="/leader/reviews" element={<ProtectedRoute allow={['leader']}>{withShell(<LeaderReviews />)}</ProtectedRoute>} />
 
 
             {/* Incharge */}

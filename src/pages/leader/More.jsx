@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ShieldAlert, MessageCircle, Award, User, ChevronRight, MessageSquare } from 'lucide-react'
+import { ShieldAlert, MessageCircle, Award, User, ChevronRight, MessageSquare, Star } from 'lucide-react'
 import BackButton from '../../components/common/BackButton'
 
 export default function More() {
@@ -27,6 +27,12 @@ export default function More() {
       title: 'Feedback',
       desc: 'Submit suggestions, comments, or queries for event organizers.',
       icon: <MessageSquare size={24} style={{ color: '#ec4899' }} />,
+    },
+    {
+      to: '/leader/reviews',
+      title: 'Event Reviews & Ratings',
+      desc: 'Rate your overall experience (Ambience, Hospitality, Food, etc.).',
+      icon: <Star size={24} style={{ color: '#f9c20a' }} />,
     },
     {
       to: '/leader/profile',

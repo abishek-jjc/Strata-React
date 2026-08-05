@@ -25,6 +25,7 @@ export default function Reports() {
   const [active, setActive] = useState(REPORT_TYPES[0].key)
   const [search, setSearch] = useState('')
   const [genderFilter, setGenderFilter] = useState('all')
+  const [accountantFilter, setAccountantFilter] = useState('all')
 
   // 2nd Filter Mode state: 'all' | 'individual' | 'many'
   const [eventMode, setEventMode] = useState('all')
@@ -46,6 +47,8 @@ export default function Reports() {
   const { data: studentLeaders, loading: leadersLoading } = useTable(TABLES.STUDENT_LEADERS)
   const { data: payments, loading: paymentsLoading } = useTable(TABLES.PAYMENTS)
   const { data: certificates, loading: certsLoading } = useTable(TABLES.CERTIFICATES)
+  const { data: accountants } = useTable(TABLES.ACCOUNTANTS) || { data: [] }
+  const { data: paymentLogs } = useTable(TABLES.PAYMENT_LOGS) || { data: [] }
 
   const loading =
     eventsLoading ||
@@ -121,18 +124,28 @@ export default function Reports() {
   const reportRows = useMemo(() => {
     if (active === 'students') {
       return students
-        .filter((s) => activeEventIds.has(s.event_id) && (genderFilter === 'all' || s.gender === genderFilter))
-        .map((s) => ({
-          'Event Name': eventName(s.event_id),
-          'Participant Name': s.student_name,
-          'Gender': s.gender || '—',
-          'Roll No': s.roll_no || '—',
-          'Lot Name': collegeLot(s.college_id, s.registration_id),
-          'College Name': colleges.find((col) => col.id === s.college_id)?.college || '—',
-          'Department': (s.department && s.department !== '-' && s.department !== '—') 
-            ? s.department 
-            : (colleges.find((col) => col.id === s.college_id)?.department || '—'),
-        }))
+        .filter((s) => {
+          const matchEv = activeEventIds.has(s.event_id) || (Array.isArray(s.event_ids) && s.event_ids.some((id) => activeEventIds.has(id)))
+          const matchGender = genderFilter === 'all' || s.gender === genderFilter
+          return matchEv && matchGender
+        })
+        .map((s) => {
+          const allEvIds = Array.isArray(s.event_ids) && s.event_ids.length > 0 ? s.event_ids : [s.event_id]
+          const matchedEventNames = allEvIds.filter((id) => activeEventIds.has(id)).map((id) => eventName(id))
+          const eventDisplay = matchedEventNames.join(', ') || eventName(s.event_id)
+
+          return {
+            'Event Name': eventDisplay,
+            'Participant Name': s.student_name,
+            'Gender': s.gender || '—',
+            'Roll No': s.roll_no || '—',
+            'Lot Name': collegeLot(s.college_id, s.registration_id),
+            'College Name': colleges.find((col) => col.id === s.college_id)?.college || '—',
+            'Department': (s.department && s.department !== '-' && s.department !== '—') 
+              ? s.department 
+              : (colleges.find((col) => col.id === s.college_id)?.department || '—'),
+          }
+        })
     }
 
     if (active === 'lots') {
@@ -212,16 +225,38 @@ export default function Reports() {
     }
 
     if (active === TABLES.PAYMENTS) {
-      return payments.map((p) => {
-        const reg = registrations.find((r) => r.id === p.registration_id)
-        return {
-          'College': collegeName(reg?.college_id),
-          'Amount': `Rs. ${p.amount}`,
-          'Payment Mode': p.payment_mode || '—',
-          'Receipt No': p.receipt_no || '—',
-          'Payment Date': p.payment_date ? new Date(p.payment_date).toLocaleDateString() : '—',
-        }
-      })
+      let list = []
+      if (paymentLogs && paymentLogs.length > 0) {
+        list = paymentLogs.map((log) => {
+          const accName = log.accountant_name || log.poll_name || 'Desk Accountant'
+          return {
+            'College': log.college_name || collegeName(log.college_id),
+            'Accountant Name': accName,
+            'Amount (₹)': `Rs. ${log.amount}`,
+            'Payment Mode': log.payment_mode || 'Cash/QR',
+            'Receipt No': log.receipt_no || '—',
+            'Payment Date': log.created_at || log.clearance_date ? new Date(log.created_at || log.clearance_date).toLocaleString() : '—',
+          }
+        })
+      } else {
+        list = (payments || []).map((p) => {
+          const reg = registrations.find((r) => r.id === p.registration_id)
+          return {
+            'College': collegeName(reg?.college_id),
+            'Accountant Name': p.accountant_name || 'System Accountant',
+            'Amount (₹)': `Rs. ${p.amount}`,
+            'Payment Mode': p.payment_mode || '—',
+            'Receipt No': p.receipt_no || '—',
+            'Payment Date': p.payment_date ? new Date(p.payment_date).toLocaleDateString() : '—',
+          }
+        })
+      }
+
+      if (accountantFilter !== 'all') {
+        list = list.filter((item) => (item['Accountant Name'] || '').toLowerCase().includes(accountantFilter.toLowerCase()))
+      }
+
+      return list
     }
 
     if (active === TABLES.CERTIFICATES) {
@@ -235,7 +270,7 @@ export default function Reports() {
     }
 
     return []
-  }, [active, students, registrations, colleges, lots, studentLeaders, payments, certificates, activeEventIds, genderFilter])
+  }, [active, students, registrations, colleges, lots, studentLeaders, payments, certificates, paymentLogs, activeEventIds, genderFilter, accountantFilter])
 
   // Apply general search filter
   const filtered = useMemo(() => {
@@ -245,6 +280,23 @@ export default function Reports() {
       Object.values(row).some((val) => String(val ?? '').toLowerCase().includes(q))
     )
   }, [reportRows, search])
+
+  // Payments Mode Total Revenue & Filtered Total Calculation
+  const { totalPaymentsAllTime, filteredPaymentsTotal } = useMemo(() => {
+    const logsList = (paymentLogs && paymentLogs.length > 0) ? paymentLogs : (payments || [])
+    const totalAllTime = logsList.reduce((sum, item) => sum + Number(item.amount || 0), 0)
+
+    if (active !== TABLES.PAYMENTS) {
+      return { totalPaymentsAllTime: totalAllTime, filteredPaymentsTotal: 0 }
+    }
+
+    const filteredTotal = filtered.reduce((sum, row) => {
+      const amtStr = String(row['Amount (₹)'] || row['Amount'] || '0').replace(/[^0-9.]/g, '')
+      return sum + Number(amtStr || 0)
+    }, 0)
+
+    return { totalPaymentsAllTime: totalAllTime, filteredPaymentsTotal: filteredTotal }
+  }, [active, paymentLogs, payments, filtered])
 
   const columns = useMemo(() => {
     if (!filtered[0]) return []
@@ -301,6 +353,9 @@ export default function Reports() {
       if (active === 'students' && genderFilter !== 'all') {
         subtitle += ` | Gender: ${genderFilter}`
       }
+    } else if (active === TABLES.PAYMENTS) {
+      subtitle = `Accountant Filter: ${accountantFilter === 'all' ? 'All Accountants' : accountantFilter}`
+      if (search) subtitle += ` | Search: "${search}"`
     }
 
     doc.setFont('helvetica', 'bold')
@@ -317,8 +372,27 @@ export default function Reports() {
     doc.setFontSize(9)
     doc.text(`Generated on: ${new Date().toLocaleString()}`, 40, subtitle ? 75 : 62)
 
+    let startYTable = subtitle ? 90 : 75
+
+    // Add Payments Summary box in PDF if Payments mode
+    if (active === TABLES.PAYMENTS) {
+      doc.autoTable({
+        startY: startYTable,
+        head: [['Metric', 'Amount (₹)']],
+        body: [
+          ['Total Revenue Collected (All Time)', `Rs. ${totalPaymentsAllTime.toLocaleString()}`],
+          ['Filtered Amount Collected', `Rs. ${filteredPaymentsTotal.toLocaleString()}`],
+        ],
+        margin: { left: 40, right: 40 },
+        theme: 'grid',
+        headStyles: { fillColor: [0, 229, 255], textColor: [0, 0, 0], fontStyle: 'bold' },
+        styles: { fontSize: 8.5, cellPadding: 4 }
+      })
+      startYTable = doc.lastAutoTable.finalY + 15
+    }
+
     doc.autoTable({
-      startY: subtitle ? 95 : 80,
+      startY: startYTable,
       head: [visibleTableColumns],
       body: filtered.map((row) => visibleTableColumns.map((col) => String(row[col] ?? '—'))),
       theme: 'grid',
@@ -574,6 +648,30 @@ export default function Reports() {
             </div>
           )}
 
+          {/* Accountant Filter (Only visible for Payments report) */}
+          {active === TABLES.PAYMENTS && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>
+                Accountant Filter
+              </label>
+              <select
+                value={accountantFilter}
+                onChange={(e) => {
+                  setAccountantFilter(e.target.value)
+                  setCurrentPage(1)
+                }}
+                style={{ padding: '8px 12px', fontSize: '0.9rem', minWidth: '180px', borderRadius: '6px' }}
+              >
+                <option value="all">All Accountants</option>
+                {(accountants || []).map((acc) => (
+                  <option key={acc.id} value={acc.name || acc.id}>
+                    {acc.name} ({acc.username || 'Accountant'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Search Field */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: 'auto' }}>
             <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>
@@ -597,11 +695,33 @@ export default function Reports() {
           <button className="btn" onClick={handleExportExcel}>
             📊 Export Excel
           </button>
-          <button className="btn btn-primary" onClick={handleDownloadPdf}>
-            📄 Download PDF
-          </button>
         </div>
       </div>
+
+      {/* Payments Mode Revenue Summary Cards */}
+      {active === TABLES.PAYMENTS && (
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '20px' }}>
+          <div className="card" style={{ padding: '16px 20px', flex: '1 1 240px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(52, 211, 153, 0.12)', color: '#34d399', fontSize: '1.4rem' }}>
+              💰
+            </div>
+            <div>
+              <span className="muted" style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block' }}>Total Amount (All Time)</span>
+              <strong style={{ fontSize: '1.4rem', color: '#34d399', fontFamily: 'Syne, sans-serif' }}>₹{totalPaymentsAllTime.toLocaleString()}</strong>
+            </div>
+          </div>
+
+          <div className="card" style={{ padding: '16px 20px', flex: '1 1 240px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(0, 229, 255, 0.12)', color: 'var(--accent)', fontSize: '1.4rem' }}>
+              💵
+            </div>
+            <div>
+              <span className="muted" style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block' }}>Filtered Amount ({filtered.length} records)</span>
+              <strong style={{ fontSize: '1.4rem', color: 'var(--accent)', fontFamily: 'Syne, sans-serif' }}>₹{filteredPaymentsTotal.toLocaleString()}</strong>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Data Display */}
       {loading ? (

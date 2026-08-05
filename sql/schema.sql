@@ -250,6 +250,8 @@ ALTER TABLE public.students ADD COLUMN IF NOT EXISTS certificate_status      tex
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS food_type               text CHECK (food_type IN ('Veg', 'Non-Veg', '-'));
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS winner_place            text;
 ALTER TABLE public.students ADD COLUMN IF NOT EXISTS winning_prize           text;
+ALTER TABLE public.students ADD COLUMN IF NOT EXISTS event_ids               uuid[] DEFAULT ARRAY[]::uuid[];
+
 
 -- 2o. certificates
 CREATE TABLE IF NOT EXISTS public.certificates (
@@ -651,16 +653,16 @@ BEGIN
     IF EXISTS (
       SELECT 1 FROM public.students 
        WHERE college_id = p_college_id 
-         AND event_id = p_event_id
+         AND (event_id = p_event_id OR p_event_id = ANY(coalesce(event_ids, ARRAY[event_id])))
          AND lower(trim(roll_no)) = lower(trim(v_participant->>'rollNo'))
     ) THEN
       RAISE EXCEPTION 'Participant with roll number "%" is already registered in this event.', v_participant->>'rollNo';
     END IF;
 
-    -- Check schedule conflict
+    -- Check schedule conflict against all events the student is currently registered in
     SELECT e.event_name INTO v_conflicting_event_name
       FROM public.students s
-      JOIN public.events e ON s.event_id = e.id
+      JOIN public.events e ON (e.id = s.event_id OR e.id = ANY(coalesce(s.event_ids, ARRAY[s.event_id])))
      WHERE s.college_id = p_college_id
        AND lower(trim(s.roll_no)) = lower(trim(v_participant->>'rollNo'))
        AND (
@@ -680,20 +682,53 @@ BEGIN
   RETURNING id INTO v_reg_id;
 
   FOR v_participant IN SELECT * FROM jsonb_array_elements(p_participants) LOOP
-    INSERT INTO public.students (
-      student_name, student_name_normalized, roll_no, food_type,
-      gender, department, year,
-      registration_id, leader_id, college_id, event_id, certificate_status
-    ) VALUES (
-      v_participant->>'studentName',
-      lower(trim(v_participant->>'studentName')),
-      v_participant->>'rollNo',
-      coalesce(v_participant->>'food', v_participant->>'foodType', '-'),
-      v_participant->>'gender',
-      v_participant->>'department',
-      v_participant->>'year',
-      v_reg_id, p_leader_id, p_college_id, p_event_id, 'not issued'
-    );
+    DECLARE
+      v_existing_id   uuid;
+      v_current_food text;
+      v_new_food     text := coalesce(v_participant->>'food', v_participant->>'foodType', '-');
+    BEGIN
+      SELECT id, food_type INTO v_existing_id, v_current_food
+        FROM public.students
+       WHERE college_id = p_college_id
+         AND lower(trim(roll_no)) = lower(trim(v_participant->>'rollNo'))
+       LIMIT 1;
+
+      IF v_existing_id IS NOT NULL THEN
+        -- Update existing student: append new event_id to event_ids array & update food choice if Non-Veg
+        UPDATE public.students
+           SET event_ids = CASE 
+                 WHEN p_event_id = ANY(coalesce(event_ids, ARRAY[event_id])) THEN coalesce(event_ids, ARRAY[event_id])
+                 ELSE array_append(coalesce(event_ids, ARRAY[event_id]), p_event_id)
+               END,
+               food_type = CASE 
+                 WHEN v_new_food = 'Non-Veg' THEN 'Non-Veg'
+                 WHEN v_current_food = 'Non-Veg' THEN 'Non-Veg'
+                 WHEN v_new_food = 'Veg' THEN 'Veg'
+                 ELSE coalesce(v_current_food, '-')
+               END,
+               student_name = coalesce(v_participant->>'studentName', student_name),
+               student_name_normalized = lower(trim(coalesce(v_participant->>'studentName', student_name))),
+               gender = CASE WHEN coalesce(gender, '-') = '-' THEN coalesce(v_participant->>'gender', '-') ELSE gender END,
+               department = CASE WHEN coalesce(department, '-') = '-' THEN coalesce(v_participant->>'department', '-') ELSE department END
+         WHERE id = v_existing_id;
+      ELSE
+        -- Insert new student record
+        INSERT INTO public.students (
+          student_name, student_name_normalized, roll_no, food_type,
+          gender, department, year,
+          registration_id, leader_id, college_id, event_id, event_ids, certificate_status
+        ) VALUES (
+          v_participant->>'studentName',
+          lower(trim(v_participant->>'studentName')),
+          v_participant->>'rollNo',
+          v_new_food,
+          v_participant->>'gender',
+          v_participant->>'department',
+          v_participant->>'year',
+          v_reg_id, p_leader_id, p_college_id, p_event_id, ARRAY[p_event_id], 'not issued'
+        );
+      END IF;
+    END;
   END LOOP;
 
   RETURN v_reg_id;

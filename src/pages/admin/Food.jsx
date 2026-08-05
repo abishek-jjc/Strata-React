@@ -1,8 +1,12 @@
 import { useMemo, useState } from 'react'
 import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
 import { TABLES, REGISTRATION_STATUS } from '../../supabase/tables'
 import { useTable } from '../../hooks/useTable'
-import { Utensils, Download, Search, PieChart, Layers } from 'lucide-react'
+import { Utensils, Download, Search, PieChart, Layers, FileSpreadsheet } from 'lucide-react'
+import { useSettings } from '../../context/SettingsContext'
+import { loadLogoWithOpacity, addWatermarkToAllPages } from '../../utils/pdfBackground'
 
 function normalizeGender(g) {
   if (!g) return 'Other'
@@ -153,6 +157,90 @@ export default function Food() {
     XLSX.writeFile(workbook, `Food_Distribution_Genderwise_${new Date().toISOString().slice(0, 10)}.xlsx`)
   }
 
+  // Export PDF Handler
+  const exportToPdf = async () => {
+    if (!filteredList || filteredList.length === 0) return alert('No food distribution data to export.')
+
+    const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'landscape' })
+    const imgData = logoUrl ? await loadLogoWithOpacity(logoUrl, 0.15) : null
+
+    // Document Header
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(15)
+    doc.text('Strata 2K26 — Food & Lunch Requirements Report', 40, 40)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8.5)
+    doc.text(`Generated on: ${new Date().toLocaleString()} | Total Participating Colleges: ${filteredList.length}`, 40, 54)
+
+    // Summary Section Table
+    const summaryRows = [
+      ['Vegetarian (Veg)', String(stats.vegByGender.Male), String(stats.vegByGender.Female), String(stats.veg)],
+      ['Non-Vegetarian (Non-Veg)', String(stats.nonvegByGender.Male), String(stats.nonvegByGender.Female), String(stats.nonveg)],
+      ['Grand Total Headcount', String(stats.totalByGender.Male), String(stats.totalByGender.Female), String(stats.total)],
+    ]
+
+    doc.autoTable({
+      startY: 68,
+      head: [['Food Category', 'Male Candidates', 'Female Candidates', 'Total Count']],
+      body: summaryRows,
+      margin: { left: 40, right: 40 },
+      theme: 'grid',
+      headStyles: { fillColor: [0, 229, 255], textColor: [0, 0, 0], fontStyle: 'bold' },
+      styles: { fontSize: 8.5, cellPadding: 5 }
+    })
+
+    const startYDetail = doc.lastAutoTable.finalY + 20
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10.5)
+    doc.text('College-Wise Food & Gender Breakdown:', 40, startYDetail)
+
+    // Detailed Table for filtered colleges
+    const detailHead = [
+      'College Name',
+      'Department',
+      'Veg (M)',
+      'Veg (F)',
+      'Veg Total',
+      'NonVeg (M)',
+      'NonVeg (F)',
+      'NonVeg Total',
+      'Male Total',
+      'Female Total',
+      'Grand Total'
+    ]
+
+    const detailRows = filteredList.map(col => [
+      col.collegeName,
+      col.department,
+      String(col.vegGender.Male),
+      String(col.vegGender.Female),
+      String(col.veg),
+      String(col.nonvegGender.Male),
+      String(col.nonvegGender.Female),
+      String(col.nonveg),
+      String(col.totalGender.Male),
+      String(col.totalGender.Female),
+      String(col.total)
+    ])
+
+    doc.autoTable({
+      startY: startYDetail + 10,
+      head: [detailHead],
+      body: detailRows,
+      margin: { left: 40, right: 40 },
+      theme: 'grid',
+      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 7.5, cellPadding: 4 }
+    })
+
+    if (imgData) {
+      addWatermarkToAllPages(doc, imgData)
+    }
+
+    doc.save(`Food_Distribution_Report_${new Date().toISOString().slice(0, 10)}.pdf`)
+  }
+
   if (loading) {
     return <p className="muted">Loading food metrics...</p>
   }
@@ -164,13 +252,22 @@ export default function Food() {
           <Utensils style={{ verticalAlign: 'middle', marginRight: '8px', color: 'var(--accent)' }} size={26} />
           Food Module
         </h2>
-        <button 
-          className="btn btn-secondary" 
-          onClick={exportToExcel}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
-        >
-          <Download size={16} /> Export Excel
-        </button>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button 
+            className="btn btn-secondary" 
+            onClick={exportToExcel}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+          >
+            <FileSpreadsheet size={16} /> Export Excel
+          </button>
+          <button 
+            className="btn btn-primary" 
+            onClick={exportToPdf}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+          >
+            <Download size={16} /> Export PDF Report
+          </button>
+        </div>
       </div>
 
       <p className="muted" style={{ marginBottom: '24px' }}>

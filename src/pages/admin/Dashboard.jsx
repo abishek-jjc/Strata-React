@@ -3,15 +3,17 @@ import { useTable } from '../../hooks/useTable'
 import { TABLES } from '../../supabase/tables'
 import { useSettings } from '../../context/SettingsContext'
 import { supabase } from '../../supabase/client'
+import { getUniqueStudents } from '../../utils/studentUtils'
+import { Users, UserCheck, ClipboardList, GraduationCap, Building2, Wallet, CheckCircle2, Clock, Utensils, User } from 'lucide-react'
 
 export default function Dashboard() {
-  const { data: events } = useTable(TABLES.EVENTS)
-  const { data: colleges } = useTable(TABLES.COLLEGES)
-  const { data: registrations } = useTable(TABLES.REGISTRATIONS)
-  const { data: students } = useTable(TABLES.STUDENTS)
-  const { data: studentLeaders } = useTable(TABLES.STUDENT_LEADERS)
-  const { data: paymentLogs } = useTable(TABLES.PAYMENT_LOGS)
-  const { data: settingsData } = useTable(TABLES.SETTINGS)
+  const { data: events } = useTable(TABLES.EVENTS) || { data: [] }
+  const { data: colleges } = useTable(TABLES.COLLEGES) || { data: [] }
+  const { data: registrations } = useTable(TABLES.REGISTRATIONS) || { data: [] }
+  const { data: rawStudents } = useTable(TABLES.STUDENTS) || { data: [] }
+  const { data: studentLeaders } = useTable(TABLES.STUDENT_LEADERS) || { data: [] }
+  const { data: paymentLogs } = useTable(TABLES.PAYMENT_LOGS) || { data: [] }
+  const { data: settingsData } = useTable(TABLES.SETTINGS) || { data: [] }
 
   const { settings, reloadSettings } = useSettings()
   const [updating, setUpdating] = useState(false)
@@ -25,49 +27,175 @@ export default function Dashboard() {
 
   const feePerStudent = useMemo(() => {
     if (!settingsData) return defaultFee
-    const settingFee = settingsData.find((s) => s.key_name === 'fee_per_student')?.value
+    const settingFee = (settingsData || []).find((s) => s.key_name === 'fee_per_student')?.value
     return settingFee ? Number(settingFee) : defaultFee
   }, [settingsData, defaultFee])
 
-  // Calculated Stats
-  const totalParticipants = students.length
-  const totalRegistrations = registrations.length
-  const totalStudentLeaders = studentLeaders.length
-  const totalColleges = colleges.length
+  // Unique Headcount Students
+  const uniqueStudents = useMemo(() => {
+    return getUniqueStudents(rawStudents || [])
+  }, [rawStudents])
 
+  // 1. Total Participants (Unique Headcount)
+  const totalParticipants = uniqueStudents.length
+
+  // 2. Total Participants with Duplicate (Raw record count)
+  const totalParticipantsRaw = (rawStudents || []).length
+
+  // 3. Total Events Registrations
+  const totalRegistrations = (registrations || []).length
+
+  // 4. Total Student Leaders
+  const totalStudentLeaders = (studentLeaders || []).length
+
+  // 5. Total Colleges Registered (Only colleges that actually have registered teams/participants)
+  const registeredCollegesCount = useMemo(() => {
+    const regSet = new Set([
+      ...(registrations || []).map((r) => r.college_id),
+      ...(uniqueStudents || []).map((s) => s.college_id)
+    ].filter(Boolean))
+    return regSet.size
+  }, [registrations, uniqueStudents])
+
+  // 6. Total Amt Collectable
   const totalAmountCollectable = totalParticipants * feePerStudent
 
+  // 7. Recved Amt
   const amountCollected = useMemo(() => {
     if (paymentLogs && paymentLogs.length > 0) {
       return paymentLogs.reduce((sum, log) => sum + Number(log.amount || 0), 0)
     }
-    return colleges.reduce((sum, c) => {
+    return (colleges || []).reduce((sum, c) => {
       const pCount = c.paid_student_count ?? (c.is_paid ? 1 : 0)
       return sum + pCount * feePerStudent
     }, 0)
   }, [paymentLogs, colleges, feePerStudent])
 
+  // 8. Pending Amt
+  const pendingAmount = Math.max(0, totalAmountCollectable - amountCollected)
+
+  // 9. Veg / Non-Veg Count
   const vegCount = useMemo(() => {
-    const fromStudents = students.filter((s) => s.food_type === 'Veg').length
+    const fromStudents = uniqueStudents.filter((s) => s.food_type === 'Veg').length
     if (fromStudents > 0) return fromStudents
-    return registrations.reduce((sum, r) => sum + Number(r.veg_count || 0), 0)
-  }, [students, registrations])
+    return (registrations || []).reduce((sum, r) => sum + Number(r.veg_count || 0), 0)
+  }, [uniqueStudents, registrations])
 
   const nonVegCount = useMemo(() => {
-    const fromStudents = students.filter((s) => s.food_type === 'Non-Veg').length
+    const fromStudents = uniqueStudents.filter((s) => s.food_type === 'Non-Veg').length
     if (fromStudents > 0) return fromStudents
-    return registrations.reduce((sum, r) => sum + Number(r.nonveg_count || 0), 0)
-  }, [students, registrations])
+    return (registrations || []).reduce((sum, r) => sum + Number(r.nonveg_count || 0), 0)
+  }, [uniqueStudents, registrations])
 
-  const stats = [
-    ['Total Participants', totalParticipants, '👥'],
-    ['Total Registration', totalRegistrations, '📋'],
-    ['Total Student Leaders', totalStudentLeaders, '🎓'],
-    ['Total Colleges', totalColleges, '🏛️'],
-    ['Total Amount', `Rs. ${totalAmountCollectable.toLocaleString()}`, '💰'],
-    ['Amount Collected', `Rs. ${amountCollected.toLocaleString()}`, '✅'],
-    ['Veg Count', vegCount, '🥗'],
-    ['Non Veg Count', nonVegCount, '🍗'],
+  // 10. Male / Female Count
+  const maleCount = useMemo(() => {
+    return uniqueStudents.filter((s) => (s.gender || '').toLowerCase() === 'male').length
+  }, [uniqueStudents])
+
+  const femaleCount = useMemo(() => {
+    return uniqueStudents.filter((s) => (s.gender || '').toLowerCase() === 'female').length
+  }, [uniqueStudents])
+
+  const otherGenderCount = useMemo(() => {
+    return uniqueStudents.filter((s) => {
+      const g = (s.gender || '').toLowerCase()
+      return g !== 'male' && g !== 'female' && g !== ''
+    }).length
+  }, [uniqueStudents])
+
+  // Stat Cards Configuration
+  const statsList = [
+    {
+      title: 'Total Participants',
+      value: totalParticipants.toLocaleString(),
+      subtext: 'Unique physical headcount',
+      icon: <Users size={22} />,
+      color: '#00e5ff',
+      bgColor: 'rgba(0, 229, 255, 0.1)',
+    },
+    {
+      title: 'Total Participants with Duplicate',
+      value: totalParticipantsRaw.toLocaleString(),
+      subtext: 'Raw total entries across all events',
+      icon: <UserCheck size={22} />,
+      color: '#a78bfa',
+      bgColor: 'rgba(167, 139, 250, 0.1)',
+    },
+    {
+      title: 'Total Events Registrations',
+      value: totalRegistrations.toLocaleString(),
+      subtext: 'Event team registration entries',
+      icon: <ClipboardList size={22} />,
+      color: '#38bdf8',
+      bgColor: 'rgba(56, 189, 248, 0.1)',
+    },
+    {
+      title: 'Total Student Leaders',
+      value: totalStudentLeaders.toLocaleString(),
+      subtext: 'Registered college student leaders',
+      icon: <GraduationCap size={22} />,
+      color: '#f472b6',
+      bgColor: 'rgba(244, 114, 182, 0.1)',
+    },
+    {
+      title: 'Total Colleges Registered',
+      value: registeredCollegesCount.toLocaleString(),
+      subtext: `Out of ${colleges.length} total colleges`,
+      icon: <Building2 size={22} />,
+      color: '#fbbf24',
+      bgColor: 'rgba(251, 191, 36, 0.1)',
+    },
+    {
+      title: 'Total Amt Collectable',
+      value: `₹${totalAmountCollectable.toLocaleString()}`,
+      subtext: `@ ₹${feePerStudent} per unique student`,
+      icon: <Wallet size={22} />,
+      color: '#60a5fa',
+      bgColor: 'rgba(96, 165, 250, 0.1)',
+    },
+    {
+      title: 'Recved Amt',
+      value: `₹${amountCollected.toLocaleString()}`,
+      subtext: 'Total verified payment received',
+      icon: <CheckCircle2 size={22} />,
+      color: '#34d399',
+      bgColor: 'rgba(52, 211, 153, 0.1)',
+    },
+    {
+      title: 'Pending Amt',
+      value: `₹${pendingAmount.toLocaleString()}`,
+      subtext: 'Outstanding balance expected',
+      icon: <Clock size={22} />,
+      color: '#f87171',
+      bgColor: 'rgba(248, 113, 113, 0.1)',
+    },
+    {
+      title: 'Veg / Non-Veg Count',
+      value: (
+        <span style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ color: '#34d399' }}>🥗 {vegCount} Veg</span>
+          <span style={{ color: '#f87171' }}>🍗 {nonVegCount} Non-Veg</span>
+        </span>
+      ),
+      subtext: 'Dietary preference tally',
+      icon: <Utensils size={22} />,
+      color: '#f59e0b',
+      bgColor: 'rgba(245, 158, 11, 0.1)',
+    },
+    {
+      title: 'Male / Female Count',
+      value: (
+        <span style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ color: '#60a5fa' }}>👨 {maleCount} Male</span>
+          <span style={{ color: '#f472b6' }}>👩 {femaleCount} Female</span>
+          {otherGenderCount > 0 && <span style={{ color: '#a78bfa' }}>👤 {otherGenderCount} Other</span>}
+        </span>
+      ),
+      subtext: 'Gender distribution breakdown',
+      icon: <User size={22} />,
+      color: '#c084fc',
+      bgColor: 'rgba(192, 132, 252, 0.1)',
+    },
   ]
 
   async function handleToggleEvent() {
@@ -89,29 +217,28 @@ export default function Dashboard() {
   }
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <style>{`
         @keyframes pulse-green {
-          0% {
-            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-          }
-          70% {
-            box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
-          }
-          100% {
-            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
-          }
+          0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+          70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
         }
       `}</style>
 
-      <h2>Admin Dashboard</h2>
+      {/* Header */}
+      <div>
+        <h2 style={{ margin: 0, fontFamily: 'Syne, sans-serif' }}>Admin Dashboard</h2>
+        <p className="muted" style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+          Real-time metrics, event registration statistics, payment summaries, and operations control.
+        </p>
+      </div>
 
-      {/* Event Status Control Panel */}
+      {/* Event Operations Control Panel */}
       <div
         className="card"
         style={{
           padding: '24px',
-          marginBottom: '30px',
           background: 'var(--surface)',
           border: '1px solid var(--border)',
           borderRadius: '16px',
@@ -123,7 +250,7 @@ export default function Dashboard() {
         }}
       >
         <div style={{ flex: '1 1 400px' }}>
-          <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', fontFamily: 'var(--font-display)' }}>
+          <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', fontFamily: 'Syne, sans-serif' }}>
             Event Operations Control
           </h3>
           <p className="muted" style={{ margin: 0, fontSize: '0.9rem', lineHeight: '1.5' }}>
@@ -182,15 +309,53 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 8 Metric Stats Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-        {stats.map(([label, value, icon]) => (
-          <div className="card" key={label} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="muted" style={{ fontSize: '0.85rem', fontWeight: 600 }}>{label}</span>
-              <span style={{ fontSize: '1.4rem' }}>{icon}</span>
+      {/* 10 Dashboard Metric Cards Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
+        {statsList.map((st) => (
+          <div
+            key={st.title}
+            className="card"
+            style={{
+              padding: '22px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: '12px',
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              borderRadius: '16px',
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span className="muted" style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', color: 'var(--text-secondary)' }}>
+                  {st.title}
+                </span>
+              </div>
+              <div
+                style={{
+                  padding: '10px',
+                  borderRadius: '12px',
+                  background: st.bgColor,
+                  color: st.color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {st.icon}
+              </div>
             </div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{value}</div>
+
+            <div>
+              <div style={{ fontSize: '1.7rem', fontWeight: 'bold', color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                {st.value}
+              </div>
+              <span className="muted" style={{ fontSize: '0.78rem', marginTop: '6px', display: 'block' }}>
+                {st.subtext}
+              </span>
+            </div>
           </div>
         ))}
       </div>

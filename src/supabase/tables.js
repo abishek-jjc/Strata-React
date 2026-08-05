@@ -23,6 +23,8 @@ export const TABLES = {
   REGISTRATIONS: 'registrations',     // FK -> colleges, student_leaders, events, lots
   FEEDBACKS: 'feedbacks',             // FK -> student_leaders, colleges
   WINNERS: 'winners',                 // FK -> events
+  REVIEW_TITLES: 'review_titles',     // Admin created review aspects/titles
+  LEADER_REVIEWS: 'leader_reviews',   // Student leader reviews & ratings
 
   // Level 4 Tables (depend on Level 3)
   STUDENTS: 'students',               // FK -> registrations, colleges, events, student_leaders

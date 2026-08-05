@@ -25,8 +25,15 @@ export default function StudentList() {
 
   const loading = studentsLoading || eventsLoading
 
-  const getEventName = (eventId) => {
-    const ev = events.find((e) => e.id === eventId)
+  const getEventName = (studentOrId) => {
+    if (typeof studentOrId === 'object' && studentOrId !== null) {
+      const ids = Array.isArray(studentOrId.event_ids) && studentOrId.event_ids.length > 0
+        ? studentOrId.event_ids
+        : [studentOrId.event_id]
+      const names = ids.map(id => events.find(e => e.id === id)?.event_name).filter(Boolean)
+      return names.join(', ') || 'Unknown Event'
+    }
+    const ev = events.find((e) => e.id === studentOrId)
     return ev ? ev.event_name : 'Unknown Event'
   }
 
@@ -124,7 +131,7 @@ export default function StudentList() {
                   </div>
                   <div>
                     <span style={{ color: 'var(--text-secondary)' }}>Event:</span>{' '}
-                    <strong style={{ color: 'var(--text-primary)' }}>{getEventName(s.event_id)}</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>{getEventName(s)}</strong>
                   </div>
                   <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px', marginTop: '4px' }}>
                     <div>

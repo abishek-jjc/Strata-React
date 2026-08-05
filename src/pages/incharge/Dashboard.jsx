@@ -4,6 +4,7 @@ import { supabase } from '../../supabase/client'
 import { useAuth } from '../../auth/AuthContext'
 import { useTable } from '../../hooks/useTable'
 import { TABLES, REGISTRATION_STATUS } from '../../supabase/tables'
+import { getUniqueStudents } from '../../utils/studentUtils'
 import { exportToExcel } from '../../utils/excelExport'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
@@ -59,15 +60,21 @@ export default function InchargeDashboard({ tab = 'lots' }) {
   }, [profile])
 
   // 2. Fetch all required tables
-  const { data: students, loading: studentsLoading } = useTable(
-    TABLES.STUDENTS,
-    event?.id ? [['event_id', 'eq', event.id]] : []
-  )
+  const { data: dbStudents, loading: studentsLoading } = useTable(TABLES.STUDENTS)
   const { data: colleges, loading: collegesLoading } = useTable(TABLES.COLLEGES)
   const { data: venues, loading: venuesLoading } = useTable(TABLES.VENUES)
   const { data: lots, loading: lotsLoading } = useTable(TABLES.LOTS)
   const { data: winners, loading: winnersLoading } = useTable(TABLES.WINNERS)
   const { data: registrations, loading: registrationsLoading } = useTable(TABLES.REGISTRATIONS)
+
+  // Filter students participating in this event (checking event_id and event_ids array)
+  const students = useMemo(() => {
+    if (!dbStudents || !event?.id) return []
+    const unique = getUniqueStudents(dbStudents)
+    return unique.filter(
+      (s) => s.event_id === event.id || (Array.isArray(s.event_ids) && s.event_ids.includes(event.id))
+    )
+  }, [dbStudents, event])
 
   // 3. States for results editing & view controls
   const [localPrelims, setLocalPrelims] = useState([])

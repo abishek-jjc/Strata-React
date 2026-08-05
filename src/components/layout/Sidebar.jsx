@@ -20,6 +20,7 @@ const NAV = {
     ['/admin/certificates', 'Certificates'],
     ['/admin/reports', 'Reports'],
     ['/admin/feedbacks', 'Feedbacks'],
+    ['/admin/reviews', 'Reviews & Ratings'],
     ['/admin/settings', 'Page Settings'],
     ['/admin/backup', 'Backup Setup'],
   ],
@@ -31,6 +32,7 @@ const NAV = {
     ['/leader/payment', 'Payment'],
     ['/leader/whatsapp', 'WhatsApp Group'],
     ['/leader/feedback', 'Feedback'],
+    ['/leader/reviews', 'Reviews & Ratings'],
   ],
   incharge: [
     ['/incharge', 'Allocated Lots'],

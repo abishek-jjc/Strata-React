@@ -3,9 +3,11 @@ import { supabase } from '../../supabase/client'
 import { TABLES } from '../../supabase/tables'
 import { useTable } from '../../hooks/useTable'
 
+import { getUniqueStudents } from '../../utils/studentUtils'
+
 export default function AccountantDashboard() {
   const { data: colleges, loading: loadingColleges } = useTable(TABLES.COLLEGES)
-  const { data: students, loading: loadingStudents } = useTable(TABLES.STUDENTS)
+  const { data: dbStudents, loading: loadingStudents } = useTable(TABLES.STUDENTS)
   const { data: registrations, loading: loadingRegs } = useTable(TABLES.REGISTRATIONS)
   const { data: settings } = useTable(TABLES.SETTINGS)
 
@@ -20,6 +22,10 @@ export default function AccountantDashboard() {
     const settingFee = settings.find((s) => s.key_name === 'fee_per_student')?.value
     return settingFee ? Number(settingFee) : defaultFee
   }, [settings, defaultFee])
+
+  const students = useMemo(() => {
+    return getUniqueStudents(dbStudents)
+  }, [dbStudents])
 
   // Identify registered colleges only
   const registeredCollegeIds = useMemo(() => {

@@ -36,7 +36,7 @@ export default function Participants() {
   // Filter students for active event
   const eventStudents = useMemo(() => {
     return students
-      .filter(s => s.event_id === activeEventId)
+      .filter(s => s.event_id === activeEventId || (Array.isArray(s.event_ids) && s.event_ids.includes(activeEventId)))
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
   }, [students, activeEventId])
 

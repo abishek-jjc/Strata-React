@@ -2,12 +2,18 @@ import { useState, useMemo } from 'react'
 import { TABLES } from '../../supabase/tables'
 import { useTable } from '../../hooks/useTable'
 
+import { getUniqueStudents } from '../../utils/studentUtils'
+
 export default function AccountantView() {
   const { data: colleges, loading: loadingColleges } = useTable(TABLES.COLLEGES)
   const { data: registrations, loading: loadingRegs } = useTable(TABLES.REGISTRATIONS)
   const { data: lots, loading: loadingLots } = useTable(TABLES.LOTS)
-  const { data: students, loading: loadingStudents } = useTable(TABLES.STUDENTS)
+  const { data: dbStudents, loading: loadingStudents } = useTable(TABLES.STUDENTS)
   const { data: settings } = useTable(TABLES.SETTINGS)
+
+  const students = useMemo(() => {
+    return getUniqueStudents(dbStudents)
+  }, [dbStudents])
 
   const [filter, setFilter] = useState('all') // 'all' | 'paid' | 'unpaid' | 'partially_paid'
   const [search, setSearch] = useState('')

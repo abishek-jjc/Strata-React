@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../supabase/client'
 import { TABLES } from '../../supabase/tables'
 import { useSettings } from '../../context/SettingsContext'
+import { getUniqueStudents } from '../../utils/studentUtils'
 import '../../styles/guest.css'
 
 export default function Payment() {
@@ -14,6 +15,10 @@ export default function Payment() {
   const [paymentLogs, setPaymentLogs] = useState([])
   const [loadingData, setLoadingData] = useState(true)
   const [refreshCount, setRefreshCount] = useState(0)
+
+  const uniqueStudents = useMemo(() => {
+    return getUniqueStudents(students)
+  }, [students])
 
   // Poll authentication state
   const [enteredKey, setEnteredKey] = useState('')
@@ -287,7 +292,7 @@ export default function Payment() {
                   {paginatedColleges.map((c) => {
                     const cName = c.department ? `${c.college} (${c.department})` : c.college
                     const collegeLot = lots.find((l) => l.assigned_college === cName)
-                    const studentCount = students.filter((s) => s.college_id === c.id).length
+                    const studentCount = uniqueStudents.filter((s) => s.college_id === c.id).length
                     const paidCount = c.paid_student_count || 0
                     const unpaidCount = Math.max(0, studentCount - paidCount)
                     const pendingAmount = unpaidCount * feePerStudent
@@ -383,7 +388,7 @@ export default function Payment() {
 
         {/* Edit Payment Status Modal */}
         {editingCollege && (() => {
-          const studentCount = students.filter((s) => s.college_id === editingCollege.id).length;
+          const studentCount = uniqueStudents.filter((s) => s.college_id === editingCollege.id).length;
           const paidCount = editingCollege.paid_student_count || 0;
           const unpaidCount = Math.max(0, studentCount - paidCount);
           const pendingAmount = unpaidCount * feePerStudent;

@@ -97,14 +97,20 @@ export default function TeamRegistration() {
     if (!targetEvent) return null
 
     for (const match of existingMatches) {
-      const otherEvent = events.find(e => e.id === match.event_id)
-      if (otherEvent) {
-        // Compare prelims and mains times
-        const conflictPrelims = targetEvent.preliminary && otherEvent.preliminary && targetEvent.preliminary === otherEvent.preliminary
-        const conflictMains = targetEvent.mains && otherEvent.mains && targetEvent.mains === otherEvent.mains
-        
-        if (conflictPrelims || conflictMains) {
-          return otherEvent.event_name
+      const registeredEventIds = Array.isArray(match.event_ids) && match.event_ids.length > 0
+        ? match.event_ids
+        : [match.event_id]
+
+      for (const evId of registeredEventIds) {
+        const otherEvent = events.find(e => e.id === evId)
+        if (otherEvent && otherEvent.id !== targetEventId) {
+          // Compare prelims and mains times
+          const conflictPrelims = targetEvent.preliminary && otherEvent.preliminary && targetEvent.preliminary === otherEvent.preliminary
+          const conflictMains = targetEvent.mains && otherEvent.mains && targetEvent.mains === otherEvent.mains
+          
+          if (conflictPrelims || conflictMains) {
+            return otherEvent.event_name
+          }
         }
       }
     }
@@ -159,10 +165,11 @@ export default function TeamRegistration() {
     // 2. Verify roll number uniqueness & schedule conflicts against existing college students
     for (const p of regParticipants) {
       // Check if roll number is already registered in the exact same event
-      const alreadyInEvent = allStudents.some(s => 
-        s.event_id === activeEventId && 
-        s.roll_no?.trim().toLowerCase() === p.rollNo.trim().toLowerCase()
-      )
+      const alreadyInEvent = allStudents.some(s => {
+        const isSameRoll = s.roll_no?.trim().toLowerCase() === p.rollNo.trim().toLowerCase()
+        const isRegisteredInEvent = s.event_id === activeEventId || (Array.isArray(s.event_ids) && s.event_ids.includes(activeEventId))
+        return isSameRoll && isRegisteredInEvent
+      })
       if (alreadyInEvent) {
         return setRegError(`Participant with roll number "${p.rollNo}" is already registered in this event.`)
       }
