@@ -394,16 +394,16 @@ export default function Winners() {
     doc.text(`Preliminary Qualifiers`, 40, currentY)
     currentY += 15
 
-    const prelimRows = prelimWinners.map((lotName) => {
+    const prelimRows = prelimWinners.map((lotName, idx) => {
       const college = lots.find((l) => l.lot_name === lotName)?.assigned_college || '—'
-      return [lotName, college]
+      return [String(idx + 1), `Lot ${lotName}`, college]
     })
 
     if (prelimRows.length > 0) {
       doc.autoTable({
         startY: currentY,
         margin: { left: 40, right: 40 },
-        head: [['Lot Number', 'College Name']],
+        head: [['S.No.', 'Lot Number', 'College Name']],
         body: prelimRows,
         theme: 'grid',
         headStyles: { fillColor: [12, 14, 18], fontSize: 10 },

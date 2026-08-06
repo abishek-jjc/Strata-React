@@ -119,7 +119,8 @@ export default function Participants() {
     doc.text(filterSummary, 40, 60)
     doc.text(`Generated on: ${new Date().toLocaleString()} | Total Records Exported: ${filteredStudents.length}`, 40, 72)
 
-    const tableRows = filteredStudents.map((s) => [
+    const tableRows = filteredStudents.map((s, idx) => [
+      String(idx + 1),
       s.student_name || '—',
       s.roll_no || '—',
       s.gender || '—',
@@ -131,7 +132,7 @@ export default function Participants() {
 
     doc.autoTable({
       startY: 85,
-      head: [['Participant Name', 'Roll No', 'Gender', 'Department', 'Event(s)', 'College', 'Food']],
+      head: [['S.No.', 'Participant Name', 'Roll No', 'Gender', 'Department', 'Event(s)', 'College', 'Food']],
       body: tableRows,
       margin: { left: 40, right: 40 },
       theme: 'grid',

@@ -157,15 +157,13 @@ export default function Reports() {
       // Get unique lots associated with these registrations
       const activeLotsMap = new Map()
       activeRegs.forEach((r) => {
-        const cName = collegeName(r.college_id)
         const lName = collegeLot(r.college_id, r.id)
         if (lName && lName !== '—') {
           const key = `${r.event_id}-${lName}`
           activeLotsMap.set(key, {
             'Event Name': eventName(r.event_id),
             'Lot Name': lName,
-            'Assigned College': cName,
-            'Registration Status': r.status,
+            'Status': r.status,
           })
         }
       })
@@ -291,7 +289,8 @@ export default function Reports() {
     }
 
     const filteredTotal = filtered.reduce((sum, row) => {
-      const amtStr = String(row['Amount (₹)'] || row['Amount'] || '0').replace(/[^0-9.]/g, '')
+      const rawVal = String(row['Amount (₹)'] || row['Amount'] || '0')
+      const amtStr = rawVal.replace(/Rs\.?/gi, '').trim().replace(/[^0-9.]/g, '')
       return sum + Number(amtStr || 0)
     }, 0)
 
@@ -393,8 +392,8 @@ export default function Reports() {
 
     doc.autoTable({
       startY: startYTable,
-      head: [visibleTableColumns],
-      body: filtered.map((row) => visibleTableColumns.map((col) => String(row[col] ?? '—'))),
+      head: [['S.No.', ...visibleTableColumns]],
+      body: filtered.map((row, idx) => [String(idx + 1), ...visibleTableColumns.map((col) => String(row[col] ?? '—'))]),
       theme: 'grid',
       headStyles: { fillColor: [217, 119, 6] },
       styles: { fontSize: 8.5 },
@@ -694,6 +693,9 @@ export default function Reports() {
           </button>
           <button className="btn" onClick={handleExportExcel}>
             📊 Export Excel
+          </button>
+          <button className="btn" onClick={handleDownloadPdf}>
+            📄 Export PDF
           </button>
         </div>
       </div>

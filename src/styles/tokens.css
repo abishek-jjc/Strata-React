@@ -1793,8 +1793,22 @@ body.light-theme .btn-primary:hover {
   }
 
   .app-shell.role-leader .app-content,
-  .app-shell.role-incharge .app-content {
-    padding-bottom: 86px !important;
+  .app-shell.role-incharge .app-content,
+  .app-shell.role-accountant .app-content {
+    padding-bottom: 100px !important;
+  }
+
+  /* Modal responsive bottom navigation clearance & z-index */
+  .modal-overlay,
+  .modal-backdrop {
+    z-index: 10000 !important;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .modal-card,
+  .modal {
+    max-height: calc(100vh - 130px) !important;
+    max-height: calc(100dvh - 130px) !important;
   }
 
   /* Responsive adjustments for Incharge Dashboard */

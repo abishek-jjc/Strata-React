@@ -200,7 +200,7 @@ export default function AdminReviews() {
     currentY += 10
 
     // Build Rows for Individual Reviews Table
-    const responseRows = filteredReviews.map((r) => {
+    const responseRows = filteredReviews.map((r, idx) => {
       const scores = Object.values(r.ratings || {}).filter((v) => typeof v === 'number' && v > 0)
       const submissionOverall = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '—'
 
@@ -213,6 +213,7 @@ export default function AdminReviews() {
         .join(' | ')
 
       return [
+        String(idx + 1),
         r.leader_name || 'Leader',
         r.college_name || '—',
         r.department || '—',
@@ -225,7 +226,7 @@ export default function AdminReviews() {
 
     doc.autoTable({
       startY: currentY,
-      head: [['Leader Name', 'College', 'Department', 'Overall Rating', 'Ratings Breakdown', 'Comments', 'Date']],
+      head: [['S.No.', 'Leader Name', 'College', 'Department', 'Overall Rating', 'Ratings Breakdown', 'Comments', 'Date']],
       body: responseRows,
       margin: { left: 40, right: 40 },
       theme: 'grid',

@@ -301,14 +301,15 @@ export default function InchargeDashboard({ tab = 'lots' }) {
     doc.setFontSize(9)
     doc.text(`Generated on: ${new Date().toLocaleString()}`, 40, 60)
 
-    const lotRows = data.map((row) => [
+    const lotRows = data.map((row, idx) => [
+      String(idx + 1),
       'Lot ' + row['Lot Name'],
       String(row['Candidate Count'])
     ])
 
     doc.autoTable({
       startY: 80,
-      head: [['Lot Name', 'Candidate Count']],
+      head: [['S.No.', 'Lot Name', 'Candidate Count']],
       body: lotRows,
       theme: 'grid',
       headStyles: { fillColor: [0, 229, 255], textColor: [0, 0, 0] },
@@ -359,7 +360,8 @@ export default function InchargeDashboard({ tab = 'lots' }) {
     doc.setFontSize(9)
     doc.text(`Generated on: ${new Date().toLocaleString()}`, 40, 60)
 
-    const studentRows = data.map((row) => [
+    const studentRows = data.map((row, idx) => [
+      String(idx + 1),
       row['Name'],
       row['Roll No'],
       row['Gender'],
@@ -371,7 +373,7 @@ export default function InchargeDashboard({ tab = 'lots' }) {
 
     doc.autoTable({
       startY: 80,
-      head: [['Candidate Name', 'Roll Number', 'Gender', 'Department', 'Year', 'Assigned Lot', 'Food Choice']],
+      head: [['S.No.', 'Candidate Name', 'Roll Number', 'Gender', 'Department', 'Year', 'Assigned Lot', 'Food Choice']],
       body: studentRows,
       theme: 'grid',
       headStyles: { fillColor: [0, 229, 255], textColor: [0, 0, 0] },

@@ -30,8 +30,9 @@ export async function generateLeaderboardPdf(eventWinners, leaderboardData, logo
   doc.autoTable({
     startY: 125,
     margin: { left: 40, right: 40 },
-    head: [['Event / Contest', 'First Place Winner', 'Second Place Winner']],
-    body: eventWinners.map((row) => [
+    head: [['S.No.', 'Event / Contest', 'First Place Winner', 'Second Place Winner']],
+    body: eventWinners.map((row, idx) => [
+      String(idx + 1),
       row.event_name,
       row.first_place,
       row.second_place,
@@ -40,9 +41,10 @@ export async function generateLeaderboardPdf(eventWinners, leaderboardData, logo
     headStyles: { fillColor: [217, 119, 6], fontSize: 10, fontStyle: 'bold' },
     styles: { fontSize: 9, cellPadding: 6 },
     columnStyles: {
-      0: { cellWidth: 150, fontStyle: 'bold' },
-      1: { cellWidth: 180 },
-      2: { cellWidth: 185 },
+      0: { cellWidth: 45, align: 'center' },
+      1: { cellWidth: 140, fontStyle: 'bold' },
+      2: { cellWidth: 165 },
+      3: { cellWidth: 165 },
     },
   })
 

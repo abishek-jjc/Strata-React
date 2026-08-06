@@ -39,8 +39,15 @@ export default function Dashboard() {
   // 1. Total Participants (Unique Headcount)
   const totalParticipants = uniqueStudents.length
 
-  // 2. Total Participants with Duplicate (Raw record count)
-  const totalParticipantsRaw = (rawStudents || []).length
+  // 2. Total Participants with Duplicate (Sum of all event participations across all students)
+  const totalParticipantsRaw = useMemo(() => {
+    return (uniqueStudents || []).reduce((sum, s) => {
+      const evCount = Array.isArray(s.event_ids) && s.event_ids.length > 0
+        ? s.event_ids.length
+        : s.event_id ? 1 : 0
+      return sum + evCount
+    }, 0)
+  }, [uniqueStudents])
 
   // 3. Total Events Registrations
   const totalRegistrations = (registrations || []).length

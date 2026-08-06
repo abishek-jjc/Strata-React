@@ -108,10 +108,11 @@ export default function Registrations() {
     doc.text(filterLabel, 40, 60)
     doc.text(`Generated on: ${new Date().toLocaleString()} | Total Records Exported: ${filteredRegs.length}`, 40, 72)
 
-    const tableRows = filteredRegs.map((reg) => {
+    const tableRows = filteredRegs.map((reg, idx) => {
       const cName = collegeName(reg.college_id)
       const collegeLot = (lots || []).find((l) => l.id === reg.lot_id || l.assigned_college === cName)
       return [
+        String(idx + 1),
         cName,
         eventName(reg.event_id),
         leaderName(reg.leader_id),
@@ -123,7 +124,7 @@ export default function Registrations() {
 
     doc.autoTable({
       startY: 85,
-      head: [['College Name', 'Event Name', 'Student Leader', 'Status', 'Lot Name', 'Food Preferences']],
+      head: [['S.No.', 'College Name', 'Event Name', 'Student Leader', 'Status', 'Lot Name', 'Food Preferences']],
       body: tableRows,
       margin: { left: 40, right: 40 },
       theme: 'grid',

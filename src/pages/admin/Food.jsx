@@ -197,6 +197,7 @@ export default function Food() {
 
     // Detailed Table for filtered colleges
     const detailHead = [
+      'S.No.',
       'College Name',
       'Department',
       'Veg (M)',
@@ -210,7 +211,8 @@ export default function Food() {
       'Grand Total'
     ]
 
-    const detailRows = filteredList.map(col => [
+    const detailRows = filteredList.map((col, idx) => [
+      String(idx + 1),
       col.collegeName,
       col.department,
       String(col.vegGender.Male),

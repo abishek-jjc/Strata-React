@@ -200,15 +200,28 @@ export default function CertificateDownload() {
   const myStudentIds = new Set((students || []).map(s => s.id))
   const myCertificates = (certificates || []).filter(c => myStudentIds.has(c.student_id))
 
-  // 1. Participation Certificates mapping (list all students of this leader)
-  const participationList = (students || []).map(student => {
-    const cert = myCertificates.find(c => c.student_id === student.id && (c.position === 'Participation' || !c.position))
-    return {
-      student,
-      issued: !!cert,
-      cert: cert
-    }
-  })
+  // 1. Participation Certificates mapping (list all student-event combinations for this leader's college)
+  const participationList = useMemo(() => {
+    const list = []
+    ;(students || []).forEach((student) => {
+      const allEvIds = Array.isArray(student.event_ids) && student.event_ids.length > 0
+        ? student.event_ids
+        : student.event_id ? [student.event_id] : []
+
+      allEvIds.forEach((evId) => {
+        const cert = (myCertificates || []).find(
+          (c) => c.student_id === student.id && c.event_id === evId && (c.position === 'Participation' || !c.position)
+        )
+        list.push({
+          student,
+          eventId: evId,
+          issued: !!cert,
+          cert: cert
+        })
+      })
+    })
+    return list
+  }, [students, myCertificates])
 
   // Filter only issued participation certs for bulk download
   const participationCerts = participationList.filter(item => item.issued && item.cert).map(item => item.cert)
@@ -464,7 +477,7 @@ export default function CertificateDownload() {
           }}>
             {participationList.map((item) => (
               <div 
-                key={item.student.id}
+                key={`${item.student.id}-${item.eventId}`}
                 className="card"
                 style={{
                   padding: '20px',
@@ -482,7 +495,7 @@ export default function CertificateDownload() {
                     {item.student.student_name}
                   </h4>
                   <div style={{ fontSize: '0.85rem', color: 'var(--accent)', marginTop: '4px', fontWeight: 600 }}>
-                    {getEventName(item.student.event_id)}
+                    {getEventName(item.eventId)}
                   </div>
                   
                   <div style={{ marginTop: '12px', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -603,14 +616,14 @@ export default function CertificateDownload() {
 
       {/* ── REVIEW & RATING POP-UP MODAL ── */}
       {showReviewModal && reviewTitles && reviewTitles.length > 0 && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
-          <div className="modal-card" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '20px', maxWidth: '540px', width: '100%', padding: '28px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '16px', paddingBottom: '80px' }}>
+          <div className="modal-card" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '20px', maxWidth: '540px', width: '100%', padding: '24px 24px 16px 24px', maxHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.6)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px', flexShrink: 0, borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
               <div>
-                <h3 style={{ margin: 0, fontFamily: 'Syne, sans-serif', fontSize: '1.3rem', color: 'var(--text-primary)' }}>
+                <h3 style={{ margin: 0, fontFamily: 'Syne, sans-serif', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
                   🌟 Event Feedback & Ratings
                 </h3>
-                <p className="muted" style={{ fontSize: '0.85rem', marginTop: '4px', lineHeight: 1.5 }}>
+                <p className="muted" style={{ fontSize: '0.82rem', marginTop: '4px', lineHeight: 1.4 }}>
                   Please rate your experience for the categories below. Your response helps organizers improve future events!
                 </p>
               </div>
@@ -619,66 +632,70 @@ export default function CertificateDownload() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveReview} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {activeTitles.map((t) => {
-                  const currentScore = reviewRatings[t.id] || 0
-                  return (
-                    <div key={t.id} style={{ background: 'var(--surface-raised)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '6px' }}>
-                        <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>{t.title}</strong>
-                        <span style={{ fontSize: '0.8rem', color: currentScore > 0 ? '#f9c20a' : 'var(--text-secondary)', fontWeight: 600 }}>
-                          {currentScore > 0 ? `${currentScore} / 5 Stars` : 'Not Rated'}
-                        </span>
-                      </div>
-                      {t.description && <p className="muted" style={{ fontSize: '0.8rem', marginTop: 0, marginBottom: '10px' }}>{t.description}</p>}
+            <form onSubmit={handleSaveReview} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              {/* Scrollable Ratings Body */}
+              <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {activeTitles.map((t) => {
+                    const currentScore = reviewRatings[t.id] || 0
+                    return (
+                      <div key={t.id} style={{ background: 'var(--surface-raised)', padding: '14px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '6px' }}>
+                          <strong style={{ fontSize: '0.92rem', color: 'var(--text-primary)' }}>{t.title}</strong>
+                          <span style={{ fontSize: '0.78rem', color: currentScore > 0 ? '#f9c20a' : 'var(--text-secondary)', fontWeight: 600 }}>
+                            {currentScore > 0 ? `${currentScore} / 5 Stars` : 'Not Rated'}
+                          </span>
+                        </div>
+                        {t.description && <p className="muted" style={{ fontSize: '0.78rem', marginTop: 0, marginBottom: '8px' }}>{t.description}</p>}
 
-                      {/* 5-Star Selector */}
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button
-                            key={star}
-                            type="button"
-                            onClick={() => handleRatingSelect(t.id, star)}
-                            style={{
-                              background: star <= currentScore ? 'rgba(249, 194, 10, 0.15)' : 'transparent',
-                              border: star <= currentScore ? '1px solid #f9c20a' : '1px solid var(--border)',
-                              borderRadius: '8px',
-                              padding: '6px 12px',
-                              cursor: 'pointer',
-                              color: star <= currentScore ? '#f9c20a' : 'var(--text-secondary)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              fontSize: '0.9rem',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            <Star size={16} fill={star <= currentScore ? '#f9c20a' : 'none'} />
-                            <span style={{ fontWeight: 600 }}>{star}</span>
-                          </button>
-                        ))}
+                        {/* 5-Star Selector */}
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              key={star}
+                              type="button"
+                              onClick={() => handleRatingSelect(t.id, star)}
+                              style={{
+                                background: star <= currentScore ? 'rgba(249, 194, 10, 0.15)' : 'transparent',
+                                border: star <= currentScore ? '1px solid #f9c20a' : '1px solid var(--border)',
+                                borderRadius: '8px',
+                                padding: '5px 10px',
+                                cursor: 'pointer',
+                                color: star <= currentScore ? '#f9c20a' : 'var(--text-secondary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                fontSize: '0.85rem',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <Star size={15} fill={star <= currentScore ? '#f9c20a' : 'none'} />
+                              <span style={{ fontWeight: 600 }}>{star}</span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
+                    Additional Feedback / Comments (Optional)
+                  </label>
+                  <textarea
+                    className="input"
+                    rows={3}
+                    placeholder="Share any suggestions, compliments, or issues for the team…"
+                    value={reviewComments}
+                    onChange={(e) => setReviewComments(e.target.value)}
+                    style={{ width: '100%', resize: 'vertical' }}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: 600 }}>
-                  Additional Feedback / Comments (Optional)
-                </label>
-                <textarea
-                  className="input"
-                  rows={3}
-                  placeholder="Share any suggestions, compliments, or issues for the team…"
-                  value={reviewComments}
-                  onChange={(e) => setReviewComments(e.target.value)}
-                  style={{ width: '100%', resize: 'vertical' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+              {/* Static Bottom Action Bar */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid var(--border)', paddingTop: '12px', paddingBottom: '4px', flexShrink: 0, background: 'var(--surface)' }}>
                 <button type="button" className="btn" onClick={handleCloseModal}>
                   Close
                 </button>

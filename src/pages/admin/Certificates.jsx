@@ -357,17 +357,37 @@ export default function Certificates() {
   }
 
   // Fetch all participants (as requested: "that are showing in participants")
-  const eligibleStudents = students
+  // Flatten unique students by each event they participated in for participation certificates
+  const allParticipationEntries = useMemo(() => {
+    const list = []
+    ;(students || []).forEach((s) => {
+      const allEvIds = Array.isArray(s.event_ids) && s.event_ids.length > 0
+        ? s.event_ids
+        : s.event_id ? [s.event_id] : []
 
-  const filteredParticipation = eligibleStudents.filter((s) => {
-    const nameMatch = s.student_name.toLowerCase().includes(searchQuery.toLowerCase())
-    const eventName = events.find((e) => e.id === s.event_id)?.event_name || ''
-    const eventMatch = eventName.toLowerCase().includes(searchQuery.toLowerCase())
-    const col = colleges.find((c) => c.id === s.college_id)
-    const collegeName = col ? (col.department ? `${col.college} (${col.department})` : col.college) : ''
-    const collegeMatch = collegeName.toLowerCase().includes(searchQuery.toLowerCase())
-    return nameMatch || eventMatch || collegeMatch
-  })
+      allEvIds.forEach((evId) => {
+        const evObj = (events || []).find((e) => e.id === evId)
+        list.push({
+          ...s,
+          event_id: evId,
+          display_event_name: evObj?.event_name || '—'
+        })
+      })
+    })
+    return list
+  }, [students, events])
+
+  const filteredParticipation = useMemo(() => {
+    return allParticipationEntries.filter((s) => {
+      const q = searchQuery.toLowerCase()
+      const nameMatch = (s.student_name || '').toLowerCase().includes(q)
+      const eventMatch = (s.display_event_name || '').toLowerCase().includes(q)
+      const col = (colleges || []).find((c) => c.id === s.college_id)
+      const collegeName = col ? (col.department ? `${col.college} (${col.department})` : col.college) : ''
+      const collegeMatch = collegeName.toLowerCase().includes(q)
+      return nameMatch || eventMatch || collegeMatch
+    })
+  }, [allParticipationEntries, searchQuery, colleges])
 
   // Winners: build from the winners table (first_place / second_place = lot name)
   const winnerRows = []
@@ -387,12 +407,12 @@ export default function Certificates() {
       const college = colleges.find((c) => (c.department ? `${c.college} (${c.department})` : c.college) === collegeName)
       if (!college) return
       
-      const collegeStudents = eligibleStudents.filter(
-        (s) => s.college_id === college.id && s.event_id === w.event_id
+      const collegeStudents = (students || []).filter(
+        (s) => s.college_id === college.id && (s.event_id === w.event_id || (Array.isArray(s.event_ids) && s.event_ids.includes(w.event_id)))
       )
       
       collegeStudents.forEach((s) => {
-        winnerRows.push({ ...s, winnerPlace: place, winnerEventName: eventName, winnerCollegeName: collegeName })
+        winnerRows.push({ ...s, event_id: w.event_id, winnerPlace: place, winnerEventName: eventName, winnerCollegeName: collegeName })
       })
     })
   })
@@ -476,7 +496,7 @@ export default function Certificates() {
 
       const sName = student.student_name || ''
       const cName = student.winnerCollegeName || getCollegeName(student.college_id) || ''
-      const eName = student.winnerEventName || getEventName(student.event_id) || ''
+      const eName = student.winnerEventName || student.display_event_name || getEventName(student.event_id) || ''
       const placeVal = student.winnerPlace || ''
 
       const drawElement = async (elemKey, value) => {
@@ -526,7 +546,7 @@ export default function Certificates() {
         .update({ certificate_status: 'issued' })
         .eq('id', student.id)
 
-      alert(`Participation certificate issued successfully for ${student.student_name}!`)
+      alert(`Participation certificate issued successfully for ${student.student_name} (${student.display_event_name || getEventName(student.event_id)})!`)
     } catch (err) {
       alert(err.message || 'Failed to issue participation certificate.')
     }
@@ -696,7 +716,7 @@ export default function Certificates() {
   async function issueAll() {
     if (activeTab === 'participation') {
       const unissued = filteredParticipation.filter(
-        (s) => !certificates.some((c) => c.student_id === s.id && c.position === 'Participation')
+        (s) => !certificates.some((c) => c.student_id === s.id && c.event_id === s.event_id && c.position === 'Participation')
       )
       if (unissued.length === 0) {
         alert('All eligible participants have already been issued certificates!')
@@ -1279,14 +1299,14 @@ export default function Certificates() {
               </thead>
               <tbody>
                 {paginatedParticipation.map((s) => {
-                  const isIssued = s.certificate_status === 'issued' || certificates.some(
-                    (c) => c.student_id === s.id && c.position === 'Participation'
+                  const isIssued = certificates.some(
+                    (c) => c.student_id === s.id && c.event_id === s.event_id && (c.position === 'Participation' || !c.position)
                   )
                   return (
-                    <tr key={s.id}>
+                    <tr key={`${s.id}-${s.event_id}`}>
                       <td>{s.student_name}</td>
                       <td>{getCollegeName(s.college_id)}</td>
-                      <td>{getEventName(s.event_id)}</td>
+                      <td>{s.display_event_name || getEventName(s.event_id)}</td>
                       <td>
                         <span className={isIssued ? 'success' : 'muted'}>
                           {isIssued ? '✓ Issued' : 'Not Issued'}
